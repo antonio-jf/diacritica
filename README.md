@@ -31,7 +31,7 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 - **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py` and `pipeline/test_literary.py`.
 - **Android:** JVM unit tests (`./gradlew testDebugUnitTest`), a debug APK build (downloadable from the run's artifacts) and a check that the Room schema JSON is committed.
-- **Lint:** `./gradlew lintDebug`, report-only for now (the HTML report is attached to the run).
+- **Lint:** `./gradlew lintDebug` fails on errors; warnings are listed in the HTML report attached to the run.
 
 The repository ships the ~15-word starter dictionary at `app/src/main/assets/dict/dictionary.db`. The full dictionary (~240 MB, over GitHub's file limit) is built locally with `pipeline/build_dictionary.py`; after building it, run `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` so git leaves it alone.
 

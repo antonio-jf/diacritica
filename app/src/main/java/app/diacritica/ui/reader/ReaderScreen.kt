@@ -49,7 +49,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -607,9 +606,8 @@ private fun ZhSentence(
     val haptics = LocalHapticFeedback.current
     val tap by rememberUpdatedState(onTap)
     val word by rememberUpdatedState(onWord)
-    val tokens by produceState(initialValue = emptyList<app.diacritica.data.DictionaryRepository.ZhToken>(), text) {
-        value = env.vm.zhTokens(text)
-    }
+    var tokens by remember(text) { mutableStateOf(emptyList<app.diacritica.data.DictionaryRepository.ZhToken>()) }
+    LaunchedEffect(text) { tokens = env.vm.zhTokens(text) }
     if (tokens.isEmpty()) {
         Text(text, style = style, modifier = modifier.pointerInput(text) { detectTapGestures(onTap = { tap() }) })
         return

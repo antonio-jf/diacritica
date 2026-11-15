@@ -75,11 +75,10 @@ jobs:
           retention-days: 14
 
   lint:
-    name: Android lint (report)
+    name: Android lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Report-only until a lint baseline is committed; see the uploaded HTML report.
-    continue-on-error: true
+    # Fails on lint errors; warnings are listed in the uploaded HTML report.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

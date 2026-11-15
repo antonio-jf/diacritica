@@ -136,7 +136,7 @@ class DictionaryDatabase(private val context: Context) {
                 val w = simp?.first ?: split.simplified
                 d.execSQL(
                     "UPDATE translation SET word = ?, norm = ?, roman = COALESCE(roman, ?) WHERE rowid = ?",
-                    arrayOf(w, TextNorm.normalize(w), simp?.second, rowid),
+                    arrayOf<Any?>(w, TextNorm.normalize(w), simp?.second, rowid),
                 )
             }
             d.execSQL("INSERT OR REPLACE INTO meta (key, value) VALUES ('zh_clean', '1')")
