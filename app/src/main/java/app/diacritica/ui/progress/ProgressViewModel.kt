@@ -9,6 +9,8 @@ import app.diacritica.progress.LangAccuracy
 import app.diacritica.progress.ProgressStats
 import app.diacritica.progress.ReviewSummary
 import app.diacritica.rehearse.LangFeedback
+import app.diacritica.tests.AttemptStatus
+import app.diacritica.tests.TestScoring
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ data class ProgressUiState(
     val loading: Boolean = true,
     val range: ProgressRange = ProgressRange.MONTH,
     val rounds: Int = 0,
+    /** Reviewed tests in the period. */
+    val tests: Int = 0,
     val accuracy: List<LangAccuracy> = emptyList(),
     val errors: List<ErrorCount> = emptyList(),
     val review: ReviewSummary = ReviewSummary(0, 0, emptyMap()),
@@ -61,6 +65,13 @@ class ProgressViewModel(private val c: AppContainer) : ViewModel() {
                 val feedback = rounds.flatMap { r ->
                     runCatching { json.decodeFromString(ListSerializer(LangFeedback.serializer()), r.feedbackJson) }.getOrDefault(emptyList())
                 }
+                // Reviewed tests count towards accuracy and mistake types like Rehearse rounds.
+                c.tests.load()
+                val testFeedback = c.tests.attempts.value
+                    .filter { it.status == AttemptStatus.REVIEWED && (it.submittedAt ?: 0L) >= since }
+                    .flatMap { a -> a.review?.let { TestScoring.asFeedback(it) }.orEmpty() }
+                val testCount = c.tests.attempts.value.count { it.status == AttemptStatus.REVIEWED && (it.submittedAt ?: 0L) >= since }
+                val allFeedback = feedback + testFeedback
                 val review = ProgressStats.reviews(db.cards().reviewEvents(since))
 
                 // Reading: progress in stories opened in the range, counted in your current Reader pair.
@@ -78,8 +89,9 @@ class ProgressViewModel(private val c: AppContainer) : ViewModel() {
                 ProgressUiState(
                     loading = false, range = range,
                     rounds = rounds.size,
-                    accuracy = ProgressStats.accuracy(feedback, s.activeLanguages),
-                    errors = ProgressStats.errorTypes(feedback),
+                    tests = testCount,
+                    accuracy = ProgressStats.accuracy(allFeedback, s.activeLanguages),
+                    errors = ProgressStats.errorTypes(allFeedback),
                     review = review,
                     matureCards = db.cards().matureCount(),
                     lookups = db.history().since(since).size,

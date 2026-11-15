@@ -525,7 +525,7 @@ private object RuleCheckerBridge {
 
 /** Your answer with removed words struck through and added words highlighted. */
 @Composable
-private fun diffText(answer: String, corrected: String): AnnotatedString {
+internal fun diffText(answer: String, corrected: String): AnnotatedString {
     val c = Diacritica.colors
     val joiner = if (app.diacritica.data.TextNorm.containsHan(corrected)) "" else " "
     return buildAnnotatedString {

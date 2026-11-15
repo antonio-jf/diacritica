@@ -136,6 +136,20 @@ python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/cor
 
 English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
+## Tests
+
+Eleven bundled tests of 8 sentences each, from A2 (HSK 2) to B2: everyday basics, past tenses, the subjunctive, if-clauses, object pronouns, prepositions and German cases, word order, comparisons and relative clauses, work emails, Mandarin 了/过/measure words, and travel. Read the sentences in English or Spanish and translate them into any of your languages (by default the ones you're learning).
+
+- Answers are saved as you type; leave and come back to an unfinished test any time.
+- **Send for review:** Gemini (your key) marks every answer out of 100 with corrections and explanations, writes a short summary, and adds 1–4 grammar lessons aimed at your recurring mistakes, each with examples and two practice sentences. *Practise as a mini test* turns those into a follow-up test.
+- Without a key or internet the attempt waits as *Waiting for review*; send it later.
+- Reviewed tests count in Progress (accuracy per language and mistakes by type) and are included in backups.
+- The tests live in `app/src/main/assets/tests/tests.json`; add your own sets there.
+
+## Chinese handwriting
+
+A writing square (with 田字格 guide lines) for Mandarin characters, in the Dictionary search bar, in Translate and in Mandarin test answers. Candidates appear as you write; tap one to insert it. Recognition runs on the phone with ML Kit Digital Ink; the model (about 20 MB) downloads once, the first time you write.
+
 ## Word details
 
 - **False friends:** look-alike words that mean something else in another of your languages get a warning, e.g. ES *embarazada* ≠ EN *embarrassed*. It shows on dictionary results, on a word's page and in the Reader's word popup, with what each word means and how to say it instead. The list (about 100 hand-checked pairs across EN, ES, FR, DE and IT) is `app/src/main/assets/falsefriends/false_friends.json`; add pairs there.

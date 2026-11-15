@@ -277,6 +277,10 @@ class GeminiClient {
 
     private fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.contentOrNull
 
+    /** One request with a JSON response [schema], for features that build their own prompt (Tests). */
+    suspend fun generateJson(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
+        call(apiKey, model, userText, schema, system)
+
     /** Calls generateContent; on "model not found" tries the fallback models. */
     private suspend fun call(apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM): JsonObject {
         if (apiKey.isBlank()) throw GeminiException("No Gemini API key set.")

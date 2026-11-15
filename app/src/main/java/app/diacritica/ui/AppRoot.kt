@@ -73,6 +73,7 @@ fun AppRoot(
     translateVm: app.diacritica.ui.translate.TranslateViewModel,
     progressVm: app.diacritica.ui.progress.ProgressViewModel,
     packsVm: app.diacritica.ui.packs.DataPacksViewModel,
+    testsVm: app.diacritica.ui.tests.TestsViewModel,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -114,6 +115,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.SETTINGS -> nav.navigate("settings")
                                     app.diacritica.ui.home.HomeSection.TRANSLATE -> nav.navigate("translate")
                                     app.diacritica.ui.home.HomeSection.PROGRESS -> nav.navigate("progress")
+                                    app.diacritica.ui.home.HomeSection.TESTS -> nav.navigate("tests")
                                 }
                             },
                         )
@@ -154,6 +156,9 @@ fun AppRoot(
                     }
                     composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }) }
                     composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
+                    composable("tests") {
+                        app.diacritica.ui.tests.TestsScreen(testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") })
+                    }
                     composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
                         app.diacritica.ui.translate.TranslateScreen(
@@ -179,7 +184,7 @@ fun AppRoot(
             val current = Tab.entries.firstOrNull { route == it.route } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY
                 route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" -> Tab.HOME
+                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" || route == "tests" -> Tab.HOME
                 else -> null
             }
             BottomNav(current = current) {

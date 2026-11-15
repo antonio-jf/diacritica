@@ -69,6 +69,7 @@ dependencies {
     // On-device translation (Translate section); models download per language on first use.
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
+    implementation(libs.mlkit.digital.ink)
     implementation(libs.kotlinx.coroutines.play.services)
     debugImplementation(libs.androidx.compose.ui.tooling)
 

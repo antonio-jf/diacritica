@@ -22,6 +22,7 @@ import java.util.zip.ZipOutputStream
  *  - user.db: history, saved words, Review cards and logs, Rehearse archive, stories
  *  - settings.preferences_pb: every setting, including the Gemini key
  *  - fetched.jsonl: words downloaded from Wiktionary (re-applied to the dictionary on restore)
+ *  - tests.json: Tests attempts, reviews and lessons
  * The dictionary itself is not included: it ships with the app.
  *
  * File names inside the app (user.db, settings, dict/fetched.jsonl) never change between versions,
@@ -34,6 +35,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
     private val settingsFile get() = File(context.filesDir, "datastore/settings.preferences_pb")
     private val dictDir get() = File(context.filesDir, "dict")
     private val fetchedFile get() = File(dictDir, "fetched.jsonl")
+    private val testsFile get() = File(context.filesDir, "tests/attempts.json")
 
     /** Writes the backup to [uri]. Returns a short summary for the user. */
     suspend fun export(uri: Uri): String = withContext(Dispatchers.IO) {
@@ -49,7 +51,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
                 put("dbVersion", userDb.openHelper.readableDatabase.version)
             }
             zip.putNextEntry(ZipEntry(MANIFEST)); zip.write(manifest.toString().toByteArray()); zip.closeEntry()
-            for ((name, file) in listOf(DB_ENTRY to dbFile, SETTINGS_ENTRY to settingsFile, FETCHED_ENTRY to fetchedFile)) {
+            for ((name, file) in listOf(DB_ENTRY to dbFile, SETTINGS_ENTRY to settingsFile, FETCHED_ENTRY to fetchedFile, TESTS_ENTRY to testsFile)) {
                 if (!file.exists()) continue
                 zip.putNextEntry(ZipEntry(name))
                 file.inputStream().use { bytes += it.copyTo(zip) }
@@ -72,7 +74,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
                 val e = zip.nextEntry ?: break
                 when (e.name) {
                     MANIFEST -> manifest = runCatching { Json.parseToJsonElement(zip.readBytes().decodeToString()) as JsonObject }.getOrNull()
-                    DB_ENTRY, SETTINGS_ENTRY, FETCHED_ENTRY -> File(tmp, e.name).outputStream().use { zip.copyTo(it) }
+                    DB_ENTRY, SETTINGS_ENTRY, FETCHED_ENTRY, TESTS_ENTRY -> File(tmp, e.name).outputStream().use { zip.copyTo(it) }
                 }
             }
         }
@@ -96,6 +98,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
             // Forget which dictionary file is installed, so the next start re-installs it and replays the downloads.
             File(dictDir, "source.txt").delete()
         }
+        File(tmp, TESTS_ENTRY).takeIf { it.exists() }?.let { testsFile.parentFile?.mkdirs(); it.copyTo(testsFile, overwrite = true) }
         tmp.deleteRecursively()
         restart()
         null
@@ -116,5 +119,6 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
         private const val DB_ENTRY = "user.db"
         private const val SETTINGS_ENTRY = "settings.preferences_pb"
         private const val FETCHED_ENTRY = "fetched.jsonl"
+        private const val TESTS_ENTRY = "tests.json"
     }
 }

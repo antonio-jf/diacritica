@@ -7,6 +7,7 @@ import android.app.Application
 import app.diacritica.data.DictionaryDatabase
 import app.diacritica.data.DictionaryRepository
 import app.diacritica.data.FalseFriendIndex
+import app.diacritica.tests.TestStore
 import app.diacritica.data.online.OnlineLookup
 import app.diacritica.rehearse.GeminiClient
 import app.diacritica.rehearse.SentenceRepository
@@ -34,6 +35,7 @@ class AppContainer(app: Application) {
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
     val backup = BackupManager(app, userDb)
+    val tests = TestStore(app)
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
 }
 
