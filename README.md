@@ -136,6 +136,16 @@ python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/cor
 
 English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
+## Translate
+
+Home › Translate turns a sentence or paragraph (up to 5,000 characters) into all your active languages at once.
+
+- **From:** detect the language automatically (ML Kit language ID; Chinese characters are always Mandarin) or pick it.
+- **On-device** (default): ML Kit translation on the phone. Each language's model downloads once (about 30 MB) and then works offline.
+- **Gemini:** more natural translations, online with your key. Without a key or internet it falls back to on-device.
+- Each result can be read aloud, copied, added to Review (your text on the front), used as the new source ("Translate from here"), or, for a single word, opened in the Dictionary. Mandarin results show pinyin.
+- Selecting text in another app and choosing *Look up in Diacritica* opens a word in the Dictionary and longer text in Translate.
+
 ## Reader (v2)
 
 Parallel stories, aligned sentence by sentence in all six languages. Bottom tab **Reader**; Settings now lives behind the gear in **Library**.
@@ -240,6 +250,7 @@ spacing come from `Diacritica.*` tokens, so the theme stays consistent across ev
 The app's code is under the MIT License (see `LICENSE`). Data sources keep their own licenses:
 
 - Dictionary data: Wiktionary via Wiktextract (CC BY-SA 4.0), CC-CEDICT (CC BY-SA 4.0).
+- On-device translation: Google ML Kit (Translate, Language ID), under Google's ML Kit terms.
 - Rehearse sentences: Tatoeba (CC BY 2.0 FR); built locally from OPUS: Global Voices (CC BY 3.0), Europarl, Wikimedia translations (CC BY-SA). Cite J. Tiedemann, 2012, *Parallel Data, Tools and Interfaces in OPUS*, LREC 2012.
 - Fonts (SIL Open Font License 1.1): Inter, Source Serif 4, Plus Jakarta Sans, IBM Plex Sans/Mono,
   Space Grotesk. Bundled as Latin + Latin Extended subsets. Chinese uses the phone's system font.

@@ -37,6 +37,8 @@ object PolyIcons {
     val Layout = stroke("layout", "M4 5h16", "M4 12h16", "M4 19h16")
     val Cards = stroke("cards", "M5 4h14a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V6a2 2 0 0 1 2 -2z",
         "M5 14h14a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2v-2a2 2 0 0 1 2 -2z")
+    val Copy = stroke("copy", "M9 9h10v11H9z", "M15 9V5H5v11h4")
+    val Translate = stroke("translate", "M4 6h9", "M8.5 4v2", "M6 6c1 3 3 5 6 6", "M11 6c-1 3-3 5-6 7", "M13 20l4-9 4 9", "M14.5 17h5")
     val Home = stroke("home", "M4 11l8-7 8 7", "M6 9.5V20h12V9.5", "M10 20v-6h4v6")
     val Book = stroke("book", "M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1 -3 -3z", "M5 17a3 3 0 0 1 3 -3h10")
     val Library = stroke("library", "M5 4v16", "M10 4v16", "M15 4l4 16")

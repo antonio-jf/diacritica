@@ -70,6 +70,7 @@ fun AppRoot(
     rehearseVm: app.diacritica.ui.rehearse.RehearseViewModel,
     readerVm: app.diacritica.ui.reader.ReaderViewModel,
     homeVm: app.diacritica.ui.home.HomeViewModel,
+    translateVm: app.diacritica.ui.translate.TranslateViewModel,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -80,14 +81,19 @@ fun AppRoot(
         return
     }
 
-    LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) dictVm.lookUp(sharedText.trim(), null) }
+    // Text selected in another app: a word or short phrase goes to the Dictionary, anything longer to Translate.
+    val sharedIsPhrase = sharedText?.trim()?.split(Regex("\\s+"))?.let { it.size > 3 } == true || (sharedText?.length ?: 0) > 40
+    LaunchedEffect(sharedText) {
+        if (sharedText.isNullOrBlank()) return@LaunchedEffect
+        if (sharedIsPhrase) translateVm.start(sharedText.trim()) else dictVm.lookUp(sharedText.trim(), null)
+    }
 
     DiacriticaTheme(s) {
         val nav = rememberNavController()
         val back by nav.currentBackStackEntryAsState()
         val route = back?.destination?.route
         // A word shared from another app opens straight in the Dictionary (Home is the start page).
-        LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) nav.goTo(Tab.DICTIONARY) }
+        LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) { if (sharedIsPhrase) nav.navigate("translate") else nav.goTo(Tab.DICTIONARY) } }
         Column(Modifier.fillMaxSize().background(Diacritica.colors.ground).statusBarsPadding()) {
             Box(Modifier.weight(1f).imePadding()) {
                 NavHost(nav, startDestination = Tab.HOME.route) {
@@ -104,6 +110,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.REVIEW -> nav.goTo(Tab.REVIEW)
                                     app.diacritica.ui.home.HomeSection.LIBRARY -> nav.navigate("library")
                                     app.diacritica.ui.home.HomeSection.SETTINGS -> nav.navigate("settings")
+                                    app.diacritica.ui.home.HomeSection.TRANSLATE -> nav.navigate("translate")
                                 }
                             },
                         )
@@ -141,6 +148,12 @@ fun AppRoot(
                         }
                     }
                     composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }) }
+                    composable("translate") {
+                        app.diacritica.ui.translate.TranslateScreen(
+                            translateVm, s, onBack = { nav.popBackStack() },
+                            onLookUp = { w, l -> dictVm.lookUp(w, l); nav.goTo(Tab.DICTIONARY) },
+                        )
+                    }
                     composable("appearance") { app.diacritica.ui.settings.AppearanceScreen(settingsVm, s, onBack = { nav.popBackStack() }) }
                     composable(
                         "detail/{lang}/{word}",
@@ -159,7 +172,7 @@ fun AppRoot(
             val current = Tab.entries.firstOrNull { route == it.route } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY
                 route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" -> Tab.HOME
+                route == "settings" || route == "appearance" || route == "library" || route == "translate" -> Tab.HOME
                 else -> null
             }
             BottomNav(current = current) {

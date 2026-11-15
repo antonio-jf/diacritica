@@ -165,8 +165,8 @@ class GeminiClient {
     /** Writes reference translations for languages Tatoeba doesn't cover. */
     suspend fun translate(apiKey: String, model: String, source: Lang, text: String, targets: List<Lang>): Map<Lang, String> {
         val user = buildString {
-            appendLine("Translate this ${source.englishName} sentence naturally and accurately, in a neutral register.")
-            appendLine("Sentence: $text")
+            appendLine("Translate this ${source.englishName} text naturally and accurately, in a neutral register. Keep line breaks.")
+            appendLine("Text: $text")
             appendLine("Target lang codes: " + targets.joinToString(", ") { "${it.code} (${it.englishName}${if (it == Lang.ZH) ", simplified characters" else ""})" })
             append("For Spanish use neutral Latin American or Peninsular Spanish consistently; for Mandarin keep it simple (HSK 1–3 vocabulary where possible).")
         }

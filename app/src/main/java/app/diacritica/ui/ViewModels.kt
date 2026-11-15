@@ -305,4 +305,5 @@ fun appViewModelFactory(c: AppContainer): ViewModelProvider.Factory = viewModelF
     initializer { app.diacritica.ui.rehearse.RehearseViewModel(c) }
     initializer { app.diacritica.ui.reader.ReaderViewModel(c) }
     initializer { app.diacritica.ui.home.HomeViewModel(c) }
+    initializer { app.diacritica.ui.translate.TranslateViewModel(c) }
 }

@@ -60,7 +60,7 @@ import java.util.Calendar
 import java.util.Date
 
 /** The parts of the app Home links to. */
-enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS }
+enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE }
 
 @Composable
 fun HomeScreen(
@@ -160,6 +160,11 @@ fun HomeScreen(
                     style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
+            }
+
+            // ------------------------------------------------ Translate
+            SectionCard(PolyIcons.Translate, "Translate", onClick = { onOpen(HomeSection.TRANSLATE) }) {
+                Text("Paste a sentence or a paragraph and get it in all your languages at once. Works offline.", style = bodyStyle())
             }
 
             // ------------------------------------------------ Library

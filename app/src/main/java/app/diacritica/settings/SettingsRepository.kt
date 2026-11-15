@@ -48,6 +48,9 @@ enum class RehearsePath(val label: String, val blurb: String, val online: Boolea
     IDIOMS("Idioms & sayings", "A common idiom or saying and its natural equivalents", online = true),
 }
 
+/** Translate section: ML Kit on the phone (offline after a one-time model download) or Gemini (online). */
+enum class TranslateEngine(val label: String) { ON_DEVICE("On-device"), GEMINI("Gemini") }
+
 /** "theme" = the theme's own accent, "alt1"/"alt2" = alternatives, "dynamic" = Material You. */
 enum class AccentChoice(val label: String) { THEME("Theme default"), ALT1("Alternative 1"), ALT2("Alternative 2"), DYNAMIC("From wallpaper") }
 
@@ -85,6 +88,7 @@ data class AppSettings(
     val rehearsePath: RehearsePath = RehearsePath.EVERYDAY,
     /** Grammar focus path: the structure to practise (a key of GrammarTopics). */
     val grammarFocus: String = "mixed",
+    val translateEngine: TranslateEngine = TranslateEngine.ON_DEVICE,
     /** Languages to translate into in Rehearse (empty = all active languages). */
     val rehearseLangs: Set<Lang> = emptySet(),
     // Reader
@@ -131,6 +135,7 @@ class SettingsRepository(private val context: Context) {
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
         val rehearsePath = stringPreferencesKey("rehearse_path")
         val grammarFocus = stringPreferencesKey("grammar_focus")
+        val translateEngine = stringPreferencesKey("translate_engine")
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
         val readerLayout = stringPreferencesKey("layout_reader")
@@ -172,6 +177,7 @@ class SettingsRepository(private val context: Context) {
             rehearsePath = p[K.rehearsePath]?.let { enumOr(it, d.rehearsePath) }
                 ?: if (p[K.rehearseMyWords] == true) RehearsePath.MY_WORDS else d.rehearsePath,
             grammarFocus = p[K.grammarFocus] ?: d.grammarFocus,
+            translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
             readerLayout = enumOr(p[K.readerLayout], d.readerLayout),
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
@@ -222,6 +228,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }
     suspend fun setRehearsePath(v: RehearsePath) = context.dataStore.edit { it[K.rehearsePath] = v.name }
     suspend fun setGrammarFocus(v: String) = context.dataStore.edit { it[K.grammarFocus] = v }
+    suspend fun setTranslateEngine(v: TranslateEngine) = context.dataStore.edit { it[K.translateEngine] = v.name }
     suspend fun historySyncedAt(): Long = context.dataStore.data.map { it[K.historySyncedAt] ?: 0L }.first()
     suspend fun setHistorySyncedAt(v: Long) = context.dataStore.edit { it[K.historySyncedAt] = v }
     suspend fun setPinyinHint(v: Boolean) = context.dataStore.edit { it[K.pinyinHint] = v }
