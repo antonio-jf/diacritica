@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** The word popup: what was long-pressed and what the dictionary says about it. */
+/** A pressed word's position in window pixels: horizontal centre, line top and line bottom. */
+data class WordAnchor(val x: Float, val top: Float, val bottom: Float)
+
 data class WordPopup(
     val lang: Lang,
     val token: String,
@@ -28,6 +31,10 @@ data class WordPopup(
     val loading: Boolean = true,
     val result: LookupResult? = null,
     val fetching: Boolean = false,
+    /** Where the word is on screen (window coordinates), for the Tooltip style. */
+    val anchor: WordAnchor? = null,
+    /** Tooltip opened into the full sheet ("More"). */
+    val expanded: Boolean = false,
 )
 
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
@@ -88,10 +95,10 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         zhCache[text] ?: runCatching { c.dictionary.segmentZh(text) }.getOrDefault(emptyList()).also { zhCache[text] = it }
 
     /** Long-press on a word: look it up (offline first; downloads it if missing and allowed). */
-    fun lookUpWord(lang: Lang, rawToken: String, sentenceIdx: Int, otherLang: Lang) {
+    fun lookUpWord(lang: Lang, rawToken: String, sentenceIdx: Int, otherLang: Lang, anchor: WordAnchor? = null) {
         val token = rawToken.trim().trim('\'', '’', '-', '«', '»', '“', '”', '„', '"', '—')
         if (token.isEmpty()) return
-        _state.update { it.copy(popup = WordPopup(lang, token, sentenceIdx), highlighted = sentenceIdx) }
+        _state.update { it.copy(popup = WordPopup(lang, token, sentenceIdx, anchor = anchor), highlighted = sentenceIdx) }
         viewModelScope.launch {
             val s = c.settings.settings.first()
             val langs = listOf(lang, otherLang, Lang.EN).distinct()
@@ -113,6 +120,11 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun dismissPopup() = _state.update { it.copy(popup = null) }
+
+    /** Tooltip → full sheet. */
+    fun expandPopup() = _state.update { st -> st.copy(popup = st.popup?.copy(expanded = true)) }
+
+    fun setPopupLayout(l: app.diacritica.settings.PopupLayout) { viewModelScope.launch { c.settings.setReaderPopup(l) } }
 
     fun speak(lang: Lang, text: String, slow: Boolean = false) {
         viewModelScope.launch { c.speaker.speak(text, lang, c.settings.settings.first().speechRate, slow) }

@@ -94,11 +94,18 @@ fun DictionaryScreen(
     LazyColumn(Modifier.fillMaxSize()) {
         item("header") {
             ScreenHeader("Dictionary") {
-                val next = if (settings.dictionaryLayout == DictionaryLayout.LIST) DictionaryLayout.CARDS else DictionaryLayout.LIST
-                PolyIconButton(
-                    if (next == DictionaryLayout.CARDS) PolyIcons.Cards else PolyIcons.Layout,
-                    "Switch to ${next.label} layout", { onLayoutChange(next) }, tint = Diacritica.colors.inkMuted,
-                )
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    PolyIconButton(PolyIcons.Layout, "Results layout: ${settings.dictionaryLayout.label}", { menu = true }, tint = Diacritica.colors.inkMuted)
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Diacritica.colors.ground) {
+                        DictionaryLayout.entries.forEach { l ->
+                            DropdownMenuItem(
+                                text = { Text(l.label, style = bodyStyle(if (l == settings.dictionaryLayout) Diacritica.colors.accent else Diacritica.colors.ink)) },
+                                onClick = { menu = false; onLayoutChange(l) },
+                            )
+                        }
+                    }
+                }
             }
         }
         item("search") {

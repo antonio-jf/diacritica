@@ -136,6 +136,17 @@ python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/cor
 
 English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
+## Layouts
+
+Each section has its own layout (Settings › Layouts, or the layout icon in the section's top bar); the theme stays the same everywhere.
+
+| Section | Layouts |
+|---|---|
+| Dictionary results | List · Cards · Grid (two tiles per row, main word big) · Table (dense rows: language, word, grammar) |
+| Rehearse feedback | Tabs per language · Stacked cards · Score tiles (verdict and error count per language, tap for details) · Report rows (compact, corrections inline, "Why" for explanations) |
+| Reader | Top / bottom · Side by side · Interlinear · Numbered split |
+| Word popup (Reader) | Bottom sheet · Floating card (centred dialog) · Tooltip (small card next to the word; "More" opens the sheet) |
+
 ## Translate
 
 Home › Translate turns a sentence or paragraph (up to 5,000 characters) into all your active languages at once.

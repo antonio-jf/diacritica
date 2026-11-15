@@ -27,8 +27,10 @@ enum class ThemeId(val title: String, val blurb: String) {
 enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"), DARK("Dark") }
 
 /** Layouts are chosen per section; the theme is always global. */
-enum class DictionaryLayout(val label: String) { LIST("List"), CARDS("Cards") }
-enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKED("Stacked cards") }
+enum class DictionaryLayout(val label: String) { LIST("List"), CARDS("Cards"), GRID("Grid"), TABLE("Table") }
+enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKED("Stacked cards"), TILES("Score tiles"), REPORT("Report rows") }
+/** How the Reader shows a long-pressed word. */
+enum class PopupLayout(val label: String) { SHEET("Bottom sheet"), FLOATING("Floating card"), TOOLTIP("Tooltip") }
 enum class ReaderLayout(val label: String) {
     TOP_BOTTOM("Top / bottom"), SIDE_BY_SIDE("Side by side"), INTERLINEAR("Interlinear"), NUMBERED("Numbered split"),
 }
@@ -96,6 +98,7 @@ data class AppSettings(
     val readerLangA: Lang = Lang.FR,
     val readerLangB: Lang = Lang.ES,
     val readerPinyin: Boolean = true,
+    val readerPopup: PopupLayout = PopupLayout.SHEET,
     val storyLevel: String = "B1",
     val storyHsk: Int = 3,
 ) {
@@ -142,6 +145,7 @@ class SettingsRepository(private val context: Context) {
         val readerLangA = stringPreferencesKey("reader_lang_a")
         val readerLangB = stringPreferencesKey("reader_lang_b")
         val readerPinyin = booleanPreferencesKey("reader_pinyin")
+        val readerPopup = stringPreferencesKey("layout_word_popup")
         val storyLevel = stringPreferencesKey("story_level")
         val storyHsk = intPreferencesKey("story_hsk")
     }
@@ -183,6 +187,7 @@ class SettingsRepository(private val context: Context) {
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
             readerLangB = p[K.readerLangB]?.let { Lang.fromCode(it) } ?: d.readerLangB,
             readerPinyin = p[K.readerPinyin] ?: d.readerPinyin,
+            readerPopup = enumOr(p[K.readerPopup], d.readerPopup),
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
             storyHsk = p[K.storyHsk] ?: d.storyHsk,
         )
@@ -223,6 +228,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }
     suspend fun setReaderPinyin(v: Boolean) = context.dataStore.edit { it[K.readerPinyin] = v }
+    suspend fun setReaderPopup(v: PopupLayout) = context.dataStore.edit { it[K.readerPopup] = v.name }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }
@@ -233,5 +239,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setHistorySyncedAt(v: Long) = context.dataStore.edit { it[K.historySyncedAt] = v }
     suspend fun setPinyinHint(v: Boolean) = context.dataStore.edit { it[K.pinyinHint] = v }
 
-    suspend fun resetLayouts() = context.dataStore.edit { it.remove(K.dictLayout); it.remove(K.rehearseLayout); it.remove(K.readerLayout) }
+    suspend fun resetLayouts() = context.dataStore.edit {
+        it.remove(K.dictLayout); it.remove(K.rehearseLayout); it.remove(K.readerLayout); it.remove(K.readerPopup)
+    }
 }

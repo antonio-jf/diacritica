@@ -2,6 +2,9 @@ package app.diacritica.ui.rehearse
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -285,6 +288,8 @@ private fun Feedback(st: RehearseUiState, settings: AppSettings, vm: RehearseVie
     when (settings.rehearseLayout) {
         RehearseLayout.TABS -> TabsFeedback(st, vm)
         RehearseLayout.STACKED -> StackedFeedback(st, vm)
+        RehearseLayout.TILES -> TilesFeedback(st, vm)
+        RehearseLayout.REPORT -> ReportFeedback(st, vm)
     }
 }
 
@@ -324,7 +329,7 @@ private fun TabsFeedback(st: RehearseUiState, vm: RehearseViewModel) {
     }
     Hairline(Modifier.padding(horizontal = 16.dp))
     val lang = st.targets.firstOrNull { it.code == selected } ?: return
-    st.feedback[lang]?.let { FeedbackPanel(it, lang in st.addedToReview, vm::speak, { vm.addToReview(lang) }, Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) }
+    st.feedback[lang]?.let { FeedbackPanel(it, lang in st.addedToReview, vm::speak, { vm.addToReview(lang) }, Modifier.padding(horizontal = 16.dp, vertical = 12.dp), sourceLabel = sourceName(st)) }
 }
 
 /** Layout 2: all languages stacked; correct ones collapsed. */
@@ -342,9 +347,108 @@ private fun StackedFeedback(st: RehearseUiState, vm: RehearseViewModel) {
                 }
                 if (open) {
                     Gap(10.dp)
-                    FeedbackPanel(f, l in st.addedToReview, vm::speak, { vm.addToReview(l) }, Modifier, showAnswerLine = false)
+                    FeedbackPanel(f, l in st.addedToReview, vm::speak, { vm.addToReview(l) }, Modifier, showAnswerLine = false, sourceLabel = sourceName(st))
                 }
             }
+        }
+    }
+}
+
+/** Short source name for reference labels ("Tatoeba", "Europarl", "a Reader story"…). */
+private fun sourceName(st: RehearseUiState): String = when {
+    st.source.startsWith("From “") -> "the story"
+    st.source == "Weak spot" -> "earlier round"
+    else -> st.source.substringBefore(" (")
+}
+
+/** Layout 3: a tile per language with its verdict and number of errors; the chosen tile opens below. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TilesFeedback(st: RehearseUiState, vm: RehearseViewModel) {
+    val c = Diacritica.colors
+    var selected by rememberSaveable(st.group?.id) {
+        mutableStateOf(st.targets.firstOrNull { st.feedback[it]?.verdict == Verdict.INCORRECT }?.code ?: st.targets.firstOrNull()?.code)
+    }
+    FlowRow(
+        Modifier.padding(horizontal = 16.dp), maxItemsInEachRow = 3,
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        st.targets.forEach { l ->
+            val f = st.feedback[l] ?: return@forEach
+            val on = selected == l.code
+            val shape = RoundedCornerShape(Diacritica.shapes.card.coerceAtMost(14.dp))
+            Column(
+                Modifier.weight(1f).clip(shape)
+                    .background(if (on) c.accentSoft else c.surface)
+                    .border(if (on) 2.dp else 1.dp, if (on) c.accent else c.line, shape)
+                    .clickable(role = Role.Tab) { selected = l.code }
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                LangBadge(l)
+                Text(verdictMark(f.verdict), style = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = verdictColor(f.verdict)))
+                Text(
+                    if (f.errors.isEmpty()) verdictLabel(f.verdict) else "${f.errors.size} " + if (f.errors.size == 1) "error" else "errors",
+                    style = captionStyle(), maxLines = 1,
+                )
+            }
+        }
+    }
+    val lang = st.targets.firstOrNull { it.code == selected } ?: return
+    st.feedback[lang]?.let {
+        PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), padding = PaddingValues(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LangBadge(lang, boxed = true)
+                Text(lang.nativeName, style = captionStyle(c.ink))
+            }
+            Gap(8.dp)
+            FeedbackPanel(it, lang in st.addedToReview, vm::speak, { vm.addToReview(lang) }, Modifier, sourceLabel = sourceName(st))
+        }
+    }
+}
+
+/** Layout 4: a compact report, one row per language (answer with corrections, errors in one line each); "Why" opens the explanations. */
+@Composable
+private fun ReportFeedback(st: RehearseUiState, vm: RehearseViewModel) {
+    val c = Diacritica.colors
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Hairline(heavy = true)
+        st.targets.forEach { l ->
+            val f = st.feedback[l] ?: return@forEach
+            var open by rememberSaveable(st.group?.id, l) { mutableStateOf(false) }
+            Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LangBadge(l)
+                    Text("${verdictMark(f.verdict)} ${verdictLabel(f.verdict)}", style = captionStyle(verdictColor(f.verdict)), modifier = Modifier.weight(1f))
+                    if (f.errors.isNotEmpty()) Text(f.errors.map { it.type.replace('-', ' ') }.distinct().joinToString(" · "), style = captionStyle(), maxLines = 1)
+                }
+                val corrected = f.corrected?.let { plain(it) }
+                Text(
+                    if (corrected != null && RuleCheckerBridge.differs(f.answer, corrected)) diffText(f.answer, corrected) else AnnotatedString(f.answer.ifBlank { "—" }),
+                    style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 16.sp, color = c.ink, lineHeight = 22.sp),
+                )
+                f.errors.forEach { e ->
+                    if (e.wrong.isNotBlank() || e.right.isNotBlank()) Text(buildAnnotatedString {
+                        withStyle(SpanStyle(color = c.error, textDecoration = TextDecoration.LineThrough)) { append(plain(e.wrong)) }
+                        append(" → ")
+                        withStyle(SpanStyle(color = c.success, fontWeight = FontWeight.SemiBold)) { append(plain(e.right)) }
+                    }, style = captionStyle(c.ink))
+                }
+                if (f.reference != null && f.verdict != Verdict.CORRECT) {
+                    Text("Ref.: ${f.reference}", style = captionStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (f.errors.isNotEmpty() || f.alternatives.isNotEmpty() || f.note != null) {
+                        Text(if (open) "Hide" else "Why", style = captionStyle(c.accent),
+                            modifier = Modifier.clickable(role = Role.Button) { open = !open }.padding(vertical = 6.dp))
+                    }
+                    if (l in st.addedToReview) Text("Added to Review", style = captionStyle(c.success), modifier = Modifier.padding(vertical = 6.dp))
+                    else Text("+ Review", style = captionStyle(c.accent), modifier = Modifier.clickable(role = Role.Button) { vm.addToReview(l) }.padding(vertical = 6.dp))
+                }
+                if (open) FeedbackPanel(f, l in st.addedToReview, vm::speak, { vm.addToReview(l) }, Modifier.padding(top = 4.dp), showAnswerLine = false, sourceLabel = sourceName(st))
+            }
+            Hairline()
         }
     }
 }
@@ -357,6 +461,8 @@ internal fun FeedbackPanel(
     onAddToReview: () -> Unit,
     modifier: Modifier,
     showAnswerLine: Boolean = true,
+    /** Where human references come from, e.g. "Tatoeba" or "Europarl". */
+    sourceLabel: String = "Tatoeba",
 ) {
     val c = Diacritica.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -396,7 +502,7 @@ internal fun FeedbackPanel(
             }
         }
         f.reference?.let { r ->
-            SectionLabel(if (f.referenceGenerated) "Reference (written by Gemini)" else "Reference (Tatoeba)")
+            SectionLabel(if (f.referenceGenerated) "Reference (written by Gemini)" else "Reference ($sourceLabel)")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(r, style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f))
                 PolyIconButton(PolyIcons.Speaker, "Play reference", { onSpeak(f.lang, r) })

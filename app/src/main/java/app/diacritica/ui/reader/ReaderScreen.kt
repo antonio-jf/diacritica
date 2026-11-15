@@ -56,6 +56,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.diacritica.settings.PopupLayout
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.Dialog
+import androidx.compose.runtime.key
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -334,6 +349,13 @@ private fun StoryView(vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory
                             onClick = { layoutMenu = false; vm.setLayout(l) },
                         )
                     }
+                    Text("Word popup", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
+                    PopupLayout.entries.forEach { l ->
+                        DropdownMenuItem(
+                            text = { Text(l.label, style = bodyStyle(if (l == settings.readerPopup) c.accent else c.ink)) },
+                            onClick = { layoutMenu = false; vm.setPopupLayout(l) },
+                        )
+                    }
                 }
             }
         }
@@ -380,9 +402,34 @@ private fun StoryView(vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory
     }
 
     st.popup?.let { p ->
-        val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = vm::dismissPopup, sheetState = sheet, containerColor = c.ground) {
-            WordSheet(vm, p, env, onOpenWord = { l, w -> vm.dismissPopup(); onOpenWord(l, w) })
+        val open: (Lang, String) -> Unit = { l, w -> vm.dismissPopup(); onOpenWord(l, w) }
+        val style = when {
+            p.expanded -> PopupLayout.SHEET
+            settings.readerPopup == PopupLayout.TOOLTIP && p.anchor == null -> PopupLayout.FLOATING
+            else -> settings.readerPopup
+        }
+        when (style) {
+            PopupLayout.SHEET -> {
+                val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ModalBottomSheet(onDismissRequest = vm::dismissPopup, sheetState = sheet, containerColor = c.ground) {
+                    WordSheet(vm, p, env, onOpenWord = open)
+                }
+            }
+            PopupLayout.FLOATING -> Dialog(onDismissRequest = vm::dismissPopup) {
+                val shape = RoundedCornerShape(Diacritica.shapes.card.coerceAtLeast(12.dp))
+                Box(
+                    Modifier.widthIn(max = 440.dp).heightIn(max = 600.dp).clip(shape).background(c.ground)
+                        .border(1.dp, c.line, shape).padding(top = 18.dp),
+                ) { WordSheet(vm, p, env, onOpenWord = open) }
+            }
+            PopupLayout.TOOLTIP -> {
+                val gap = with(LocalDensity.current) { 6.dp.roundToPx() }
+                Popup(
+                    popupPositionProvider = AnchorPosition(p.anchor!!, gap),
+                    onDismissRequest = vm::dismissPopup,
+                    properties = PopupProperties(focusable = true),
+                ) { WordTooltip(vm, p, env) }
+            }
         }
     }
 }
@@ -533,7 +580,7 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
     )
     val mark = env.popup?.takeIf { it.sentenceIdx == idx && it.lang == lang }?.token
     val onTap = { env.vm.highlight(idx) }
-    val onWord: (String) -> Unit = { w -> env.vm.lookUpWord(lang, w, idx, env.other(lang)) }
+    val onWord: (String, WordAnchor?) -> Unit = { w, a -> env.vm.lookUpWord(lang, w, idx, env.other(lang), a) }
     if (lang == Lang.ZH) {
         ZhSentence(env, text, style, mark, onTap, onWord, modifier)
     } else {
@@ -544,8 +591,9 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
 @Composable
 private fun PlainSentence(
     text: String, lang: Lang, style: TextStyle, mark: String?,
-    onTap: () -> Unit, onWord: (String) -> Unit, modifier: Modifier,
+    onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
 ) {
+    var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val markColor = Diacritica.colors.accent.copy(alpha = 0.22f)
     val haptics = LocalHapticFeedback.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -562,14 +610,21 @@ private fun PlainSentence(
     }
     Text(
         annotated, style = style, onTextLayout = { layout = it },
-        modifier = modifier.pointerInput(text, lang) {
+        modifier = modifier.onGloballyPositioned { coords = it }.pointerInput(text, lang) {
             detectTapGestures(
                 onTap = { tap() },
                 onLongPress = { pos ->
                     val l = layout ?: return@detectTapGestures
-                    val w = wordAt(text, l.getOffsetForPosition(pos), lang) ?: return@detectTapGestures
+                    val off = l.getOffsetForPosition(pos)
+                    val w = wordAt(text, off, lang) ?: return@detectTapGestures
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    word(w)
+                    val line = l.getLineForOffset(off)
+                    val anchor = coords?.let { c ->
+                        val top = c.localToWindow(Offset(pos.x, l.getLineTop(line)))
+                        val bottom = c.localToWindow(Offset(pos.x, l.getLineBottom(line)))
+                        WordAnchor(top.x, top.y, bottom.y)
+                    }
+                    word(w, anchor)
                 },
             )
         },
@@ -600,7 +655,7 @@ internal fun wordAt(text: String, offset: Int, lang: Lang): String? {
 @Composable
 private fun ZhSentence(
     env: SentenceEnv, text: String, style: TextStyle, mark: String?,
-    onTap: () -> Unit, onWord: (String) -> Unit, modifier: Modifier,
+    onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
 ) {
     val c = Diacritica.colors
     val haptics = LocalHapticFeedback.current
@@ -614,11 +669,13 @@ private fun ZhSentence(
     }
     val pinyinStyle = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = (style.fontSize.value * 0.58f).sp, color = c.accent)
     FlowRow(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        tokens.forEachIndexed { i, t ->
+        tokens.forEachIndexed { i, t -> key(text, i) {
             val shown = if (env.traditional) t.traditional ?: t.text else t.text
             val isWord = t.pinyin != null
+            var tc by remember { mutableStateOf<LayoutCoordinates?>(null) }
             Column(
                 Modifier
+                    .onGloballyPositioned { tc = it }
                     .clip(RoundedCornerShape(3.dp))
                     .background(if (isWord && mark == t.text) c.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
                     .pointerInput(text, i) {
@@ -627,7 +684,11 @@ private fun ZhSentence(
                             onLongPress = {
                                 if (isWord) {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    word(t.text)
+                                    val anchor = tc?.let { lc ->
+                                        val topLeft = lc.localToWindow(Offset.Zero)
+                                        WordAnchor(topLeft.x + lc.size.width / 2f, topLeft.y, topLeft.y + lc.size.height)
+                                    }
+                                    word(t.text, anchor)
                                 }
                             },
                         )
@@ -638,11 +699,75 @@ private fun ZhSentence(
                 if (env.showPinyin) Text(t.pinyin ?: "", style = pinyinStyle, maxLines = 1)
                 Text(shown, style = style.copy(lineHeight = (style.fontSize.value * 1.25f).sp))
             }
-        }
+        } }
     }
 }
 
 // ----------------------------------------------------------------- word popup
+
+/** Places the tooltip under the word (or above it near the bottom of the screen), kept inside the window. */
+private class AnchorPosition(private val a: WordAnchor, private val gap: Int) : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width - gap).coerceAtLeast(gap)
+        val x = (a.x - popupContentSize.width / 2f).toInt().coerceIn(gap, maxX)
+        val below = a.bottom.toInt() + gap
+        val y = if (below + popupContentSize.height <= windowSize.height - gap) below
+        else (a.top.toInt() - gap - popupContentSize.height).coerceAtLeast(gap)
+        return IntOffset(x, y)
+    }
+}
+
+/** Tooltip: the essentials next to the word; "More" opens the full sheet. */
+@Composable
+private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
+    val c = Diacritica.colors
+    val saved by vm.savedKeys.collectAsStateWithLifecycle()
+    val r = p.result
+    val hw: WordInfo = r?.headword ?: WordInfo(p.lang, p.token)
+    val found = r != null && !r.isEmpty
+    val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
+    Column(
+        Modifier.widthIn(min = 200.dp, max = 300.dp).shadow(8.dp, shape).clip(shape).background(c.ground)
+            .border(1.dp, c.line, shape).padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                val head = hw.article?.let { a -> if (a.endsWith("'")) a + hw.word else "$a ${hw.word}" } ?: hw.word
+                Text(if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head, style = headwordStyle(19.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val sub = listOfNotNull(hw.pinyin, hw.pos, hw.gender).joinToString(" · ")
+                if (sub.isNotEmpty()) Text(sub, style = captionStyle(if (hw.pinyin != null) c.accent else c.inkMuted), maxLines = 1)
+            }
+            PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { vm.speakWord(hw) })
+        }
+        when {
+            p.loading -> Text("Looking up…", style = captionStyle(), modifier = Modifier.padding(vertical = 4.dp))
+            p.fetching -> Text("Downloading…", style = captionStyle(), modifier = Modifier.padding(vertical = 4.dp))
+            !found -> Text("Not in the offline dictionary.", style = captionStyle(), modifier = Modifier.padding(vertical = 4.dp))
+            else -> {
+                val order = listOf(env.other(p.lang), Lang.EN).distinct().filter { it != p.lang }
+                order.forEach { l ->
+                    val w = r!!.results.firstOrNull { it.lang == l }?.words?.firstOrNull() ?: return@forEach
+                    val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
+                    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(34.dp)) { LangBadge(l) }
+                        Text(base + (w.pinyin?.let { "  $it" } ?: ""), style = bodyStyle(size = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (found) {
+                val isSaved = "${hw.lang.code}:${hw.word}" in saved
+                PolyIconButton(
+                    if (isSaved) PolyIcons.StarFilled else PolyIcons.Star, if (isSaved) "Remove from saved" else "Save word",
+                    onClick = { vm.toggleSave(hw) }, tint = if (isSaved) c.savedStar else c.inkMuted,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Text("More ›", style = captionStyle(c.accent), modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { vm.expandPopup() }.padding(horizontal = 10.dp, vertical = 12.dp))
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

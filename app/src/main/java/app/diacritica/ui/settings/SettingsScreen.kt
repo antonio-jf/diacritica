@@ -119,14 +119,14 @@ fun SettingsScreen(vm: SettingsViewModel, s: AppSettings, onBack: (() -> Unit)? 
         section("Layouts", "Each section can use its own layout. The theme stays the same.")
         item {
             Setting("Dictionary results") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     DictionaryLayout.entries.forEach { l -> PolyChip(l.label, s.dictionaryLayout == l, { vm.setDictionaryLayout(l) }) }
                 }
             }
         }
         item {
             Setting("Rehearse feedback") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     app.diacritica.settings.RehearseLayout.entries.forEach { l -> PolyChip(l.label, s.rehearseLayout == l, { vm.setRehearseLayout(l) }) }
                 }
             }
@@ -135,6 +135,13 @@ fun SettingsScreen(vm: SettingsViewModel, s: AppSettings, onBack: (() -> Unit)? 
             Setting("Reader") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     app.diacritica.settings.ReaderLayout.entries.forEach { l -> PolyChip(l.label, s.readerLayout == l, { vm.setReaderLayout(l) }) }
+                }
+            }
+        }
+        item {
+            Setting("Word popup (Reader)") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    app.diacritica.settings.PopupLayout.entries.forEach { l -> PolyChip(l.label, s.readerPopup == l, { vm.setReaderPopup(l) }) }
                 }
             }
         }
