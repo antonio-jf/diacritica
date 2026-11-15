@@ -197,7 +197,7 @@ The Reader opens on a gallery with three tabs:
   cd pipeline
   python3 build_books.py --out ../app/src/main/assets/books/books.db
   ```
-  The script splits each language pair's text back into books using the alignment file in the OPUS download, and skips a pair if the counts don't line up.
+  The script splits each language pair's text back into books using the `.ids` file in the OPUS download (which document each line comes from). The first build gave 104 books (36 titles by 21 authors) across the 10 pairs of EN/ES/FR/DE/IT, about 150 MB, so it isn't committed: publish it as a data pack (`make_packs.py --books`) or leave it in `assets/books/` for your own builds (it's then bundled into the APK).
 - **New story:** one-tap story ideas at a suggested level, or your own topic and level; Gemini writes them in all six languages.
 
 Reading:

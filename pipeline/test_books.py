@@ -39,6 +39,7 @@ class Books(unittest.TestCase):
     def test_title_author(self):
         self.assertEqual(title_author("en/Austen_Jane-Pride_and_Prejudice.xml.gz"), ("Pride and Prejudice", "Jane Austen"))
         self.assertEqual(title_author("de/Kafka_Franz-Die_Verwandlung.xml.gz"), ("Die Verwandlung", "Franz Kafka"))
+        self.assertEqual(title_author("fr/Alain_Fournier-Le_grand_Meaulnes.xml.gz"), ("Le grand Meaulnes", "Alain-Fournier"))
 
     def test_split_into_books(self):
         with tempfile.TemporaryDirectory() as d:

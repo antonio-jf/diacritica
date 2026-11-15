@@ -17,3 +17,5 @@ pipeline/data/
 pipeline/dist/
 # Android Studio / OS
 *.hprof
+# Classics (~150 MB): build with pipeline/build_books.py and publish as a data pack, don't commit.
+app/src/main/assets/books/

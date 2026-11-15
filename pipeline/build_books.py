@@ -66,6 +66,10 @@ def download(cache: str, pair: str) -> str | None:
     return path
 
 
+# File names are "Surname_First-Title"; a few authors don't fit that pattern.
+AUTHOR_FIX = {"Fournier Alain": "Alain-Fournier"}
+
+
 def title_author(doc: str) -> tuple[str, str]:
     """'en/Austen_Jane-Pride_and_Prejudice.xml.gz' → ('Pride and Prejudice', 'Jane Austen')."""
     name = os.path.basename(doc)
@@ -77,7 +81,7 @@ def title_author(doc: str) -> tuple[str, str]:
     parts = [p for p in who.split("_") if p]
     author = " ".join(parts[1:] + parts[:1]) if len(parts) >= 2 else " ".join(parts)
     title = what.replace("_", " ").strip()
-    return title, author
+    return title, AUTHOR_FIX.get(author, author)
 
 
 def books_from_ids(zf: zipfile.ZipFile) -> list[tuple[str, str, int]] | None:
