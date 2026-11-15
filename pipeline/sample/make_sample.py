@@ -155,7 +155,19 @@ GERMAN = [
           [("Ufer", ["nominative", "plural"])]),
     entry("German", "de", "Taste", "noun", "Taste f (genitive Taste, plural Tasten)", "/ˈtastə/", ["key (on a keyboard)"],
           [("Tasten", ["nominative", "plural"])]),
+    entry("German", "de", "anfangen", "verb", "anfangen (class 7 strong, third-person singular present fängt an)", "/ˈanˌfaŋən/",
+          ["to begin, to start"], [("fange an", ["first-person", "singular", "present"]),
+                                   ("fängt an", ["third-person", "singular", "present"]),
+                                   ("fing an", ["first-person", "singular", "preterite"]),
+                                   ("angefangen", ["past", "participle"])]),
 ]
+for _e in GERMAN:
+    if _e["word"] == "Haus":
+        _e["etymology_text"] = "From Middle High German hūs, from Old High German hūs, from Proto-Germanic *hūsą."
+        _e["synonyms"] = [{"word": "Gebäude"}, {"word": "Haus"}]
+        _e["senses"][0]["synonyms"] = [{"word": "Heim"}, {"word": "Gebäude"}]
+    if _e["word"] == "anfangen":
+        _e["synonyms"] = [{"word": "beginnen"}, {"word": "starten"}]
 ITALIAN = [
     entry("Italian", "it", "chiave", "noun", "chiave f (plural chiavi)", "/ˈkja.ve/", ["key"], [("chiavi", ["plural"])],
           "Ho perso le chiavi.", "I lost the keys."),

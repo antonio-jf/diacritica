@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.diacritica.AppContainer
 import app.diacritica.data.DictionaryRepository
+import app.diacritica.data.FalseFriendWarning
 import app.diacritica.data.Lang
 import app.diacritica.data.LookupResult
 import app.diacritica.data.WordInfo
@@ -125,6 +126,16 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun close() = _state.update { it.copy(story = null, highlighted = null, popup = null) }
 
     fun delete(id: Long) { viewModelScope.launch { c.stories.delete(id) } }
+
+    /** False friends for a tapped word, against the other reading language and English. */
+    fun falseFriends(p: WordPopup, other: Lang): List<FalseFriendWarning> {
+        val langs = listOf(other, Lang.EN).distinct()
+        val words = buildList {
+            add(p.lang to p.token)
+            p.result?.headword?.let { add(it.lang to it.word) }
+        }
+        return c.falseFriends.warningsFor(words, langs, max = 2)
+    }
 
     fun setLangs(a: Lang, b: Lang) { viewModelScope.launch { c.settings.setReaderLangs(a, b) } }
 

@@ -113,6 +113,7 @@ import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.components.headwordStyle
 import app.diacritica.ui.components.titleStyle
+import app.diacritica.ui.components.FalseFriendNote
 import app.diacritica.ui.theme.Diacritica
 
 /** Entry point of the Reader tab: the story shelf, or the open story. */
@@ -919,6 +920,9 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
                 }
             }
         }
+        if (!p.loading) vm.falseFriends(p, env.other(p.lang)).firstOrNull()?.let {
+            FalseFriendNote(it, Modifier.padding(top = 6.dp, end = 10.dp), compact = true)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (found) {
                 val isSaved = "${hw.lang.code}:${hw.word}" in saved
@@ -973,6 +977,9 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
             Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
+        if (!p.loading) vm.falseFriends(p, env.other(p.lang)).forEach {
+            FalseFriendNote(it, Modifier.padding(top = 10.dp))
+        }
 
         when {
             p.loading -> { Gap(14.dp); Text("Looking up…", style = captionStyle()) }

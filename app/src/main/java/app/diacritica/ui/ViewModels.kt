@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.diacritica.AppContainer
 import app.diacritica.data.DetailResult
 import app.diacritica.data.DictionaryInfo
+import app.diacritica.data.FalseFriendWarning
 import app.diacritica.data.Lang
 import app.diacritica.data.LookupResult
 import app.diacritica.data.ScriptPreference
@@ -297,6 +298,37 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
     fun openVoiceSettings() = c.speaker.openVoiceSettings()
 
     suspend fun detail(lang: Lang, word: String): DetailResult = c.dictionary.detail(lang, word)
+
+    /** Languages switched on in Settings: false-friend warnings only mention these. */
+    val activeLanguages: StateFlow<List<Lang>> = c.settings.settings.map { it.activeLanguages }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** False friends among the headword and the first translation shown in each language. */
+    fun falseFriends(r: LookupResult, languages: List<Lang>): List<FalseFriendWarning> {
+        val words = buildList {
+            r.headword?.let { add(it.lang to it.word) }
+            if (r.headword == null) add(r.source to r.query)
+            r.results.forEach { lr -> lr.words.firstOrNull()?.let { add(lr.lang to it.word) } }
+        }
+        return c.falseFriends.warningsFor(words, languages)
+    }
+
+    fun falseFriends(lang: Lang, word: String, languages: List<Lang>): List<FalseFriendWarning> =
+        c.falseFriends.warnings(lang, word, languages)
+
+    /**
+     * Downloads the word again from Wiktionary (kaikki.org), which brings its etymology and synonyms
+     * when the installed dictionary predates them. Returns a message when nothing could be fetched.
+     */
+    suspend fun fetchExtras(lang: Lang, word: String): String? {
+        val (outcome, _) = c.online.fetchWord(word, lang, emptyList())
+        return when (outcome) {
+            OnlineLookup.Outcome.FOUND -> null
+            OnlineLookup.Outcome.OFFLINE -> "You're offline."
+            OnlineLookup.Outcome.NOT_FOUND -> "Wiktionary has no entry for this word."
+            OnlineLookup.Outcome.FAILED -> "Couldn't reach Wiktionary. Try again later."
+        }
+    }
 }
 
 fun appViewModelFactory(c: AppContainer): ViewModelProvider.Factory = viewModelFactory {

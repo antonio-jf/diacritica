@@ -136,6 +136,12 @@ python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/cor
 
 English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
+## Word details
+
+- **False friends:** look-alike words that mean something else in another of your languages get a warning, e.g. ES *embarazada* ≠ EN *embarrassed*. It shows on dictionary results, on a word's page and in the Reader's word popup, with what each word means and how to say it instead. The list (about 100 hand-checked pairs across EN, ES, FR, DE and IT) is `app/src/main/assets/falsefriends/false_friends.json`; add pairs there.
+- **Synonyms and etymology** from Wiktionary, on a word's page. Tap a synonym to look it up. Dictionaries built before this have none; the page offers to fetch them for that word from Wiktionary, and rebuilding the dictionary (or the next dictionary pack) adds them for every word.
+- **German separable verbs** are flagged from their conjugation table: *anfangen* → SEPARABLE an|fangen → fängt … an.
+
 ## Layouts
 
 Each section has its own layout (Settings › Layouts, or the layout icon in the section's top bar); the theme stays the same everywhere.

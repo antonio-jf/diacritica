@@ -4,7 +4,8 @@ import pathlib
 import sqlite3
 import unittest
 
-from build_dictionary import normalize, pinyin_numbers_to_marks, pinyin_compact_numbers, pinyin_toneless, parse_measure
+from build_dictionary import (normalize, pinyin_numbers_to_marks, pinyin_compact_numbers, pinyin_toneless, parse_measure,
+                              etymology_text, synonym_list, MAX_ETYMOLOGY)
 
 DB = pathlib.Path(__file__).parent.parent / "app/src/main/assets/dict/dictionary.db"
 
@@ -35,6 +36,22 @@ class Norm(unittest.TestCase):
         self.assertEqual(normalize("Straße"), "strasse")
         self.assertEqual(normalize("œuvre"), "oeuvre")
         self.assertEqual(normalize("tonalità"), "tonalita")
+
+
+class Extras(unittest.TestCase):
+    def test_etymology(self):
+        self.assertIsNone(etymology_text({}))
+        self.assertEqual(etymology_text({"etymology_text": "  From  Latin\n casa. "}), "From Latin casa.")
+        long = "First sentence about the word. " * 40
+        t = etymology_text({"etymology_text": long})
+        self.assertLessEqual(len(t), MAX_ETYMOLOGY)
+        self.assertTrue(t.endswith("."))
+
+    def test_synonyms(self):
+        e = {"word": "Haus", "synonyms": [{"word": "Gebäude"}, {"word": "Haus"}, {"word": "Thesaurus:Haus"}],
+             "senses": [{"synonyms": [{"word": "Heim"}, {"word": "Gebäude"}]}, {}]}
+        self.assertEqual(synonym_list(e), ["Gebäude", "Heim"])
+        self.assertEqual(synonym_list({"word": "x"}), [])
 
 
 @unittest.skipUnless(DB.exists(), "build the sample DB first")
@@ -68,6 +85,13 @@ class SampleDb(unittest.TestCase):
         self.assertEqual(e, ("n", "Häuser", "/haʊ̯s/"))
         e = self.q("SELECT gender FROM entry WHERE lang='es' AND word='mar'")[0]
         self.assertEqual(e, ("m/f",))
+
+    def test_extras(self):
+        r = self.q("SELECT x.etymology, x.synonyms FROM extra x JOIN entry e ON e.id=x.entry_id WHERE e.lang='de' AND e.word='Haus'")
+        self.assertTrue(r[0][0].startswith("From Middle High German"))
+        self.assertEqual(r[0][1], "Gebäude|Heim")
+        forms = [f for (f,) in self.q("SELECT f.form FROM form f JOIN entry e ON e.id=f.entry_id WHERE e.word='anfangen'")]
+        self.assertIn("fängt an", forms)
 
     def test_form_of(self):
         r = self.q("SELECT s.form_of FROM sense s JOIN entry e ON e.id=s.entry_id WHERE e.lang='it' AND e.word='chiavi'")

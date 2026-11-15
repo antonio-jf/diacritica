@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import app.diacritica.data.Lang
 import app.diacritica.data.TextNorm
+import app.diacritica.data.WordExtras
 import app.diacritica.data.ZhClean
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -37,6 +38,8 @@ object WiktextractImporter {
 
     /** Removes everything previously stored for this word, so a fresh download replaces it. */
     fun deleteWord(db: SQLiteDatabase, lang: Lang, word: String) {
+        ensureExtraTable(db)
+        db.execSQL("DELETE FROM extra WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM sense WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM form WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM entry WHERE lang = ? AND word = ?", arrayOf(lang.code, word))
@@ -46,8 +49,14 @@ object WiktextractImporter {
         }
     }
 
+    /** Dictionaries built before etymologies were added have no `extra` table; downloads add it. */
+    fun ensureExtraTable(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS extra (entry_id INTEGER PRIMARY KEY, etymology TEXT, synonyms TEXT)")
+    }
+
     /** Imports all lines for one word in one language. Returns the number of entries stored. */
     fun importWord(db: SQLiteDatabase, lang: Lang, lines: List<JsonObject>): Int {
+        ensureExtraTable(db)
         var count = 0
         var rank = 0
         for (e in lines) {
@@ -78,6 +87,11 @@ object WiktextractImporter {
         }
         forms.forEach { (f, t) ->
             db.insert("form", null, ContentValues().apply { put("entry_id", id); put("form", f); put("tags", t) })
+        }
+        val ety = WordExtras.etymology(e)
+        val syns = WordExtras.join(WordExtras.synonyms(e))
+        if (ety != null || syns != null) {
+            db.insert("extra", null, ContentValues().apply { put("entry_id", id); put("etymology", ety); put("synonyms", syns) })
         }
         return true
     }

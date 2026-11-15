@@ -67,6 +67,7 @@ import app.diacritica.ui.components.ScreenHeader
 import app.diacritica.ui.components.SectionLabel
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
+import app.diacritica.ui.components.FalseFriendNote
 import app.diacritica.ui.theme.Diacritica
 import app.diacritica.ui.theme.SurfaceStyle
 
@@ -132,6 +133,12 @@ fun DictionaryScreen(
                 item("head") { Headword(r, actions, onPickLang = { onSourceChange(it); vm.lookUp(r.query, it) }) }
                 if (r.zhAlternatives.isNotEmpty()) item("zh-alt") { ZhAlternatives(r) { vm.lookUp(it, Lang.ZH) } }
                 if (r.concepts.size > 1) item("senses") { SensePicker(r) { vm.selectSense(it) } }
+                val warnings = vm.falseFriends(r, settings.activeLanguages)
+                if (warnings.isNotEmpty()) item("ff") {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        warnings.forEach { FalseFriendNote(it) }
+                    }
+                }
                 item("gap") { Gap(4.dp) }
                 dictionaryResults(settings.dictionaryLayout, r.results, actions)
                 item("foot") { Gap(24.dp) }

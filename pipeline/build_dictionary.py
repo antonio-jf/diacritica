@@ -155,6 +155,7 @@ CREATE TABLE entry (id INTEGER PRIMARY KEY, lang TEXT NOT NULL, word TEXT NOT NU
 CREATE TABLE sense (entry_id INTEGER NOT NULL, ord INTEGER NOT NULL, gloss TEXT, example TEXT,
                     example_en TEXT, form_of TEXT);
 CREATE TABLE form (entry_id INTEGER NOT NULL, form TEXT NOT NULL, tags TEXT);
+CREATE TABLE extra (entry_id INTEGER PRIMARY KEY, etymology TEXT, synonyms TEXT);
 CREATE TABLE zh (id INTEGER PRIMARY KEY, simp TEXT NOT NULL, trad TEXT NOT NULL, pinyin TEXT NOT NULL,
                  pinyin_num TEXT NOT NULL, pinyin_norm TEXT NOT NULL, defs TEXT, measure TEXT, hsk INTEGER);
 """
@@ -364,6 +365,38 @@ def sense_rows(e: dict) -> list[tuple[int, str, str | None, str | None, str | No
 
 
 # ---------------------------------------------------------------- builders
+MAX_ETYMOLOGY = 500
+MAX_SYNONYMS = 12
+
+
+def etymology_text(e: dict) -> str | None:
+    """Wiktextract's etymology, trimmed to MAX_ETYMOLOGY at a sentence end where possible."""
+    t = " ".join((e.get("etymology_text") or "").split())
+    if not t:
+        return None
+    if len(t) <= MAX_ETYMOLOGY:
+        return t
+    cut = t[:MAX_ETYMOLOGY]
+    dot = cut.rfind(". ")
+    return cut[:dot + 1] if dot > MAX_ETYMOLOGY // 2 else cut.rstrip() + "…"
+
+
+def synonym_list(e: dict) -> list[str]:
+    """Synonyms from the entry and its senses, without the word itself, deduplicated."""
+    word = (e.get("word") or "").strip()
+    out: list[str] = []
+    groups = [e.get("synonyms") or []] + [s.get("synonyms") or [] for s in e.get("senses") or []]
+    for group in groups:
+        for syn in group:
+            w = (syn.get("word") or "").strip() if isinstance(syn, dict) else ""
+            if not w or w == word or w in out or len(w) > 40 or w.startswith("Thesaurus:"):
+                continue
+            out.append(w)
+            if len(out) >= MAX_SYNONYMS:
+                return out
+    return out
+
+
 def load_frequency(freq_dir: str | None, top: int | None) -> dict[str, set[str]]:
     """Top-N normalized words per language; empty dict = keep everything."""
     if not freq_dir or not top:
@@ -424,6 +457,9 @@ class Builder:
         self.con.executemany("INSERT INTO sense VALUES (?,?,?,?,?,?)", [(eid, *r) for r in senses])
         if forms:
             self.con.executemany("INSERT INTO form VALUES (?,?,?)", [(eid, f, t) for f, t in forms])
+        ety, syns = etymology_text(e), synonym_list(e)
+        if ety or syns:
+            self.con.execute("INSERT INTO extra VALUES (?,?,?)", (eid, ety, "|".join(syns) or None))
 
     def add_concepts(self, e: dict) -> None:
         word = (e.get("word") or "").strip()

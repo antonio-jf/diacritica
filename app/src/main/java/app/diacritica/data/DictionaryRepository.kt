@@ -370,6 +370,7 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
     suspend fun detail(lang: Lang, word: String): DetailResult = withContext(Dispatchers.IO) {
         val db = database.get()
         val zh = if (lang == Lang.ZH) zhReadings(db, word) else emptyList()
+        val hasExtra = db.rawQuery("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'extra'", null).use { it.moveToFirst() }
         val entries = if (lang == Lang.ZH) emptyList() else db.rawQuery(
             "SELECT id, word, pos, gender, ipa, plural FROM entry WHERE lang = ? AND norm = ? ORDER BY (word = ?) DESC, id LIMIT 6",
             arrayOf(lang.code, TextNorm.normalize(word), word),
@@ -384,7 +385,9 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
             ).use { c -> buildList { while (c.moveToNext()) add(SenseDetail(c.getString(0), c.getStringOrNull(1), c.getStringOrNull(2))) } }
             val forms = db.rawQuery("SELECT form, IFNULL(tags,'') FROM form WHERE entry_id = ?", arrayOf(e.id.toString()))
                 .use { c -> buildList { while (c.moveToNext()) add(FormRow(c.getString(0), c.getString(1))) } }
-            EntryDetail(lang, e.word, e.pos, e.gender, e.ipa, e.plural, senses, forms)
+            val extra = if (!hasExtra) null else db.rawQuery("SELECT etymology, synonyms FROM extra WHERE entry_id = ?", arrayOf(e.id.toString()))
+                .use { c -> if (c.moveToFirst()) c.getStringOrNull(0) to c.getStringOrNull(1) else null }
+            EntryDetail(lang, e.word, e.pos, e.gender, e.ipa, e.plural, senses, forms, extra?.first, WordExtras.split(extra?.second))
         }
         val concepts = when (lang) {
             Lang.EN -> conceptsByEnglish(db, TextNorm.normalize(word))

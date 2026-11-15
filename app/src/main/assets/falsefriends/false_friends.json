@@ -1,0 +1,1065 @@
+{
+"format": 1,
+"pairs": [
+{
+"a": "es",
+"aw": "embarazada",
+"am": "pregnant",
+"ab": "pregnant",
+"b": "en",
+"bw": "embarrassed",
+"bm": "embarrassed",
+"ba": "avergonzado/a"
+},
+{
+"a": "es",
+"aw": "actualmente",
+"am": "currently, nowadays",
+"ab": "currently",
+"b": "en",
+"bw": "actually",
+"bm": "in fact",
+"ba": "en realidad"
+},
+{
+"a": "es",
+"aw": "éxito",
+"am": "success",
+"ab": "success",
+"b": "en",
+"bw": "exit",
+"bm": "way out",
+"ba": "salida"
+},
+{
+"a": "es",
+"aw": "carpeta",
+"am": "folder",
+"ab": "folder",
+"b": "en",
+"bw": "carpet",
+"bm": "carpet",
+"ba": "alfombra"
+},
+{
+"a": "es",
+"aw": "librería",
+"am": "bookshop",
+"ab": "bookshop",
+"b": "en",
+"bw": "library",
+"bm": "library",
+"ba": "biblioteca"
+},
+{
+"a": "es",
+"aw": "constipado",
+"am": "having a cold",
+"ab": "have a cold",
+"b": "en",
+"bw": "constipated",
+"bm": "constipated",
+"ba": "estreñido"
+},
+{
+"a": "es",
+"aw": "sensible",
+"am": "sensitive",
+"ab": "sensitive",
+"b": "en",
+"bw": "sensible",
+"bm": "reasonable",
+"ba": "sensato"
+},
+{
+"a": "es",
+"aw": "asistir",
+"am": "to attend",
+"ab": "attend",
+"b": "en",
+"bw": "assist",
+"bm": "to help",
+"ba": "ayudar"
+},
+{
+"a": "es",
+"aw": "realizar",
+"am": "to carry out",
+"ab": "carry out",
+"b": "en",
+"bw": "realize",
+"bm": "to become aware of",
+"ba": "darse cuenta"
+},
+{
+"a": "es",
+"aw": "recordar",
+"am": "to remember",
+"ab": "remember",
+"b": "en",
+"bw": "record",
+"bm": "to record",
+"ba": "grabar"
+},
+{
+"a": "es",
+"aw": "pretender",
+"am": "to try, to aim to",
+"ab": "try to",
+"b": "en",
+"bw": "pretend",
+"bm": "to make believe",
+"ba": "fingir"
+},
+{
+"a": "es",
+"aw": "largo",
+"am": "long",
+"ab": "long",
+"b": "en",
+"bw": "large",
+"bm": "big",
+"ba": "grande"
+},
+{
+"a": "es",
+"aw": "ropa",
+"am": "clothes",
+"ab": "clothes",
+"b": "en",
+"bw": "rope",
+"bm": "rope",
+"ba": "cuerda"
+},
+{
+"a": "es",
+"aw": "sopa",
+"am": "soup",
+"ab": "soup",
+"b": "en",
+"bw": "soap",
+"bm": "soap",
+"ba": "jabón"
+},
+{
+"a": "es",
+"aw": "fábrica",
+"am": "factory",
+"ab": "factory",
+"b": "en",
+"bw": "fabric",
+"bm": "cloth",
+"ba": "tela"
+},
+{
+"a": "es",
+"aw": "decepción",
+"am": "disappointment",
+"ab": "disappointment",
+"b": "en",
+"bw": "deception",
+"bm": "deceit",
+"ba": "engaño"
+},
+{
+"a": "es",
+"aw": "introducir",
+"am": "to insert",
+"ab": "insert",
+"b": "en",
+"bw": "introduce",
+"bm": "to present someone",
+"ba": "presentar"
+},
+{
+"a": "es",
+"aw": "molestar",
+"am": "to bother",
+"ab": "bother",
+"b": "en",
+"bw": "molest",
+"bm": "to abuse sexually",
+"ba": "abusar de"
+},
+{
+"a": "es",
+"aw": "contestar",
+"am": "to answer",
+"ab": "answer",
+"b": "en",
+"bw": "contest",
+"bm": "to dispute",
+"ba": "disputar"
+},
+{
+"a": "es",
+"aw": "advertir",
+"am": "to warn",
+"ab": "warn",
+"b": "en",
+"bw": "advertise",
+"bm": "to promote",
+"ba": "anunciar"
+},
+{
+"a": "es",
+"aw": "lectura",
+"am": "reading",
+"ab": "reading",
+"b": "en",
+"bw": "lecture",
+"bm": "talk, class",
+"ba": "conferencia"
+},
+{
+"a": "es",
+"aw": "suceso",
+"am": "event, incident",
+"ab": "event",
+"b": "en",
+"bw": "success",
+"bm": "success",
+"ba": "éxito"
+},
+{
+"a": "es",
+"aw": "parientes",
+"am": "relatives",
+"ab": "relatives",
+"b": "en",
+"bw": "parents",
+"bm": "mother and father",
+"ba": "padres"
+},
+{
+"a": "es",
+"aw": "dormitorio",
+"am": "bedroom",
+"ab": "bedroom",
+"b": "en",
+"bw": "dormitory",
+"bm": "student residence",
+"ba": "residencia"
+},
+{
+"a": "es",
+"aw": "casualidad",
+"am": "coincidence",
+"ab": "coincidence",
+"b": "en",
+"bw": "casualty",
+"bm": "victim",
+"ba": "víctima"
+},
+{
+"a": "es",
+"aw": "compromiso",
+"am": "commitment, engagement",
+"ab": "commitment",
+"b": "en",
+"bw": "compromise",
+"bm": "mutual concession",
+"ba": "acuerdo"
+},
+{
+"a": "fr",
+"aw": "actuellement",
+"am": "currently",
+"ab": "currently",
+"b": "en",
+"bw": "actually",
+"bm": "in fact",
+"ba": "en fait"
+},
+{
+"a": "fr",
+"aw": "librairie",
+"am": "bookshop",
+"ab": "bookshop",
+"b": "en",
+"bw": "library",
+"bm": "library",
+"ba": "bibliothèque"
+},
+{
+"a": "fr",
+"aw": "blesser",
+"am": "to injure",
+"ab": "injure",
+"b": "en",
+"bw": "bless",
+"bm": "to bless",
+"ba": "bénir"
+},
+{
+"a": "fr",
+"aw": "coin",
+"am": "corner",
+"ab": "corner",
+"b": "en",
+"bw": "coin",
+"bm": "coin",
+"ba": "pièce"
+},
+{
+"a": "fr",
+"aw": "éventuellement",
+"am": "possibly",
+"ab": "possibly",
+"b": "en",
+"bw": "eventually",
+"bm": "in the end",
+"ba": "finalement"
+},
+{
+"a": "fr",
+"aw": "location",
+"am": "rental",
+"ab": "rental",
+"b": "en",
+"bw": "location",
+"bm": "place",
+"ba": "emplacement"
+},
+{
+"a": "fr",
+"aw": "monnaie",
+"am": "change, currency",
+"ab": "change",
+"b": "en",
+"bw": "money",
+"bm": "money",
+"ba": "argent"
+},
+{
+"a": "fr",
+"aw": "rester",
+"am": "to stay",
+"ab": "stay",
+"b": "en",
+"bw": "rest",
+"bm": "to relax",
+"ba": "se reposer"
+},
+{
+"a": "fr",
+"aw": "assister",
+"am": "to attend",
+"ab": "attend",
+"b": "en",
+"bw": "assist",
+"bm": "to help",
+"ba": "aider"
+},
+{
+"a": "fr",
+"aw": "attendre",
+"am": "to wait",
+"ab": "wait",
+"b": "en",
+"bw": "attend",
+"bm": "to be present at",
+"ba": "assister à"
+},
+{
+"a": "fr",
+"aw": "sensible",
+"am": "sensitive",
+"ab": "sensitive",
+"b": "en",
+"bw": "sensible",
+"bm": "reasonable",
+"ba": "raisonnable"
+},
+{
+"a": "fr",
+"aw": "déception",
+"am": "disappointment",
+"ab": "disappointment",
+"b": "en",
+"bw": "deception",
+"bm": "deceit",
+"ba": "tromperie"
+},
+{
+"a": "fr",
+"aw": "préservatif",
+"am": "condom",
+"ab": "condom",
+"b": "en",
+"bw": "preservative",
+"bm": "food additive",
+"ba": "conservateur"
+},
+{
+"a": "fr",
+"aw": "journée",
+"am": "day",
+"ab": "day",
+"b": "en",
+"bw": "journey",
+"bm": "trip",
+"ba": "voyage"
+},
+{
+"a": "fr",
+"aw": "raisin",
+"am": "grape",
+"ab": "grape",
+"b": "en",
+"bw": "raisin",
+"bm": "dried grape",
+"ba": "raisin sec"
+},
+{
+"a": "fr",
+"aw": "formidable",
+"am": "great, terrific",
+"ab": "great",
+"b": "en",
+"bw": "formidable",
+"bm": "daunting",
+"ba": "redoutable"
+},
+{
+"a": "fr",
+"aw": "chair",
+"am": "flesh",
+"ab": "flesh",
+"b": "en",
+"bw": "chair",
+"bm": "seat",
+"ba": "chaise"
+},
+{
+"a": "fr",
+"aw": "lecture",
+"am": "reading",
+"ab": "reading",
+"b": "en",
+"bw": "lecture",
+"bm": "talk, class",
+"ba": "conférence"
+},
+{
+"a": "fr",
+"aw": "prétendre",
+"am": "to claim",
+"ab": "claim",
+"b": "en",
+"bw": "pretend",
+"bm": "to make believe",
+"ba": "faire semblant"
+},
+{
+"a": "fr",
+"aw": "demander",
+"am": "to ask",
+"ab": "ask",
+"b": "en",
+"bw": "demand",
+"bm": "to require",
+"ba": "exiger"
+},
+{
+"a": "fr",
+"aw": "achever",
+"am": "to finish",
+"ab": "finish",
+"b": "en",
+"bw": "achieve",
+"bm": "to accomplish",
+"ba": "accomplir"
+},
+{
+"a": "fr",
+"aw": "large",
+"am": "wide",
+"ab": "wide",
+"b": "en",
+"bw": "large",
+"bm": "big",
+"ba": "grand"
+},
+{
+"a": "de",
+"aw": "Gift",
+"am": "poison",
+"ab": "poison",
+"b": "en",
+"bw": "gift",
+"bm": "present",
+"ba": "Geschenk"
+},
+{
+"a": "de",
+"aw": "bekommen",
+"am": "to get, to receive",
+"ab": "get",
+"b": "en",
+"bw": "become",
+"bm": "to turn into",
+"ba": "werden"
+},
+{
+"a": "de",
+"aw": "also",
+"am": "so, therefore",
+"ab": "so",
+"b": "en",
+"bw": "also",
+"bm": "too",
+"ba": "auch"
+},
+{
+"a": "de",
+"aw": "aktuell",
+"am": "current",
+"ab": "current",
+"b": "en",
+"bw": "actual",
+"bm": "real",
+"ba": "tatsächlich"
+},
+{
+"a": "de",
+"aw": "eventuell",
+"am": "possibly",
+"ab": "possibly",
+"b": "en",
+"bw": "eventually",
+"bm": "in the end",
+"ba": "schließlich"
+},
+{
+"a": "de",
+"aw": "sensibel",
+"am": "sensitive",
+"ab": "sensitive",
+"b": "en",
+"bw": "sensible",
+"bm": "reasonable",
+"ba": "vernünftig"
+},
+{
+"a": "de",
+"aw": "Chef",
+"am": "boss",
+"ab": "boss",
+"b": "en",
+"bw": "chef",
+"bm": "cook",
+"ba": "Koch"
+},
+{
+"a": "de",
+"aw": "Handy",
+"am": "mobile phone",
+"ab": "mobile phone",
+"b": "en",
+"bw": "handy",
+"bm": "practical",
+"ba": "praktisch"
+},
+{
+"a": "de",
+"aw": "Rat",
+"am": "advice",
+"ab": "advice",
+"b": "en",
+"bw": "rat",
+"bm": "rat",
+"ba": "Ratte"
+},
+{
+"a": "de",
+"aw": "Fabrik",
+"am": "factory",
+"ab": "factory",
+"b": "en",
+"bw": "fabric",
+"bm": "cloth",
+"ba": "Stoff"
+},
+{
+"a": "de",
+"aw": "bald",
+"am": "soon",
+"ab": "soon",
+"b": "en",
+"bw": "bald",
+"bm": "hairless",
+"ba": "kahl"
+},
+{
+"a": "de",
+"aw": "brav",
+"am": "well-behaved",
+"ab": "well-behaved",
+"b": "en",
+"bw": "brave",
+"bm": "courageous",
+"ba": "mutig"
+},
+{
+"a": "de",
+"aw": "Billion",
+"am": "trillion (10¹²)",
+"ab": "trillion",
+"b": "en",
+"bw": "billion",
+"bm": "10⁹",
+"ba": "Milliarde"
+},
+{
+"a": "de",
+"aw": "Art",
+"am": "kind, type",
+"ab": "kind",
+"b": "en",
+"bw": "art",
+"bm": "art",
+"ba": "Kunst"
+},
+{
+"a": "de",
+"aw": "Mappe",
+"am": "folder",
+"ab": "folder",
+"b": "en",
+"bw": "map",
+"bm": "map",
+"ba": "Karte"
+},
+{
+"a": "de",
+"aw": "spenden",
+"am": "to donate",
+"ab": "donate",
+"b": "en",
+"bw": "spend",
+"bm": "to pay out",
+"ba": "ausgeben"
+},
+{
+"a": "de",
+"aw": "Rente",
+"am": "pension",
+"ab": "pension",
+"b": "en",
+"bw": "rent",
+"bm": "rent",
+"ba": "Miete"
+},
+{
+"a": "de",
+"aw": "wer",
+"am": "who",
+"ab": "who",
+"b": "en",
+"bw": "where",
+"bm": "where",
+"ba": "wo"
+},
+{
+"a": "de",
+"aw": "Hut",
+"am": "hat",
+"ab": "hat",
+"b": "en",
+"bw": "hut",
+"bm": "small cabin",
+"ba": "Hütte"
+},
+{
+"a": "it",
+"aw": "camera",
+"am": "room",
+"ab": "room",
+"b": "en",
+"bw": "camera",
+"bm": "camera",
+"ba": "macchina fotografica"
+},
+{
+"a": "it",
+"aw": "parenti",
+"am": "relatives",
+"ab": "relatives",
+"b": "en",
+"bw": "parents",
+"bm": "mother and father",
+"ba": "genitori"
+},
+{
+"a": "it",
+"aw": "attualmente",
+"am": "currently",
+"ab": "currently",
+"b": "en",
+"bw": "actually",
+"bm": "in fact",
+"ba": "in realtà"
+},
+{
+"a": "it",
+"aw": "eventualmente",
+"am": "possibly, if needed",
+"ab": "possibly",
+"b": "en",
+"bw": "eventually",
+"bm": "in the end",
+"ba": "alla fine"
+},
+{
+"a": "it",
+"aw": "libreria",
+"am": "bookshop",
+"ab": "bookshop",
+"b": "en",
+"bw": "library",
+"bm": "library",
+"ba": "biblioteca"
+},
+{
+"a": "it",
+"aw": "fattoria",
+"am": "farm",
+"ab": "farm",
+"b": "en",
+"bw": "factory",
+"bm": "factory",
+"ba": "fabbrica"
+},
+{
+"a": "it",
+"aw": "morbido",
+"am": "soft",
+"ab": "soft",
+"b": "en",
+"bw": "morbid",
+"bm": "gruesome",
+"ba": "morboso"
+},
+{
+"a": "it",
+"aw": "educato",
+"am": "polite",
+"ab": "polite",
+"b": "en",
+"bw": "educated",
+"bm": "well-schooled",
+"ba": "istruito"
+},
+{
+"a": "it",
+"aw": "annoiato",
+"am": "bored",
+"ab": "bored",
+"b": "en",
+"bw": "annoyed",
+"bm": "irritated",
+"ba": "infastidito"
+},
+{
+"a": "it",
+"aw": "cantina",
+"am": "cellar",
+"ab": "cellar",
+"b": "en",
+"bw": "canteen",
+"bm": "cafeteria",
+"ba": "mensa"
+},
+{
+"a": "it",
+"aw": "magazzino",
+"am": "warehouse",
+"ab": "warehouse",
+"b": "en",
+"bw": "magazine",
+"bm": "periodical",
+"ba": "rivista"
+},
+{
+"a": "it",
+"aw": "preservativo",
+"am": "condom",
+"ab": "condom",
+"b": "en",
+"bw": "preservative",
+"bm": "food additive",
+"ba": "conservante"
+},
+{
+"a": "it",
+"aw": "caldo",
+"am": "hot",
+"ab": "hot",
+"b": "en",
+"bw": "cold",
+"bm": "cold",
+"ba": "freddo"
+},
+{
+"a": "it",
+"aw": "argomento",
+"am": "topic",
+"ab": "topic",
+"b": "en",
+"bw": "argument",
+"bm": "quarrel",
+"ba": "litigio"
+},
+{
+"a": "it",
+"aw": "sensibile",
+"am": "sensitive",
+"ab": "sensitive",
+"b": "en",
+"bw": "sensible",
+"bm": "reasonable",
+"ba": "ragionevole"
+},
+{
+"a": "it",
+"aw": "estate",
+"am": "summer",
+"ab": "summer",
+"b": "en",
+"bw": "estate",
+"bm": "property",
+"ba": "tenuta"
+},
+{
+"a": "it",
+"aw": "rumore",
+"am": "noise",
+"ab": "noise",
+"b": "en",
+"bw": "rumour",
+"bm": "hearsay",
+"ba": "diceria"
+},
+{
+"a": "it",
+"aw": "pretendere",
+"am": "to demand",
+"ab": "demand",
+"b": "en",
+"bw": "pretend",
+"bm": "to make believe",
+"ba": "fingere"
+},
+{
+"a": "es",
+"aw": "burro",
+"am": "donkey",
+"ab": "asino",
+"b": "it",
+"bw": "burro",
+"bm": "butter",
+"ba": "mantequilla"
+},
+{
+"a": "es",
+"aw": "salir",
+"am": "to go out",
+"ab": "uscire",
+"b": "it",
+"bw": "salire",
+"bm": "to go up",
+"ba": "subir"
+},
+{
+"a": "es",
+"aw": "guardar",
+"am": "to keep",
+"ab": "tenere",
+"b": "it",
+"bw": "guardare",
+"bm": "to look at",
+"ba": "mirar"
+},
+{
+"a": "es",
+"aw": "caldo",
+"am": "broth",
+"ab": "brodo",
+"b": "it",
+"bw": "caldo",
+"bm": "hot",
+"ba": "caliente"
+},
+{
+"a": "es",
+"aw": "topo",
+"am": "mole",
+"ab": "talpa",
+"b": "it",
+"bw": "topo",
+"bm": "mouse",
+"ba": "ratón"
+},
+{
+"a": "es",
+"aw": "negocio",
+"am": "business",
+"ab": "affare",
+"b": "it",
+"bw": "negozio",
+"bm": "shop",
+"ba": "tienda"
+},
+{
+"a": "es",
+"aw": "largo",
+"am": "long",
+"ab": "lungo",
+"b": "it",
+"bw": "largo",
+"bm": "wide",
+"ba": "ancho"
+},
+{
+"a": "es",
+"aw": "camino",
+"am": "path, way",
+"ab": "cammino",
+"b": "it",
+"bw": "camino",
+"bm": "fireplace",
+"ba": "chimenea"
+},
+{
+"a": "es",
+"aw": "prender",
+"am": "to switch on, to light",
+"ab": "accendere",
+"b": "it",
+"bw": "prendere",
+"bm": "to take",
+"ba": "tomar"
+},
+{
+"a": "es",
+"aw": "aceite",
+"am": "oil",
+"ab": "olio",
+"b": "it",
+"bw": "aceto",
+"bm": "vinegar",
+"ba": "vinagre"
+},
+{
+"a": "es",
+"aw": "embarazada",
+"am": "pregnant",
+"ab": "incinta",
+"b": "it",
+"bw": "imbarazzata",
+"bm": "embarrassed",
+"ba": "avergonzada"
+},
+{
+"a": "es",
+"aw": "gamba",
+"am": "prawn",
+"ab": "gambero",
+"b": "it",
+"bw": "gamba",
+"bm": "leg",
+"ba": "pierna"
+},
+{
+"a": "es",
+"aw": "embarazada",
+"am": "pregnant",
+"ab": "enceinte",
+"b": "fr",
+"bw": "embarrassée",
+"bm": "embarrassed",
+"ba": "avergonzada"
+},
+{
+"a": "es",
+"aw": "constipado",
+"am": "having a cold",
+"ab": "enrhumé",
+"b": "fr",
+"bw": "constipé",
+"bm": "constipated",
+"ba": "estreñido"
+},
+{
+"a": "es",
+"aw": "salir",
+"am": "to go out",
+"ab": "sortir",
+"b": "fr",
+"bw": "salir",
+"bm": "to make dirty",
+"ba": "ensuciar"
+},
+{
+"a": "es",
+"aw": "carta",
+"am": "letter",
+"ab": "lettre",
+"b": "fr",
+"bw": "carte",
+"bm": "card, map",
+"ba": "tarjeta, mapa"
+},
+{
+"a": "es",
+"aw": "largo",
+"am": "long",
+"ab": "long",
+"b": "fr",
+"bw": "large",
+"bm": "wide",
+"ba": "ancho"
+},
+{
+"a": "es",
+"aw": "ropa",
+"am": "clothes",
+"ab": "vêtements",
+"b": "fr",
+"bw": "robe",
+"bm": "dress",
+"ba": "vestido"
+},
+{
+"a": "es",
+"aw": "subir",
+"am": "to go up",
+"ab": "monter",
+"b": "fr",
+"bw": "subir",
+"bm": "to undergo",
+"ba": "sufrir"
+},
+{
+"a": "it",
+"aw": "camera",
+"am": "room",
+"ab": "Zimmer",
+"b": "de",
+"bw": "Kamera",
+"bm": "camera",
+"ba": "macchina fotografica"
+},
+{
+"a": "it",
+"aw": "caldo",
+"am": "hot",
+"ab": "heiß",
+"b": "de",
+"bw": "kalt",
+"bm": "cold",
+"ba": "freddo"
+}
+]
+}
