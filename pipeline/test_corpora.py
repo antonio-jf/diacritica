@@ -6,7 +6,10 @@ import tempfile
 import unittest
 import zipfile
 
+import build_corpora
 from build_corpora import CORPORA, build_corpus, good_english, good_translation, level_for, pair
+
+build_corpora.OFFLINE = True  # never download in tests
 
 RANKS = {w: i + 1 for i, w in enumerate(
     "the we must protect our rivers and forests city council approved a new plan for parks "
@@ -62,6 +65,17 @@ class EndToEnd(unittest.TestCase):
             out = {en: tr for en, _lvl, tr in build_corpus("news", args, RANKS, d)}
         self.assertEqual(set(out[a]), {"fr", "de", "zh"})
         self.assertEqual(set(out[b]), {"fr", "es"})
+
+    def test_mandarin_pairs_and_alternative_codes(self):
+        corpus = CORPORA["news"][0]
+        a = "We must protect our rivers and forests."
+        with tempfile.TemporaryDirectory() as d:
+            # Only English–Mandarin, under Global Voices' "zhs" code.
+            fake_zip(d, corpus, "zhs", [(a, "我们必须保护我们的河流和森林。")])
+            args = argparse.Namespace(sample=1.0, max_candidates=1000, min_words=6, max_words=22, min_langs=2,
+                                      per_corpus=100, seed=1)
+            out = {en: tr for en, _lvl, tr in build_corpus("news", args, RANKS, d)}
+        self.assertEqual(out[a], {"zh": "我们必须保护我们的河流和森林。"})
 
 
 if __name__ == "__main__":

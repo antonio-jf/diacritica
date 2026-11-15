@@ -146,7 +146,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     private suspend fun corpus(s: AppSettings, source: String, label: String): Pick? {
         val active = s.activeLanguages
         val levels = s.levels.ifEmpty { setOf("B1") } + (if ("B2" in s.levels) setOf("C1") else emptySet())
-        val g = if (c.corpora.available()) runCatching { c.corpora.next(levels, active, source = source) }.getOrNull() else null
+        val g = if (c.corpora.available()) runCatching { c.corpora.next(levels, active, minLangs = 1, source = source) }.getOrNull() else null
         if (g != null) return Pick(g.copy(id = CORPUS_BASE + g.id), label)
         val notice = if (c.corpora.available()) "No $source sentences at your levels yet. Here's an everyday sentence."
         else "News, Formal and Encyclopedic sentences aren't built yet: run pipeline/build_corpora.py on your computer (see README). Here's an everyday sentence."

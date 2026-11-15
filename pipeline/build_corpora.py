@@ -40,6 +40,10 @@ import zlib
 
 USER_AGENT = "Diacritica-pipeline/1.0 (personal language-learning app)"
 LANGS = ["fr", "de", "it", "es", "zh"]
+# Tests set this so missing pairs are skipped instead of downloaded.
+OFFLINE = False
+# Some corpora use other codes for Mandarin (Global Voices: zhs = simplified, zht = traditional).
+CODES = {"zh": ["zh", "zhs", "zh_cn", "zh_CN", "cmn", "zht"]}
 
 # OPUS corpus name and a known release; the OPUS API is asked for the latest URL first.
 CORPORA = {
@@ -70,8 +74,17 @@ def fetch(url: str) -> bytes:
 
 
 def pair(lang: str) -> str:
-    """OPUS names pairs alphabetically: de-en, en-es, en-fr, en-it, en-zh."""
+    """OPUS names pairs alphabetically: de-en, en-es, en-fr, en-it, en-zh (en-zhs…)."""
     return "-".join(sorted(["en", lang]))
+
+
+def download_any(cache: str, corpus: str, version: str, lang: str) -> tuple[str, str] | None:
+    """Tries each code a corpus may use for [lang]; returns (zip path, code used)."""
+    for code in CODES.get(lang, [lang]):
+        path = download(cache, corpus, version, code, quiet=code != CODES.get(lang, [lang])[-1])
+        if path:
+            return path, code
+    return None
 
 
 def moses_url(corpus: str, version: str, lang: str) -> str:
@@ -87,16 +100,18 @@ def moses_url(corpus: str, version: str, lang: str) -> str:
     return f"https://object.pouta.csc.fi/OPUS-{corpus}/{version}/moses/{pair(lang)}.txt.zip"
 
 
-def download(cache: str, corpus: str, version: str, lang: str) -> str | None:
+def download(cache: str, corpus: str, version: str, lang: str, quiet: bool = False) -> str | None:
     path = os.path.join(cache, f"{corpus}.{pair(lang)}.zip")
     if os.path.exists(path) and os.path.getsize(path) > 0:
         return path
+    if OFFLINE:
+        return None
     url = moses_url(corpus, version, lang)
     log(f"downloading {url}")
     try:
         data = fetch(url)
     except Exception as e:  # noqa: BLE001
-        log(f"  skipped {corpus} {pair(lang)}: {e}")
+        log(f"  {'(trying another code) ' if quiet else 'skipped '}{corpus} {pair(lang)}: {e}")
         return None
     with open(path, "wb") as fh:
         fh.write(data)
@@ -180,13 +195,17 @@ def build_corpus(key: str, args, ranks, cache) -> list[tuple[str, str, dict[str,
     keep = max(1, int(args.sample * 1000))
     groups: dict[str, dict[str, str]] = {}
     levels: dict[str, str] = {}
+    # Each language may start its own share of new groups, so the last one read (Mandarin) isn't crowded out.
+    quota = max(1, args.max_candidates // len(LANGS))
     for lang in LANGS:
-        path = download(cache, corpus, version, lang)
-        if not path:
+        found = download_any(cache, corpus, version, lang)
+        if not found:
             continue
+        path, code = found
+        started = 0
         try:
             zf = zipfile.ZipFile(path)
-            en_iter, x_iter = lines(zf, "en"), lines(zf, lang)
+            en_iter, x_iter = lines(zf, "en"), lines(zf, code)
         except (zipfile.BadZipFile, ValueError) as e:
             log(f"  {path}: {e}")
             continue
@@ -196,31 +215,39 @@ def build_corpus(key: str, args, ranks, cache) -> list[tuple[str, str, dict[str,
             if zlib.crc32(en.encode()) % 1000 >= keep:
                 continue
             if en not in groups:
-                if len(groups) >= args.max_candidates or not good_english(en, args.min_words, args.max_words):
+                if started >= quota or not good_english(en, args.min_words, args.max_words):
+                    continue
+                if not good_translation(x, lang, en):
                     continue
                 lvl = level_for(en, ranks)
                 if not lvl:
                     continue
                 groups[en] = {}
                 levels[en] = lvl
+                started += 1
             if lang not in groups[en] and good_translation(x, lang, en):
                 groups[en][lang] = x
                 added += 1
         log(f"  {corpus} en-{lang}: {added:,} translations")
-    # Keep groups with at least two translations, spread over levels, preferring more languages.
+    # Keep groups with at least --min-langs translations, spread over levels, preferring more languages.
+    # Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are kept too,
+    # up to a quarter of each level.
     rnd = random.Random(args.seed)
     by_level: dict[str, list[str]] = {}
     for en, tr in groups.items():
-        if len(tr) >= args.min_langs:
+        if len(tr) >= args.min_langs or "zh" in tr:
             by_level.setdefault(levels[en], []).append(en)
     out = []
     per_level = args.per_corpus // max(1, len(by_level))
     for lvl, ens in sorted(by_level.items()):
         rnd.shuffle(ens)
         ens.sort(key=lambda e: -len(groups[e]))
-        for en in ens[:per_level]:
+        zh = [e for e in ens if "zh" in groups[e]][: per_level // 4]
+        rest = [e for e in ens if e not in set(zh) and len(groups[e]) >= args.min_langs][: per_level - len(zh)]
+        for en in zh + rest:
             out.append((en, lvl, groups[en]))
-    log(f"{key}: kept {len(out):,} groups " + ", ".join(f"{l} {min(per_level, len(v))}" for l, v in sorted(by_level.items())))
+    per_lang = {l: sum(1 for _, _, tr in out if l in tr) for l in LANGS}
+    log(f"{key}: kept {len(out):,} groups; translations: " + ", ".join(f"{l} {n:,}" for l, n in per_lang.items()))
     return out
 
 
