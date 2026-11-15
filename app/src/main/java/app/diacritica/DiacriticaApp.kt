@@ -7,7 +7,6 @@ import app.diacritica.data.DictionaryRepository
 import app.diacritica.data.online.OnlineLookup
 import app.diacritica.rehearse.GeminiClient
 import app.diacritica.rehearse.SentenceRepository
-import app.diacritica.rehearse.LiteraryRepository
 import app.diacritica.reader.StoryRepository
 import app.diacritica.review.ReviewRepository
 import app.diacritica.data.user.UserDatabase
@@ -24,7 +23,7 @@ class AppContainer(app: Application) {
     val online = OnlineLookup(app, dictionaryDb)
     val review = ReviewRepository(userDb, dictionary)
     val sentences = SentenceRepository(app)
-    val literary = LiteraryRepository(app)
+    val corpora = SentenceRepository(app, "corpora/corpora.db")
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
     val backup = BackupManager(app, userDb)

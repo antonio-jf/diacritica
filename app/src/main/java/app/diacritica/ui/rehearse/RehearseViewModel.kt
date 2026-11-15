@@ -131,35 +131,26 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
                 Pick(g, "Tatoeba", promptLangs = learning.filter { it in g.texts.keys }, targets = natives)
             }
 
-            RehearsePath.LITERARY -> literary(s)
-                ?: everyday("Literary sentences aren't built yet: run pipeline/build_literary.py on your computer (see README). Here's an everyday sentence.")
+            RehearsePath.NEWS -> corpus(s, "news", "Global Voices (CC BY 3.0)")
+            RehearsePath.FORMAL -> corpus(s, "formal", "Europarl")
+            RehearsePath.ENCYCLOPEDIC -> corpus(s, "encyclopedic", "Wikipedia translations (CC BY-SA)")
 
             RehearsePath.GRAMMAR, RehearsePath.CONVERSATION, RehearsePath.IDIOMS -> generated(s)
         }
     }
 
     /**
-     * A sentence from a classic book, shown in its original language. Literature runs harder than Tatoeba,
-     * so your levels shift up one step (A2 → B1, B2 → B2 and C1).
+     * News, Formal and Encyclopedic: human-translated sentences from OPUS, built by pipeline/build_corpora.py.
+     * These run harder than Tatoeba, so B2 also includes C1. Falls back to Everyday until the data is built.
      */
-    private suspend fun literary(s: AppSettings): Pick? {
-        if (!c.literary.available()) return null
-        val litLangs = c.literary.languages()
-        val candidates = s.activeLanguages.filter { it in litLangs && s.rehearseLanguages.any { t -> t != it } }
-        if (candidates.isEmpty()) return null
-        val levels = buildSet {
-            if ("A2" in s.levels || "B1" in s.levels) add("B1")
-            if ("B1" in s.levels || "B2" in s.levels) add("B2")
-            if ("B2" in s.levels) add("C1")
-        }
-        val lang = candidates[rotation++ % candidates.size]
-        val sent = c.literary.next(lang, levels) ?: return null
-        val group = SentenceGroup(LITERARY_BASE + sent.id, sent.level, mapOf(sent.lang to listOf(sent.text)))
-        val noRefs = s.geminiKey.isBlank() || !c.online.isOnline()
-        return Pick(
-            group, "Project Gutenberg (public domain)", promptLangs = listOf(sent.lang), note = "— ${sent.credit}",
-            notice = if (noRefs) "Reference translations for literary sentences are written by Gemini; without it, answers are saved but not checked." else null,
-        )
+    private suspend fun corpus(s: AppSettings, source: String, label: String): Pick? {
+        val active = s.activeLanguages
+        val levels = s.levels.ifEmpty { setOf("B1") } + (if ("B2" in s.levels) setOf("C1") else emptySet())
+        val g = if (c.corpora.available()) runCatching { c.corpora.next(levels, active, source = source) }.getOrNull() else null
+        if (g != null) return Pick(g.copy(id = CORPUS_BASE + g.id), label)
+        val notice = if (c.corpora.available()) "No $source sentences at your levels yet. Here's an everyday sentence."
+        else "News, Formal and Encyclopedic sentences aren't built yet: run pipeline/build_corpora.py on your computer (see README). Here's an everyday sentence."
+        return c.sentences.next(s.levels, active)?.let { Pick(it, "Tatoeba", notice = notice) }
     }
 
     /** A sentence you've already read in a Reader story (or any story, if none is opened yet). */
@@ -227,9 +218,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Rebuilds a sentence from its id: Tatoeba (> 0), a Reader story, or one written by Gemini. */
     private suspend fun loadGroup(id: Long): Pair<SentenceGroup, String?>? = when {
-        id >= LITERARY_BASE -> c.literary.byId(id - LITERARY_BASE)?.let { l ->
-            SentenceGroup(id, l.level, mapOf(l.lang to listOf(l.text))) to "— ${l.credit}"
-        }
+        id >= CORPUS_BASE -> runCatching { c.corpora.byId(id - CORPUS_BASE) }.getOrNull()?.let { it.copy(id = id) to null }
         id > 0 -> c.sentences.byId(id)?.let { it to null }
         -id >= GENERATED_BASE -> {
             val refs = c.userDb.generatedRefs().forGroup(id)
@@ -442,8 +431,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         /** Ids of Gemini-written sentences are -(time in ms), so they never collide with story ids. */
         private const val GENERATED_BASE = 1_000_000_000_000L
         private const val STORY_STRIDE = 10_000L
-        /** Literary sentence ids are offset so they never collide with Tatoeba ids. */
-        private const val LITERARY_BASE = 10_000_000_000L
+        /** OPUS sentence ids (News, Formal, Encyclopedic) are offset so they never collide with Tatoeba ids. */
+        private const val CORPUS_BASE = 10_000_000_000L
         private const val NOTE = "note"
     }
 }

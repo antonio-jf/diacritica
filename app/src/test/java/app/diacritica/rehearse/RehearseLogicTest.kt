@@ -51,13 +51,3 @@ class GrammarTopicsTest {
         assertFalse("subjunctive" in zh)
     }
 }
-
-class LiteraryCreditTest {
-    private fun credit(author: String, title: String = "Contes") = LiterarySentence(1, Lang.FR, "x", "B1", title, author).credit
-
-    @Test fun catalogNamesAreTurnedAround() {
-        assertEquals("Guy de Maupassant, Contes", credit("Maupassant, Guy de, 1850-1893"))
-        assertEquals("Guy de Maupassant, Contes", credit("Guy de Maupassant"))
-        assertEquals("Contes", credit(""))
-    }
-}

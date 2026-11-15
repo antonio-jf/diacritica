@@ -13,12 +13,15 @@ import java.io.File
 data class SentenceGroup(val id: Long, val level: String, val texts: Map<Lang, List<String>>)
 
 /**
- * Rehearse sentences, built by pipeline/build_sentences.py and bundled as
- * assets/sentences/sentences.db (copied to app storage, re-copied when the bundled file changes).
+ * Aligned Rehearse sentences bundled as an asset database (copied to app storage, re-copied when the
+ * bundled file changes):
+ *  - assets/sentences/sentences.db: Tatoeba, built by pipeline/build_sentences.py (always present)
+ *  - assets/corpora/corpora.db: News, Formal and Encyclopedic from OPUS, built by pipeline/build_corpora.py
+ *    (optional until built; groups carry a `source` column)
  */
-class SentenceRepository(private val context: Context) {
-    private val dir = File(context.filesDir, "sentences").apply { mkdirs() }
-    private val dbFile = File(dir, "sentences.db")
+class SentenceRepository(private val context: Context, private val asset: String = ASSET) {
+    private val dir = File(context.filesDir, asset.substringBefore('/')).apply { mkdirs() }
+    private val dbFile = File(dir, asset.substringAfterLast('/'))
     private val marker = File(dir, "source.txt")
     private val mutex = Mutex()
     @Volatile private var db: SQLiteDatabase? = null
@@ -26,29 +29,34 @@ class SentenceRepository(private val context: Context) {
 
     private suspend fun get(): SQLiteDatabase = db ?: mutex.withLock {
         db ?: withContext(Dispatchers.IO) {
-            val size = context.assets.openFd(ASSET).use { it.length }
+            val size = context.assets.openFd(asset).use { it.length }
             if (!dbFile.exists() || marker.takeIf { it.exists() }?.readText() != "asset:$size") {
-                context.assets.open(ASSET).use { i -> dbFile.outputStream().use { i.copyTo(it) } }
+                context.assets.open(asset).use { i -> dbFile.outputStream().use { i.copyTo(it) } }
                 marker.writeText("asset:$size")
             }
             SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READONLY).also { db = it }
         }
     }
 
+    /** False when the asset hasn't been built yet (optional databases). */
+    fun available(): Boolean = runCatching { context.assets.openFd(asset).use { true } }.getOrDefault(false)
+
     /**
      * A random sentence at one of [levels] that has a translation in at least [minLangs] of [active]
      * (other than English). Avoids repeating the last 30.
      */
-    suspend fun next(levels: Set<String>, active: List<Lang>, minLangs: Int = 2): SentenceGroup? = withContext(Dispatchers.IO) {
+    suspend fun next(levels: Set<String>, active: List<Lang>, minLangs: Int = 2, source: String? = null): SentenceGroup? = withContext(Dispatchers.IO) {
         val d = get()
         val lv = levels.ifEmpty { setOf("A2", "B1", "B2") }
         val placeholders = lv.joinToString(",") { "?" }
         val avoid = recent.joinToString(",").ifEmpty { "-1" }
+        val bySource = if (source != null) " AND source = ?" else ""
         val id = d.rawQuery(
-            "SELECT id FROM sgroup WHERE level IN ($placeholders) AND langs >= ? AND id NOT IN ($avoid) ORDER BY RANDOM() LIMIT 1",
-            (lv.toList() + minLangs.toString()).toTypedArray(),
+            "SELECT id FROM sgroup WHERE level IN ($placeholders) AND langs >= ? AND id NOT IN ($avoid)$bySource ORDER BY RANDOM() LIMIT 1",
+            (lv.toList() + minLangs.toString() + listOfNotNull(source)).toTypedArray(),
         ).use { if (it.moveToFirst()) it.getLong(0) else null }
-            ?: d.rawQuery("SELECT id FROM sgroup ORDER BY RANDOM() LIMIT 1", null).use { if (it.moveToFirst()) it.getLong(0) else null }
+            ?: d.rawQuery("SELECT id FROM sgroup WHERE 1$bySource ORDER BY RANDOM() LIMIT 1", listOfNotNull(source).toTypedArray())
+                .use { if (it.moveToFirst()) it.getLong(0) else null }
             ?: return@withContext null
         recent.addLast(id); if (recent.size > 30) recent.removeFirst()
         load(d, id)

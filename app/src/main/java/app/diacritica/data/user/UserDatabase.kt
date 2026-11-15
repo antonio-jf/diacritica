@@ -110,7 +110,7 @@ data class Story(
     val titles: String,
     val level: String,
     val topic: String? = null,
-    /** "starter", "gemini", later "gutenberg" etc. */
+    /** "starter", "gemini"; later other sources */
     val source: String,
     val createdAt: Long = System.currentTimeMillis(),
     /** Reading progress: index of the last highlighted sentence. */

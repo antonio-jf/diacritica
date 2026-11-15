@@ -29,7 +29,7 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 `.github/workflows/ci.yml` runs on every push:
 
-- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py` and `pipeline/test_literary.py`.
+- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py` and `pipeline/test_corpora.py`.
 - **Android:** JVM unit tests (`./gradlew testDebugUnitTest`), a debug APK build (downloadable from the run's artifacts) and a check that the Room schema JSON is committed.
 - **Lint:** `./gradlew lintDebug` fails on errors; warnings are listed in the HTML report attached to the run.
 
@@ -108,23 +108,33 @@ Pick one with **Path ▾** at the top of Rehearse:
 | From my reading | Sentences you've already read in Reader stories (all six languages aligned) | yes |
 | Weak spots | Rounds you got partly wrong, with the same prompt language and your earlier score | yes |
 | Reverse | A language you're learning → English/Spanish | yes |
-| Literary | Sentences from classic novels and stories in their original language (Project Gutenberg); Gemini writes the references | prompt yes, check needs Gemini |
+| News | Global Voices articles and their human translations (OPUS) | yes |
+| Formal | European Parliament speeches and their official translations (no Mandarin) | yes |
+| Encyclopedic | Translated Wikipedia articles | yes |
 | Grammar focus | Gemini writes a sentence that needs one structure (subjunctive, past tenses, German cases, 了/过, 把/被…); prompt in EN/ES | no |
 | Conversation | Gemini writes a spoken line, with the situation shown above it | no |
 | Idioms & sayings | Gemini picks an idiom; each language uses its own equivalent | no |
 
 Sentences written by Gemini are saved, so Weak spots can bring them back later.
 
-### Literary sentences (Project Gutenberg)
+### News, Formal and Encyclopedic sentences (OPUS)
 
-Build them once on your computer (needs internet; about 40 books, a few minutes):
+These come from [OPUS](https://opus.nlpl.eu), an open collection of human-translated, sentence-aligned texts, so every language has a real reference and answers are checked offline:
+
+| Path | Corpus | License |
+|---|---|---|
+| News | Global Voices (citizen journalism, volunteer translations) | CC BY 3.0 |
+| Formal | Europarl (European Parliament proceedings) | free to use |
+| Encyclopedic | Wikimedia (Wikipedia articles translated by editors) | CC BY-SA |
+
+Build them once on your computer (needs internet; Europarl is the big download, about 200 MB per language pair; files are cached in `data/opus/`):
 
 ```
 cd pipeline
-python3 build_literary.py --freq-dir data --out ../app/src/main/assets/literary/literary.db
+python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/corpora/corpora.db
 ```
 
-The script picks prose by authors who wrote in each language (Austen, Dickens… · Maupassant, Verne, Malot… · Spyri, Storm, Kafka… · Collodi, Verga, De Amicis… · Galdós, Alarcón, Pardo Bazán…), up to two books per author, eight per language. It keeps sentences of 6–20 words without numbers or odd punctuation and levels them by their rarest word in `data/<lang>_50k.txt`: B1 ≤ 5,000, B2 ≤ 12,000, C1 ≤ 30,000. Old spellings (e.g. German *daß*) fall out automatically. Books are cached in `data/gutenberg/`. Then Run ▶ again so the app bundles the file. Literature runs harder than Tatoeba, so the path shifts your Rehearse levels up one step.
+English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
 ## Reader (v2)
 
@@ -230,5 +240,6 @@ spacing come from `Diacritica.*` tokens, so the theme stays consistent across ev
 The app's code is under the MIT License (see `LICENSE`). Data sources keep their own licenses:
 
 - Dictionary data: Wiktionary via Wiktextract (CC BY-SA 4.0), CC-CEDICT (CC BY-SA 4.0).
+- Rehearse sentences: Tatoeba (CC BY 2.0 FR); built locally from OPUS: Global Voices (CC BY 3.0), Europarl, Wikimedia translations (CC BY-SA). Cite J. Tiedemann, 2012, *Parallel Data, Tools and Interfaces in OPUS*, LREC 2012.
 - Fonts (SIL Open Font License 1.1): Inter, Source Serif 4, Plus Jakarta Sans, IBM Plex Sans/Mono,
   Space Grotesk. Bundled as Latin + Latin Extended subsets. Chinese uses the phone's system font.

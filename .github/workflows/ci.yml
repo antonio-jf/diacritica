@@ -26,9 +26,9 @@ jobs:
       - name: Dictionary pipeline tests
         working-directory: pipeline
         run: python3 test_build.py -v
-      - name: Literary pipeline tests
+      - name: Corpus pipeline tests
         working-directory: pipeline
-        run: python3 test_literary.py -v
+        run: python3 test_corpora.py -v
       - name: Starter dictionary in the repo is up to date
         run: |
           # make_sample.py rewrites the bundled starter DB; it must still open and have the sample words.
