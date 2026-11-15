@@ -34,6 +34,7 @@ import sys
 import time
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 import zlib
@@ -42,6 +43,8 @@ USER_AGENT = "Diacritica-pipeline/1.0 (personal language-learning app)"
 LANGS = ["fr", "de", "it", "es", "zh"]
 # Tests set this so missing pairs are skipped instead of downloaded.
 OFFLINE = False
+# Languages a corpus doesn't have (Europarl is EU languages only), so they aren't even tried.
+MISSING = {"formal": {"zh"}}
 # Some corpora use other codes for Mandarin (Global Voices: zhs = simplified, zht = traditional).
 CODES = {"zh": ["zh", "zhs", "zh_cn", "zh_CN", "cmn", "zht"]}
 
@@ -66,6 +69,11 @@ def fetch(url: str) -> bytes:
     try:
         with urllib.request.urlopen(req, timeout=300) as r:
             return r.read()
+    except urllib.error.HTTPError as e:
+        # Older Pythons don't follow 307/308 redirects (the OPUS API answers with 308).
+        if e.code in (307, 308) and e.headers.get("Location"):
+            return fetch(urllib.parse.urljoin(url, e.headers["Location"]))
+        raise
     except urllib.error.URLError as e:
         # python.org builds on macOS often lack root certificates; curl uses the system's.
         if "CERTIFICATE" not in str(e).upper():
@@ -198,6 +206,8 @@ def build_corpus(key: str, args, ranks, cache) -> list[tuple[str, str, dict[str,
     # Each language may start its own share of new groups, so the last one read (Mandarin) isn't crowded out.
     quota = max(1, args.max_candidates // len(LANGS))
     for lang in LANGS:
+        if lang in MISSING.get(key, set()):
+            continue
         found = download_any(cache, corpus, version, lang)
         if not found:
             continue

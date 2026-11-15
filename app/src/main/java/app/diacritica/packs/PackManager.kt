@@ -67,7 +67,7 @@ class PackManager(
     }
 
     suspend fun catalog(url: String = CATALOG_URL): PackCatalog = withContext(Dispatchers.IO) {
-        val text = open(url).use { c -> c.inputStream.bufferedReader().readText() }
+        val text = open(url).consume { c -> c.inputStream.bufferedReader().readText() }
         json.decodeFromString(PackCatalog.serializer(), text)
     }
 
@@ -79,7 +79,7 @@ class PackManager(
         val part = File(context.cacheDir, "pack-${p.id}.part")
         try {
             val digest = MessageDigest.getInstance("SHA-256")
-            open(p.url).use { c ->
+            open(p.url).consume { c ->
                 val total = c.contentLengthLong.takeIf { it > 0 } ?: p.bytes
                 c.inputStream.use { input ->
                     part.outputStream().use { out ->
@@ -158,6 +158,10 @@ class PackManager(
         }
         throw IOException("Too many redirects.")
     }
+
+    /** Runs [block] and always disconnects (HttpURLConnection isn't Closeable). */
+    private inline fun <T> HttpURLConnection.consume(block: (HttpURLConnection) -> T): T =
+        try { block(this) } finally { disconnect() }
 
     companion object {
         /** The project's rolling data-pack release; see pipeline/make_packs.py and README › Data packs. */
