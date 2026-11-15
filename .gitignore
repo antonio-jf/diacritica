@@ -13,3 +13,7 @@ pipeline/**/__pycache__/
 pipeline/data/
 # The full dictionary (~240 MB) is built locally; the repo ships the small starter at the same path.
 # Use `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` after building it.
+# Data-pack build output (pipeline/make_packs.py); published as release assets, not committed.
+pipeline/dist/
+# Android Studio / OS
+*.hprof
