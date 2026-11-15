@@ -50,6 +50,7 @@ class PackManager(
     private val dictionary: DictionaryDatabase,
     private val sentences: SentenceRepository,
     private val corpora: SentenceRepository,
+    private val books: app.diacritica.reader.BooksRepository,
 ) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
     private val dir = File(context.filesDir, "packs").apply { mkdirs() }
@@ -106,6 +107,7 @@ class PackManager(
                 "dictionary" -> File(File(context.filesDir, "dict").apply { mkdirs() }, "pack.db.tmp")
                 "sentences" -> File(dir, sentences.packFile.name + ".tmp")
                 "corpora" -> File(dir, corpora.packFile.name + ".tmp")
+                "books" -> File(dir, books.packFile.name + ".tmp")
                 else -> throw IOException("This version of the app doesn't know “${p.kind}” packs. Update the app.")
             }
             (if (p.url.endsWith(".gz")) GZIPInputStream(part.inputStream().buffered()) else part.inputStream().buffered()).use { input ->
@@ -117,6 +119,7 @@ class PackManager(
                 "dictionary" -> dictionary.installPack(target, p.version)?.let { throw IOException(it) }
                 "sentences" -> replace(target, sentences)
                 "corpora" -> replace(target, corpora)
+                "books" -> { books.reload(); if (!target.renameTo(books.packFile)) { target.copyTo(books.packFile, overwrite = true); target.delete() }; books.reload() }
             }
             setInstalled(p.id, p.version)
         } finally {
@@ -136,6 +139,7 @@ class PackManager(
             "dictionary" -> if (dictionary.source().startsWith("pack:")) dictionary.resetToBundled()
             "sentences" -> { sentences.reload(); sentences.packFile.delete(); sentences.reload() }
             "corpora" -> { corpora.reload(); corpora.packFile.delete(); corpora.reload() }
+            "books" -> { books.reload(); books.packFile.delete(); books.reload() }
         }
         setInstalled(p.id, null)
     }

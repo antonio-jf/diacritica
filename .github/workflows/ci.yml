@@ -29,6 +29,9 @@ jobs:
       - name: Corpus pipeline tests
         working-directory: pipeline
         run: python3 test_corpora.py -v
+      - name: Books pipeline tests
+        working-directory: pipeline
+        run: python3 test_books.py -v
       - name: Data pack tests
         working-directory: pipeline
         run: python3 test_packs.py -v

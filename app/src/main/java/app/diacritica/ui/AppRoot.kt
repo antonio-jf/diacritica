@@ -135,6 +135,8 @@ fun AppRoot(
                     composable(Tab.READER.route) {
                         app.diacritica.ui.reader.ReaderScreen(
                             readerVm, s, onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") },
+                            onRehearse = { id, idx, l -> rehearseVm.rehearseStorySentence(id, idx, l); nav.goTo(Tab.REHEARSE) },
+                            onOpenDataPacks = { nav.navigate("packs") },
                         )
                     }
                     composable("archive") {

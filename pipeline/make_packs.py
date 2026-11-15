@@ -10,7 +10,8 @@ output folder to the GitHub release with the tag "data-packs"; the app reads
   python3 make_packs.py --out dist \\
       --dictionary ../app/src/main/assets/dict/dictionary.db \\
       --sentences ../app/src/main/assets/sentences/sentences.db \\
-      --corpora ../app/src/main/assets/corpora/corpora.db
+      --corpora ../app/src/main/assets/corpora/corpora.db \\
+      --books ../app/src/main/assets/books/books.db
   gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica"
   # later updates: gh release upload data-packs dist/* --clobber
 
@@ -43,6 +44,11 @@ PACKS = {
         description="Human-translated sentences from Global Voices, Europarl and translated Wikipedia articles (OPUS).",
         license="CC BY 3.0 (Global Voices), Europarl, CC BY-SA (Wikimedia)", file="corpora.db.gz",
     ),
+    "books": dict(
+        kind="books", title="Classics in two languages",
+        description="Public-domain novels and stories aligned sentence by sentence (OPUS Books), for the Reader.",
+        license="Public domain texts; alignment by OPUS Books", file="books.db.gz",
+    ),
 }
 
 
@@ -59,6 +65,8 @@ def languages(pack_id: str, db: str, m: dict[str, str]) -> list[str]:
         return [l for l in m["languages"].split(",") if l]
     try:
         with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+            if pack_id == "books":
+                return sorted({r[0] for r in con.execute("SELECT lang_a FROM book UNION SELECT lang_b FROM book")})
             return sorted(r[0] for r in con.execute("SELECT DISTINCT lang FROM stext"))
     except sqlite3.Error:
         return []

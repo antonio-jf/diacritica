@@ -35,6 +35,9 @@ data class WordPopup(
     val anchor: WordAnchor? = null,
     /** Tooltip opened into the full sheet ("More"). */
     val expanded: Boolean = false,
+    /** The matching word in the other language's sentence, if the dictionary's translations appear in it. */
+    val match: String? = null,
+    val matchLang: Lang? = null,
 )
 
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
@@ -46,6 +49,18 @@ data class ReaderUiState(
     val generating: Boolean = false,
     val error: String? = null,
     val message: String? = null,
+)
+
+/** The Classics tab: public-domain books in two languages (data pack or bundled). */
+data class ClassicsState(
+    val available: Boolean = false,
+    val loading: Boolean = true,
+    val books: List<app.diacritica.reader.BookInfo> = emptyList(),
+    val query: String = "",
+    /** Only books in your Reader pair (either order). */
+    val onlyPair: Boolean = true,
+    /** The book being put on your shelf. */
+    val opening: Long? = null,
 )
 
 class ReaderViewModel(private val c: AppContainer) : ViewModel() {
@@ -63,6 +78,42 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
 
     init { viewModelScope.launch { runCatching { c.stories.ensureStarter() } } }
 
+    private val _classics = MutableStateFlow(ClassicsState())
+    val classics: StateFlow<ClassicsState> = _classics.asStateFlow()
+
+    fun loadClassics() {
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val cs = _classics.value
+            val available = c.books.available()
+            val list = if (available) runCatching {
+                c.books.list(if (cs.onlyPair) s.readerLangA to s.readerLangB else null, cs.query)
+            }.getOrDefault(emptyList()) else emptyList()
+            _classics.update { it.copy(available = available, loading = false, books = list) }
+        }
+    }
+
+    fun setClassicsQuery(q: String) { _classics.update { it.copy(query = q) }; loadClassics() }
+    fun setOnlyPair(on: Boolean) { _classics.update { it.copy(onlyPair = on) }; loadClassics() }
+
+    /** Puts the book on your shelf (the first time) and opens it in its two languages. */
+    fun openBook(b: app.diacritica.reader.BookInfo) {
+        if (_classics.value.opening != null) return
+        _classics.update { it.copy(opening = b.id) }
+        viewModelScope.launch {
+            try {
+                val sentences = c.books.sentences(b.id)
+                if (sentences.isEmpty()) { _state.update { it.copy(error = "This book couldn't be read.") }; return@launch }
+                val id = c.stories.importBook(b, sentences)
+                val s = c.settings.settings.first()
+                if (!(b.has(s.readerLangA) && b.has(s.readerLangB) && s.readerLangA != s.readerLangB)) c.settings.setReaderLangs(b.a, b.b)
+                open(id)
+            } finally {
+                _classics.update { it.copy(opening = null) }
+            }
+        }
+    }
+
     fun open(id: Long) {
         viewModelScope.launch {
             val s = c.stories.load(id) ?: return@launch
@@ -78,6 +129,8 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun setLangs(a: Lang, b: Lang) { viewModelScope.launch { c.settings.setReaderLangs(a, b) } }
 
     fun setLayout(l: app.diacritica.settings.ReaderLayout) { viewModelScope.launch { c.settings.setReaderLayout(l) } }
+
+    fun setSplit(f: Float) { viewModelScope.launch { c.settings.setReaderSplit(f) } }
 
     fun setPinyin(on: Boolean) { viewModelScope.launch { c.settings.setReaderPinyin(on) } }
 
@@ -111,6 +164,12 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
                 r = run()
                 _state.update { st -> if (st.popup?.token == token) st.copy(popup = st.popup.copy(fetching = false, result = r)) else st }
             }
+            // Underline the translation in the other language's sentence.
+            val other = _state.value.story?.sentences?.getOrNull(sentenceIdx)?.get(otherLang)
+            val candidates = r?.results?.firstOrNull { it.lang == otherLang }?.words
+                ?.flatMap { w -> listOfNotNull(w.word, w.traditional) }.orEmpty()
+            val match = other?.let { app.diacritica.reader.WordMatch.find(it, otherLang, candidates) }
+            if (match != null) _state.update { st -> if (st.popup?.token == token) st.copy(popup = st.popup.copy(match = match, matchLang = otherLang)) else st }
             // Record it like a Dictionary search, so it feeds Review and "My words".
             if (r != null && r.concepts.isNotEmpty()) {
                 c.userDb.history().deleteSame(token, lang.code)
@@ -164,14 +223,14 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun clearMessage() = _state.update { it.copy(message = null, error = null) }
 
     /** Writes a new story with Gemini and opens it. */
-    fun generate(topic: String) {
+    fun generate(topic: String, level: String? = null) {
         viewModelScope.launch {
             val s = c.settings.settings.first()
             if (s.geminiKey.isBlank()) { _state.update { it.copy(error = "Add your Gemini API key in Settings › Rehearse to write new stories.") }; return@launch }
             if (!c.online.isOnline()) { _state.update { it.copy(error = "You're offline. New stories need the internet; saved ones work offline.") }; return@launch }
             _state.update { it.copy(generating = true, error = null) }
             try {
-                val id = c.stories.generate(s.geminiKey, s.geminiModel, topic.ifBlank { "a surprising day in a small town" }, s.storyLevel, s.storyHsk)
+                val id = c.stories.generate(s.geminiKey, s.geminiModel, topic.ifBlank { "a surprising day in a small town" }, level ?: s.storyLevel, s.storyHsk)
                 _state.update { it.copy(generating = false) }
                 open(id)
             } catch (e: Exception) {

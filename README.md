@@ -29,7 +29,7 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 `.github/workflows/ci.yml` runs on every push:
 
-- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py`, `pipeline/test_corpora.py` and `pipeline/test_packs.py`.
+- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py`, `test_corpora.py`, `test_books.py` and `test_packs.py`.
 - **Android:** JVM unit tests (`./gradlew testDebugUnitTest`), a debug APK build (downloadable from the run's artifacts) and a check that the Room schema JSON is committed.
 - **Lint:** `./gradlew lintDebug` fails on errors; warnings are listed in the HTML report attached to the run.
 
@@ -160,7 +160,7 @@ Home › Progress, for the last 7 days, 30 days or all time:
 
 Settings › Data packs shows everything kept for offline use and downloads bigger data instead of building it on a computer:
 
-- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
+- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences, Classics). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
 - **On this phone:** the dictionary (built-in, imported file or pack; import a `.db` you built), downloaded words (Wiktionary lookups), sentence counts per Rehearse source, Translate's on-device models per language (download or delete), and a shortcut to the phone's voices.
 
 Publishing packs (on your computer, after building the databases):
@@ -187,16 +187,25 @@ Home › Translate turns a sentence or paragraph (up to 5,000 characters) into a
 - Each result can be read aloud, copied, added to Review (your text on the front), used as the new source ("Translate from here"), or, for a single word, opened in the Dictionary. Mandarin results show pinyin.
 - Selecting text in another app and choosing *Look up in Diacritica* opens a word in the Dictionary and longer text in Translate.
 
-## Reader (v2)
+## Reader
 
-Parallel stories, aligned sentence by sentence in all six languages. Bottom tab **Reader**; Settings now lives behind the gear in **Library**.
+The Reader opens on a gallery with three tabs:
 
-- **Shelf:** a starter story ("The Old Fisherman", B1 · HSK 3) is added on first run. *Write a new story* asks Gemini (your key, online) for a story on a topic at your level (A2–C1, HSK 2–5); it is stored on the phone and reads offline afterwards. Trash icon deletes.
-- **Languages:** pick the two languages at the top (⇄ swaps). Any pair of the six works.
-- **Layouts** (top-bar icon, or Settings › Layouts › Reader): Top / bottom (two panes that scroll together), Side by side, Interlinear, Numbered split.
-- **Tap a sentence** to highlight it in both languages; the bar at the bottom steps ↑↓, reads either side aloud and adds the pair to Review. The last highlighted sentence is your reading progress.
-- **Press and hold a word** for the popup: offline lookup (downloads missing words when online lookup is on), translations into the other language and English, pronunciation, ☆ save (creates Review cards), *Open in Dictionary*, and a link to the language's reference dictionary (Oxford Learner's, RAE, Larousse, Duden, Treccani, MOE 國語辭典).
-- **Mandarin:** text is split into words with CC-CEDICT; 拼音 toggles pinyin above the characters. Traditional characters follow Settings › Script.
+- **My shelf:** your stories and books, with reading progress.
+- **Classics:** public-domain novels and stories in two languages, lined up sentence by sentence (OPUS Books: Austen, Verne, Dumas, Kafka, Galdós…; EN, ES, FR, DE, IT, no Mandarin). Search by title or author; show only your Reader pair or all pairs. Opening a book puts it on your shelf. Comes as a data pack, or build it yourself:
+  ```
+  cd pipeline
+  python3 build_books.py --out ../app/src/main/assets/books/books.db
+  ```
+  The script splits each language pair's text back into books using the alignment file in the OPUS download, and skips a pair if the counts don't line up.
+- **New story:** one-tap story ideas at a suggested level, or your own topic and level; Gemini writes them in all six languages.
+
+Reading:
+
+- Any two languages; four layouts (Top / bottom, Side by side, Interlinear, Numbered split). In the two-pane layouts, **drag the divider** to give either language more room (double-tap to split evenly); it's remembered.
+- Tap a sentence to highlight it in both languages and save your place. The sentence bar steps through, reads either side aloud, **sends the sentence to Rehearse** (the story's other languages are the references) or adds the pair to Review.
+- Press and hold a word for its dictionary popup (bottom sheet, floating card or tooltip). Its **translation is underlined in the other language's sentence** when the dictionary's translations appear there (offline matching, including inflected forms such as *pêcheur* → *pêcheurs*).
+- Mandarin: words segmented with CC-CEDICT, pinyin above the characters (toggle), traditional characters per Settings.
 
 ## Backup & restore
 

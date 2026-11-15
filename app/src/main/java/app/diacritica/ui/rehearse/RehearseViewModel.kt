@@ -66,7 +66,29 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     val state: StateFlow<RehearseUiState> = _state.asStateFlow()
     private var rotation = 0
 
-    fun ensureStarted() { if (_state.value.group == null && !_state.value.empty) next() }
+    /** True while a sentence sent from elsewhere (the Reader) is being loaded, so opening Rehearse doesn't replace it. */
+    private var external = false
+
+    fun ensureStarted() { if (!external && _state.value.group == null && !_state.value.empty) next() }
+
+    /**
+     * "Rehearse this sentence" from the Reader: the story's sentence becomes the prompt in [promptLang]; the
+     * story's other languages are the references. The current path stays as it is for the next sentence.
+     */
+    fun rehearseStorySentence(storyId: Long, idx: Int, promptLang: Lang) {
+        external = true
+        viewModelScope.launch {
+            try {
+                _state.update { RehearseUiState(loading = true, roundsDone = it.roundsDone) }
+                val s = c.settings.settings.first()
+                val (group, _) = loadGroup(storyGroupId(storyId, idx)) ?: run { next(); return@launch }
+                val title = c.stories.load(storyId)?.title(Lang.EN) ?: "your reading"
+                show(Pick(group, "From “$title”", promptLangs = listOf(promptLang).filter { it in group.texts.keys }.ifEmpty { null }), s)
+            } finally {
+                external = false
+            }
+        }
+    }
 
     /** A sentence picked by a path, before the prompt language and targets are chosen. */
     private data class Pick(
