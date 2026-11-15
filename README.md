@@ -134,7 +134,7 @@ cd pipeline
 python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/corpora/corpora.db
 ```
 
-English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
+English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
 ## Layouts
 
@@ -146,6 +146,16 @@ Each section has its own layout (Settings › Layouts, or the layout icon in the
 | Rehearse feedback | Tabs per language · Stacked cards · Score tiles (verdict and error count per language, tap for details) · Report rows (compact, corrections inline, "Why" for explanations) |
 | Reader | Top / bottom · Side by side · Interlinear · Numbered split |
 | Word popup (Reader) | Bottom sheet · Floating card (centred dialog) · Tooltip (small card next to the word; "More" opens the sheet) |
+
+## Progress
+
+Home › Progress, for the last 7 days, 30 days or all time:
+
+- **Streak:** days in a row, longest streak and active days, with a 16-week activity calendar. Any Rehearse round, Review card, lookup or story opened counts.
+- **Rehearse:** accuracy per language (correct or acceptable, out of the answers that were checked).
+- **Mistakes by type:** the error types from grading (gender, agreement, word order, tones…), overall or per language.
+- **Review:** cards reviewed, share remembered (any answer but Again), per language, and mature cards (interval of 3 weeks or more).
+- **Reading and words:** sentences read in the Reader, words read in your Reader languages (characters for Mandarin), lookups and saved words.
 
 ## Translate
 

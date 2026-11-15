@@ -71,6 +71,7 @@ fun AppRoot(
     readerVm: app.diacritica.ui.reader.ReaderViewModel,
     homeVm: app.diacritica.ui.home.HomeViewModel,
     translateVm: app.diacritica.ui.translate.TranslateViewModel,
+    progressVm: app.diacritica.ui.progress.ProgressViewModel,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -111,6 +112,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.LIBRARY -> nav.navigate("library")
                                     app.diacritica.ui.home.HomeSection.SETTINGS -> nav.navigate("settings")
                                     app.diacritica.ui.home.HomeSection.TRANSLATE -> nav.navigate("translate")
+                                    app.diacritica.ui.home.HomeSection.PROGRESS -> nav.navigate("progress")
                                 }
                             },
                         )
@@ -148,6 +150,7 @@ fun AppRoot(
                         }
                     }
                     composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }) }
+                    composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
                         app.diacritica.ui.translate.TranslateScreen(
                             translateVm, s, onBack = { nav.popBackStack() },
@@ -172,7 +175,7 @@ fun AppRoot(
             val current = Tab.entries.firstOrNull { route == it.route } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY
                 route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" || route == "translate" -> Tab.HOME
+                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" -> Tab.HOME
                 else -> null
             }
             BottomNav(current = current) {

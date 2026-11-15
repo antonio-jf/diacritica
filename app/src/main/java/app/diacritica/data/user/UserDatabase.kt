@@ -164,6 +164,12 @@ interface RehearseRoundDao {
     @Query("SELECT * FROM rehearse_round WHERE id = :id")
     suspend fun byId(id: Long): RehearseRound?
 
+    @Query("SELECT * FROM rehearse_round WHERE at >= :since ORDER BY at")
+    suspend fun since(since: Long): List<RehearseRound>
+
+    @Query("SELECT at FROM rehearse_round")
+    suspend fun allTimes(): List<Long>
+
     /** Rounds with at least one language not right, newest first (Weak spots). */
     @Query("SELECT * FROM rehearse_round WHERE correct < total ORDER BY at DESC LIMIT :limit")
     suspend fun weak(limit: Int = 200): List<RehearseRound>
@@ -188,6 +194,9 @@ interface HistoryDao {
 
     @Query("SELECT * FROM history WHERE at > :since ORDER BY at")
     suspend fun since(since: Long): List<HistoryItem>
+
+    @Query("SELECT at FROM history")
+    suspend fun allTimes(): List<Long>
 
     @Query("SELECT * FROM history ORDER BY at DESC LIMIT :limit")
     suspend fun recentNow(limit: Int): List<HistoryItem>
@@ -256,6 +265,16 @@ interface CardDao {
 
     @Insert
     suspend fun log(entry: ReviewLog)
+
+    /** Every Review rating since [since], with its card's language (Progress page). */
+    @Query("SELECT c.lang AS lang, l.at AS at, l.rating AS rating FROM review_log l JOIN card c ON c.id = l.cardId WHERE l.at >= :since")
+    suspend fun reviewEvents(since: Long): List<app.diacritica.progress.ReviewEvent>
+
+    @Query("SELECT at FROM review_log")
+    suspend fun reviewTimes(): List<Long>
+
+    @Query("SELECT COUNT(*) FROM card WHERE stability >= 21")
+    suspend fun matureCount(): Int
 
     @Query("SELECT at FROM review_log WHERE at >= :since ORDER BY at DESC")
     fun reviewTimesSince(since: Long): Flow<List<Long>>
