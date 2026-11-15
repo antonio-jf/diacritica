@@ -3,11 +3,10 @@
 Build Diacritica's parallel classics (Reader › Classics) from the OPUS "Books" corpus:
 public-domain novels aligned sentence by sentence across languages (https://opus.nlpl.eu/Books).
 
-For each language pair (en-fr, de-en, …) the script downloads the Moses text files plus the XCES
-alignment file in the same zip. The alignment file lists the books (fromDoc / toDoc) and their
-sentence links in order; the Moses files hold one line per link whose two sides are both non-empty.
-Counting those links per book splits the Moses lines back into books, with title and author taken
-from the file names ("en/Austen_Jane-Pride_and_Prejudice.xml.gz" → Jane Austen, Pride and Prejudice).
+For each language pair (en-fr, de-en, …) the script downloads the Moses text files. The zip also
+has a .ids file with the source documents of every line ("en/Austen_Jane-Pride_and_Prejudice.xml.gz
+<tab> fr/…"), which splits the lines back into books, with title and author taken from the file names
+(→ Jane Austen, Pride and Prejudice). Zips with an XCES alignment file (.xml) instead are handled too.
 
 Run on your computer (downloads are cached in data/opus/):
   cd pipeline
@@ -81,11 +80,31 @@ def title_author(doc: str) -> tuple[str, str]:
     return title, author
 
 
+def books_from_ids(zf: zipfile.ZipFile) -> list[tuple[str, str, int]] | None:
+    """(fromDoc, toDoc, number of lines) per book from the .ids file: one line per Moses line, in order."""
+    ids = [n for n in zf.namelist() if n.endswith(".ids")]
+    if not ids:
+        return None
+    out: list[list] = []
+    with zf.open(ids[0]) as fh:
+        for raw in io.TextIOWrapper(fh, encoding="utf-8", errors="replace"):
+            parts = raw.rstrip("\n").split("\t")
+            doc = (parts[0], parts[1] if len(parts) > 1 else "")
+            if out and (out[-1][0], out[-1][1]) == doc:
+                out[-1][2] += 1
+            else:
+                out.append([doc[0], doc[1], 1])
+    return [tuple(x) for x in out]
+
+
 def books_in(zf: zipfile.ZipFile) -> list[tuple[str, str, int]]:
-    """(fromDoc, toDoc, number of Moses lines) for each book, from the XCES alignment file."""
+    """(fromDoc, toDoc, number of Moses lines) for each book: from the .ids file, else the XCES alignment file."""
+    from_ids = books_from_ids(zf)
+    if from_ids is not None:
+        return from_ids
     xml = [n for n in zf.namelist() if n.endswith(".xml")]
     if not xml:
-        raise ValueError("no alignment (.xml) file in the zip")
+        raise ValueError("no .ids or alignment (.xml) file in the zip")
     out = []
     cur = None
     with zf.open(xml[0]) as fh:

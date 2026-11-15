@@ -55,6 +55,20 @@ class Books(unittest.TestCase):
                              [("Pride and Prejudice", "Jane Austen", 2, "en", "fr"), ("Around the World", "Jules Verne", 3, "en", "fr")])
             self.assertEqual(con.execute("SELECT a, b FROM bsent WHERE book_id = 2 AND idx = 2").fetchone(), (EN[4], FR[4]))
 
+    def test_ids_file(self):
+        # The real OPUS Books zips have a .ids file: the documents of each line.
+        ids = ["en/Austen_Jane-Pride_and_Prejudice.xml.gz\tfr/Austen_Jane-Pride_and_Prejudice.xml.gz\ts1\ts1"] * 2 + \
+              ["en/Verne_Jules-Around_the_World.xml.gz\tfr/Verne_Jules-Around_the_World.xml.gz\ts1\ts1"] * 3
+        with tempfile.TemporaryDirectory() as d:
+            with zipfile.ZipFile(os.path.join(d, "Books.en-fr.zip"), "w") as z:
+                z.writestr("Books.en-fr.en", "\n".join(EN) + "\n")
+                z.writestr("Books.en-fr.fr", "\n".join(FR) + "\n")
+                z.writestr("Books.en-fr.ids", "\n".join(ids) + "\n")
+            books = build_pair("en-fr", d, min_sentences=1)
+        self.assertEqual([(b["title"], b["author"], len(b["sentences"])) for b in books],
+                         [("Pride and Prejudice", "Jane Austen", 2), ("Around the World", "Jules Verne", 3)])
+        self.assertEqual(books[1]["sentences"][0], (EN[2], FR[2]))
+
     def test_mismatch_is_skipped(self):
         with tempfile.TemporaryDirectory() as d:
             fake(d, en=EN[:-1], fr=FR[:-1])
