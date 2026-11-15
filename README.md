@@ -29,7 +29,7 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 `.github/workflows/ci.yml` runs on every push:
 
-- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py` and `pipeline/test_corpora.py`.
+- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py`, `pipeline/test_corpora.py` and `pipeline/test_packs.py`.
 - **Android:** JVM unit tests (`./gradlew testDebugUnitTest`), a debug APK build (downloadable from the run's artifacts) and a check that the Room schema JSON is committed.
 - **Lint:** `./gradlew lintDebug` fails on errors; warnings are listed in the HTML report attached to the run.
 
@@ -151,11 +151,31 @@ Each section has its own layout (Settings › Layouts, or the layout icon in the
 
 Home › Progress, for the last 7 days, 30 days or all time:
 
-- **Streak:** days in a row, longest streak and active days, with a 16-week activity calendar. Any Rehearse round, Review card, lookup or story opened counts.
 - **Rehearse:** accuracy per language (correct or acceptable, out of the answers that were checked).
 - **Mistakes by type:** the error types from grading (gender, agreement, word order, tones…), overall or per language.
 - **Review:** cards reviewed, share remembered (any answer but Again), per language, and mature cards (interval of 3 weeks or more).
 - **Reading and words:** sentences read in the Reader, words read in your Reader languages (characters for Mandarin), lookups and saved words.
+
+## Data packs
+
+Settings › Data packs shows everything kept for offline use and downloads bigger data instead of building it on a computer:
+
+- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
+- **On this phone:** the dictionary (built-in, imported file or pack; import a `.db` you built), downloaded words (Wiktionary lookups), sentence counts per Rehearse source, Translate's on-device models per language (download or delete), and a shortcut to the phone's voices.
+
+Publishing packs (on your computer, after building the databases):
+
+```
+cd pipeline
+python3 make_packs.py --out dist \
+    --dictionary ../app/src/main/assets/dict/dictionary.db \
+    --sentences ../app/src/main/assets/sentences/sentences.db \
+    --corpora ../app/src/main/assets/corpora/corpora.db
+gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica"
+# updates: gh release upload data-packs dist/* --clobber
+```
+
+Once the full dictionary is a pack, the APK can ship with only the starter dictionary and stay small.
 
 ## Translate
 

@@ -60,13 +60,10 @@ fun ReviewScreen(vm: ReviewViewModel) {
     val due by vm.dueCount.collectAsStateWithLifecycle()
     val new by vm.newCount.collectAsStateWithLifecycle()
     val total by vm.total.collectAsStateWithLifecycle()
-    val streak by vm.streak.collectAsStateWithLifecycle()
     val nextDue by vm.nextDue.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenHeader("Review") {
-            if (streak > 0) Text("$streak-day streak", style = captionStyle(Diacritica.colors.accent))
-        }
+        ScreenHeader("Review")
         Row(Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Stat("Due", due)
             Stat("New", new)

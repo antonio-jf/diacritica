@@ -7,29 +7,8 @@ import app.diacritica.rehearse.Verdict
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.time.LocalDate
-import java.time.ZoneOffset
 
 class ProgressStatsTest {
-    private val today = LocalDate.of(2026, 11, 15)
-
-    @Test fun streakCountsBackFromTodayOrYesterday() {
-        val days = setOf(today, today.minusDays(1), today.minusDays(2), today.minusDays(5))
-        assertEquals(Streaks(3, 3, 4), ProgressStats.streaks(days, today))
-        // Nothing yet today: yesterday's streak still counts.
-        assertEquals(2, ProgressStats.streaks(setOf(today.minusDays(1), today.minusDays(2)), today).current)
-        // Two days ago is too late.
-        assertEquals(0, ProgressStats.streaks(setOf(today.minusDays(2)), today).current)
-    }
-
-    @Test fun longestStreakAcrossGaps() {
-        val days = (0L..6L).map { today.minusDays(20 + it) }.toSet() + setOf(today)
-        val s = ProgressStats.streaks(days, today)
-        assertEquals(1, s.current)
-        assertEquals(7, s.longest)
-        assertEquals(Streaks(0, 0, 0), ProgressStats.streaks(emptySet(), today))
-    }
-
     @Test fun accuracyIgnoresUngradedAndBlank() {
         val f = listOf(
             LangFeedback(Lang.FR, "a", Verdict.CORRECT),
@@ -64,11 +43,4 @@ class ProgressStatsTest {
         assertEquals(4, ProgressStats.wordCount("我爱学习。", Lang.ZH))
     }
 
-    @Test fun activityGroupsByDay() {
-        val zone = ZoneOffset.UTC
-        val t = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val a = ProgressStats.activity(listOf(t, t + 1000, t - 3600_000), zone)
-        assertEquals(2, a[today])
-        assertEquals(1, a[today.minusDays(1)])
-    }
 }

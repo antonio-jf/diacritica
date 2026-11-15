@@ -37,9 +37,6 @@ class ReviewViewModel(private val c: AppContainer) : ViewModel() {
     val newCount = dao.newCount().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val total = dao.total().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val nextDue = dao.nextDue().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    val streak = dao.reviewTimesSince(System.currentTimeMillis() - 400L * 86_400_000L)
-        .map { c.review.streak(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private var queue: ArrayDeque<Card> = ArrayDeque()
 

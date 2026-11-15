@@ -8,7 +8,6 @@ import app.diacritica.progress.ErrorCount
 import app.diacritica.progress.LangAccuracy
 import app.diacritica.progress.ProgressStats
 import app.diacritica.progress.ReviewSummary
-import app.diacritica.progress.Streaks
 import app.diacritica.rehearse.LangFeedback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,16 +19,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
-import java.time.LocalDate
 
 enum class ProgressRange(val label: String, val days: Long?) { WEEK("7 days", 7), MONTH("30 days", 30), ALL("All time", null) }
 
 data class ProgressUiState(
     val loading: Boolean = true,
     val range: ProgressRange = ProgressRange.MONTH,
-    val streaks: Streaks = Streaks(0, 0, 0),
-    /** Activity per day (all time), for the heatmap. */
-    val activity: Map<LocalDate, Int> = emptyMap(),
     val rounds: Int = 0,
     val accuracy: List<LangAccuracy> = emptyList(),
     val errors: List<ErrorCount> = emptyList(),
@@ -60,12 +55,7 @@ class ProgressViewModel(private val c: AppContainer) : ViewModel() {
             val since = range.days?.let { now - it * 24 * 3600 * 1000 } ?: 0L
             val db = c.userDb
             val next = withContext(Dispatchers.IO) {
-                // Streaks and the heatmap use everything you did (all time): Rehearse, Review, lookups, reading.
                 val stories = c.stories.all().first()
-                val times = db.rehearseRounds().allTimes() + db.cards().reviewTimes() + db.history().allTimes() +
-                    stories.mapNotNull { it.lastOpenedAt }
-                val activity = ProgressStats.activity(times)
-                val streaks = ProgressStats.streaks(activity.keys, LocalDate.now())
 
                 val rounds = db.rehearseRounds().since(since)
                 val feedback = rounds.flatMap { r ->
@@ -86,7 +76,7 @@ class ProgressViewModel(private val c: AppContainer) : ViewModel() {
                 }
 
                 ProgressUiState(
-                    loading = false, range = range, streaks = streaks, activity = activity,
+                    loading = false, range = range,
                     rounds = rounds.size,
                     accuracy = ProgressStats.accuracy(feedback, s.activeLanguages),
                     errors = ProgressStats.errorTypes(feedback),

@@ -56,7 +56,7 @@ class DictionaryDatabase(private val context: Context) {
 
     private fun installBundledIfNeeded() {
         val source = if (sourceFile.exists()) sourceFile.readText() else ""
-        if (source == "import" && dbFile.exists()) return
+        if ((source == "import" || source.startsWith("pack:")) && dbFile.exists()) return
         val marker = "asset:${bundledSize()}"
         if (dbFile.exists() && source == marker) return
         val tmp = File(dir, "dictionary.db.tmp")
@@ -175,6 +175,34 @@ class DictionaryDatabase(private val context: Context) {
     }
 
     /** Goes back to the dictionary bundled in the app. */
+    /**
+     * Installs a dictionary from a data pack. [file] must be on the same storage as the app's files, so it is
+     * moved into place instead of copied (the full dictionary is large). Returns an error message or null.
+     */
+    suspend fun installPack(file: File, version: String): String? = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                validate(file)?.let { return@withContext it }
+                db?.close(); db = null
+                if (!file.renameTo(dbFile)) { file.copyTo(dbFile, overwrite = true); file.delete() }
+                sourceFile.writeText("pack:$version")
+                replayFetched()
+                db = open().also { repair(it) }
+                _version.value += 1
+                null
+            } catch (e: Exception) {
+                file.delete()
+                e.message ?: "Could not install the dictionary."
+            }
+        }
+    }
+
+    /** "bundled", "import" (a file you chose) or "pack:<version>" (a downloaded data pack). */
+    fun source(): String = sourceFile.takeIf { it.exists() }?.readText()?.takeIf { !it.startsWith("asset:") } ?: "bundled"
+
+    /** Forgets the downloaded-words log (the words stay in the current dictionary until it is replaced). */
+    fun clearFetchedLog() { fetchedLog.delete() }
+
     suspend fun resetToBundled() = mutex.withLock {
         withContext(Dispatchers.IO) {
             db?.close(); db = null

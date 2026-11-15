@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
     private val homeVm: app.diacritica.ui.home.HomeViewModel by viewModels { appViewModelFactory(container) }
     private val translateVm: app.diacritica.ui.translate.TranslateViewModel by viewModels { appViewModelFactory(container) }
     private val progressVm: app.diacritica.ui.progress.ProgressViewModel by viewModels { appViewModelFactory(container) }
+    private val packsVm: app.diacritica.ui.packs.DataPacksViewModel by viewModels { appViewModelFactory(container) }
 
     /** Text from "Look up in Diacritica" (the text-selection menu in other apps). */
     private val sharedText = mutableStateOf<String?>(null)
@@ -30,7 +31,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.processText()
-        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, sharedText.value) }
+        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, sharedText.value) }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -2,6 +2,7 @@ package app.diacritica
 
 import app.diacritica.backup.BackupManager
 import app.diacritica.translate.OnDeviceTranslator
+import app.diacritica.packs.PackManager
 import android.app.Application
 import app.diacritica.data.DictionaryDatabase
 import app.diacritica.data.DictionaryRepository
@@ -26,6 +27,7 @@ class AppContainer(app: Application) {
     val sentences = SentenceRepository(app)
     val corpora = SentenceRepository(app, "corpora/corpora.db")
     val translator = OnDeviceTranslator()
+    val packs = PackManager(app, dictionaryDb, sentences, corpora)
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
     val backup = BackupManager(app, userDb)

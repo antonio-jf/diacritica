@@ -110,18 +110,4 @@ class ReviewRepository(
     }
 
     /** Consecutive days (ending today, or yesterday if today has no review yet) with at least one review. */
-    fun streak(reviewTimes: List<Long>): Int {
-        val cal = Calendar.getInstance()
-        fun dayKey(t: Long): Int { cal.timeInMillis = t; return cal.get(Calendar.YEAR) * 1000 + cal.get(Calendar.DAY_OF_YEAR) }
-        val days = reviewTimes.map(::dayKey).toSet()
-        if (days.isEmpty()) return 0
-        val walk = Calendar.getInstance()
-        if (dayKey(walk.timeInMillis) !in days) walk.add(Calendar.DAY_OF_YEAR, -1)
-        var n = 0
-        while (dayKey(walk.timeInMillis) in days) {
-            n++
-            walk.add(Calendar.DAY_OF_YEAR, -1)
-        }
-        return n
-    }
 }

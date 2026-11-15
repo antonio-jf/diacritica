@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,19 +60,25 @@ import app.diacritica.ui.theme.Themes
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(vm: SettingsViewModel, s: AppSettings, onBack: (() -> Unit)? = null, onOpenAppearance: () -> Unit = {}) {
-    val info by vm.dictInfo.collectAsStateWithLifecycle()
+fun SettingsScreen(
+    vm: SettingsViewModel,
+    s: AppSettings,
+    onBack: (() -> Unit)? = null,
+    onOpenAppearance: () -> Unit = {},
+    onOpenDataPacks: () -> Unit = {},
+) {
     val message by vm.message.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::importDictionary) }
     val backupTarget = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let(vm::exportBackup) }
     val backupSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::restoreBackup) }
     var confirmRestore by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    // Sections start closed; each header shows a one-line summary of its current values.
+    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(listOf<String>()) }
+    val toggle: (String) -> Unit = { k -> open = if (k in open) open - k else open + k }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                onBack?.let { app.diacritica.ui.components.PolyIconButton(app.diacritica.ui.components.PolyIcons.Back, "Back", it, tint = Diacritica.colors.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp)) }
+                onBack?.let { PolyIconButton(PolyIcons.Back, "Back", it, tint = Diacritica.colors.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp)) }
                 ScreenHeader("Settings", Modifier.weight(1f))
             }
         }
@@ -87,202 +94,126 @@ fun SettingsScreen(vm: SettingsViewModel, s: AppSettings, onBack: (() -> Unit)? 
             }
         }
 
-        // ------------------------------------------------ Appearance (global)
-        section("Appearance", "Colors, fonts and shapes apply to the whole app, whatever the layout.")
-        item {
-            val spec = Themes.spec(s.theme)
-            Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenAppearance)) {
-                Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(spec.light.ground, spec.light.accent, spec.dark.ground).forEach { col ->
-                            Box(Modifier.size(22.dp).clip(CircleShape).background(col).border(1.dp, Diacritica.colors.line, CircleShape))
-                        }
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Theme: ${s.theme.title}", style = bodyStyle())
-                        Text("${s.mode.label} · ${s.accent.label}", style = captionStyle())
-                    }
-                    Text("Change ›", style = captionStyle(Diacritica.colors.accent))
+        // ------------------------------------------------ Appearance
+        if (section("appearance", "Appearance", "${s.theme.title} · ${s.mode.label} · text ${(s.textScale * 100).toInt()}%", open, toggle)) {
+            item {
+                LinkRow("Theme, mode and accent", "${s.theme.title} · ${s.mode.label} · ${s.accent.label}", onOpenAppearance)
+            }
+            item {
+                Setting("Text size", "${(s.textScale * 100).toInt()}%") {
+                    Slider(value = s.textScale, onValueChange = vm::setTextScale, valueRange = 0.85f..1.4f, steps = 10)
                 }
-                Hairline(Modifier.padding(horizontal = 20.dp))
             }
+            item { SwitchRow("Language colors", "Each language gets its own color", s.languageColors, vm::setLanguageColors) }
         }
-        item {
-            Setting("Text size", "${(s.textScale * 100).toInt()}%") {
-                Slider(value = s.textScale, onValueChange = vm::setTextScale, valueRange = 0.85f..1.4f, steps = 10)
-            }
-        }
-        item { SwitchRow("Language colors", "Give each language its own color everywhere", s.languageColors, vm::setLanguageColors) }
 
-        // ------------------------------------------------ Layouts (per section)
-        section("Layouts", "Each section can use its own layout. The theme stays the same.")
-        item {
-            Setting("Dictionary results") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DictionaryLayout.entries.forEach { l -> PolyChip(l.label, s.dictionaryLayout == l, { vm.setDictionaryLayout(l) }) }
-                }
+        // ------------------------------------------------ Layouts
+        if (section("layouts", "Layouts", "Dictionary ${s.dictionaryLayout.label} · Rehearse ${s.rehearseLayout.label} · Reader ${s.readerLayout.label}", open, toggle)) {
+            item { ChipSetting("Dictionary", DictionaryLayout.entries, s.dictionaryLayout, { it.label }, vm::setDictionaryLayout) }
+            item { ChipSetting("Rehearse feedback", app.diacritica.settings.RehearseLayout.entries, s.rehearseLayout, { it.label }, vm::setRehearseLayout) }
+            item { ChipSetting("Reader", app.diacritica.settings.ReaderLayout.entries, s.readerLayout, { it.label }, vm::setReaderLayout) }
+            item { ChipSetting("Word popup", app.diacritica.settings.PopupLayout.entries, s.readerPopup, { it.label }, vm::setReaderPopup) }
+            item {
+                Text("Reset layouts", style = captionStyle(Diacritica.colors.accent),
+                    modifier = Modifier.padding(horizontal = 12.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                        .clickable(role = Role.Button, onClick = vm::resetLayouts).padding(horizontal = 8.dp, vertical = 10.dp))
             }
         }
-        item {
-            Setting("Rehearse feedback") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    app.diacritica.settings.RehearseLayout.entries.forEach { l -> PolyChip(l.label, s.rehearseLayout == l, { vm.setRehearseLayout(l) }) }
-                }
-            }
-        }
-        item {
-            Setting("Reader") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    app.diacritica.settings.ReaderLayout.entries.forEach { l -> PolyChip(l.label, s.readerLayout == l, { vm.setReaderLayout(l) }) }
-                }
-            }
-        }
-        item {
-            Setting("Word popup (Reader)") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    app.diacritica.settings.PopupLayout.entries.forEach { l -> PolyChip(l.label, s.readerPopup == l, { vm.setReaderPopup(l) }) }
-                }
-            }
-        }
-        item { Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { PolyButton("Reset layouts", vm::resetLayouts, primary = false) } }
 
         // ------------------------------------------------ Languages
-        section("Languages", "Turn languages on or off and set their order. At least two must stay on.")
-        s.languageOrder.forEachIndexed { i, l ->
-            item("lang-${l.code}") {
-                Column(Modifier.padding(horizontal = 20.dp)) {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(l.nativeName, style = bodyStyle())
-                            Text(l.englishName, style = captionStyle())
+        val langSummary = s.activeLanguages.joinToString(" ") { it.short } + " · search " + (s.sourceLang?.short ?: "auto")
+        if (section("languages", "Languages", langSummary, open, toggle)) {
+            s.languageOrder.forEachIndexed { i, l ->
+                item("lang-${l.code}") {
+                    Column(Modifier.padding(horizontal = 20.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(l.nativeName, style = bodyStyle(), modifier = Modifier.weight(1f))
+                            if (l.nativeName != l.englishName) Text(l.englishName, style = captionStyle(), modifier = Modifier.padding(end = 4.dp))
+                            PolyIconButton(PolyIcons.Up, "Move ${l.englishName} up", { vm.moveLanguage(l, -1) },
+                                tint = if (i == 0) Diacritica.colors.line else Diacritica.colors.inkMuted)
+                            PolyIconButton(PolyIcons.Down, "Move ${l.englishName} down", { vm.moveLanguage(l, 1) },
+                                tint = if (i == s.languageOrder.lastIndex) Diacritica.colors.line else Diacritica.colors.inkMuted)
+                            Switch(checked = l in s.enabled, onCheckedChange = { vm.toggleLanguage(l, it) })
                         }
-                        PolyIconButton(PolyIcons.Up, "Move ${l.englishName} up", { vm.moveLanguage(l, -1) },
-                            tint = if (i == 0) Diacritica.colors.line else Diacritica.colors.inkMuted)
-                        PolyIconButton(PolyIcons.Down, "Move ${l.englishName} down", { vm.moveLanguage(l, 1) },
-                            tint = if (i == s.languageOrder.lastIndex) Diacritica.colors.line else Diacritica.colors.inkMuted)
-                        Switch(checked = l in s.enabled, onCheckedChange = { vm.toggleLanguage(l, it) })
+                        Hairline()
                     }
-                    Hairline()
                 }
             }
-        }
-        item {
-            Setting("Search from") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PolyChip("Auto-detect", s.sourceLang == null, { vm.setSourceLang(null) })
-                    s.activeLanguages.forEach { l -> PolyChip(l.short, s.sourceLang == l, { vm.setSourceLang(l) }) }
+            item {
+                Setting("Search from") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PolyChip("Auto", s.sourceLang == null, { vm.setSourceLang(null) })
+                        s.activeLanguages.forEach { l -> PolyChip(l.short, s.sourceLang == l, { vm.setSourceLang(l) }) }
+                    }
                 }
             }
-        }
-        item {
-            Setting("Chinese characters") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ScriptPreference.entries.forEach { p -> PolyChip(p.label, s.script == p, { vm.setScript(p) }) }
-                }
-            }
+            item { ChipSetting("Chinese characters", ScriptPreference.entries, s.script, { it.label }, vm::setScript) }
         }
 
         // ------------------------------------------------ Rehearse
-        section("Rehearse", "Translation practice. Gemini gives the full grammar explanations; without a key, answers get a quick offline check.")
-        item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
-        item {
-            Setting("Languages to practise", "translate into these") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    s.activeLanguages.forEach { l -> PolyChip(l.short, l in s.rehearseLanguages, { vm.toggleRehearseLang(l) }) }
+        val rehearseSummary = (if (s.geminiKey.isBlank()) "No Gemini key" else "Gemini on") + " · " +
+            s.rehearseLanguages.joinToString(" ") { it.short } + " · " + s.levels.sorted().joinToString("/")
+        if (section("rehearse", "Rehearse", rehearseSummary, open, toggle)) {
+            item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
+            item {
+                Setting("Practise") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        s.activeLanguages.forEach { l -> PolyChip(l.short, l in s.rehearseLanguages, { vm.toggleRehearseLang(l) }) }
+                    }
+                }
+            }
+            item {
+                Setting("Levels") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("A2", "B1", "B2").forEach { lv -> PolyChip(lv, lv in s.levels, { vm.toggleLevel(lv) }) }
+                    }
+                }
+            }
+            item { SwitchRow("Accents required", "A wrong accent counts as an error", s.strictAccents, vm::setStrictAccents) }
+            item { SwitchRow("Tones required", "For Mandarin typed in pinyin", s.strictTones, vm::setStrictTones) }
+            item { SwitchRow("Pinyin hint", "Show the pinyin under the Mandarin field", s.pinyinHint, vm::setPinyinHint) }
+        }
+
+        // ------------------------------------------------ Review and pronunciation
+        val reviewSummary = "${s.newCardsPerDay} new/day · speech ${"%.1f".format(s.speechRate)}×"
+        if (section("review", "Review and speech", reviewSummary, open, toggle)) {
+            item {
+                Setting("New cards per day", "${s.newCardsPerDay}") {
+                    Slider(value = s.newCardsPerDay.toFloat(), onValueChange = { vm.setNewCardsPerDay(it.toInt()) }, valueRange = 5f..50f, steps = 8)
+                }
+            }
+            item { SwitchRow("Cards from lookups", "Not only starred words", s.reviewFromHistory, vm::setReviewFromHistory) }
+            item {
+                Setting("Speech rate", "${"%.1f".format(s.speechRate)}×") {
+                    Slider(value = s.speechRate, onValueChange = vm::setSpeechRate, valueRange = 0.5f..1.5f, steps = 9)
                 }
             }
         }
+
+        // ------------------------------------------------ Data
         item {
-            Setting("Sentence levels") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("A2", "B1", "B2").forEach { lv -> PolyChip(lv, lv in s.levels, { vm.toggleLevel(lv) }) }
+            Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
+                Hairline(heavy = true)
+                LinkRow("Data packs", "Dictionary, sentences, translation models, voices", onOpenDataPacks)
+                LinkRow("Back up…", "One file with your words, progress, archive and settings") {
+                    backupTarget.launch("diacritica-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip")
                 }
-            }
-        }
-        item { SwitchRow("Accents required", "A missing or wrong accent counts as an error", s.strictAccents, vm::setStrictAccents) }
-        item { SwitchRow("Tones required", "For Mandarin answers typed in pinyin", s.strictTones, vm::setStrictTones) }
-        item { SwitchRow("Pinyin hint", "Show the reference's pinyin under the Mandarin field", s.pinyinHint, vm::setPinyinHint) }
-
-        // ------------------------------------------------ Review
-        section("Review", "Flashcards for your saved words, scheduled with FSRS spaced repetition.")
-        item { SwitchRow("Cards from search history", "Also make cards for words you looked up, not only starred ones", s.reviewFromHistory, vm::setReviewFromHistory) }
-        item {
-            Setting("New cards per day", "${s.newCardsPerDay}") {
-                Slider(value = s.newCardsPerDay.toFloat(), onValueChange = { vm.setNewCardsPerDay(it.toInt()) }, valueRange = 5f..50f, steps = 8)
-            }
-        }
-
-        // ------------------------------------------------ Speech
-        section("Pronunciation", "Uses the phone's text-to-speech. Install offline voices for each language.")
-        item {
-            Setting("Speech rate", "${"%.1f".format(s.speechRate)}×") {
-                Slider(value = s.speechRate, onValueChange = vm::setSpeechRate, valueRange = 0.5f..1.5f, steps = 9)
-            }
-        }
-        item { Box(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) { PolyButton("Install voices…", vm::openVoiceSettings, primary = false) } }
-
-        // ------------------------------------------------ Dictionary data
-        section("Dictionary data", null)
-        item {
-            SwitchRow(
-                "Download missing words",
-                "When a word isn't stored on the phone, fetch it from Wiktionary (kaikki.org) and save it for offline use. " +
-                    "${vm.fetchedCount()} downloads so far.",
-                s.onlineLookup, vm::setOnlineLookup,
-            )
-        }
-        item {
-            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                info?.let { d ->
-                    Text(d.label, style = bodyStyle())
-                    Text(
-                        "Built ${d.builtAt} · ${Formatter.formatShortFileSize(context, d.sizeBytes)} · ${d.languages.joinToString(" ") { it.short }}",
-                        style = captionStyle(),
-                    )
-                }
+                LinkRow("Restore…", "Replaces everything in the app, then restarts it") { confirmRestore = true }
+                message?.let { Text(it, style = captionStyle(Diacritica.colors.accent), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
                 Text(
-                    "Build the full dictionary on a computer with pipeline/build_dictionary.py (see README), then import the .db file here.",
-                    style = captionStyle(),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PolyButton("Import dictionary…", { picker.launch(arrayOf("*/*")) })
-                    PolyButton("Use bundled", vm::resetDictionary, primary = false)
-                }
-                Gap(6.dp)
-                Text(
-                    "Sources: Wiktionary (via Wiktextract, CC BY-SA), CC-CEDICT (CC BY-SA). Fonts under the SIL Open Font License.",
-                    style = captionStyle(),
+                    "Sources: Wiktionary (CC BY-SA), CC-CEDICT (CC BY-SA), Tatoeba (CC BY 2.0 FR), OPUS. Fonts: SIL Open Font License.",
+                    style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 )
             }
         }
-
-        // ------------------------------------------------ Backup
-        section("Backup & restore", "One file with your saved words, history, Review progress, Rehearse archive, stories, downloaded words and settings.")
-        item {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "The backup includes your Gemini key, so keep the file private. Restoring replaces everything in the app and restarts it.",
-                    style = captionStyle(),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PolyButton("Back up…", {
-                        backupTarget.launch("diacritica-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip")
-                    })
-                    PolyButton("Restore…", { confirmRestore = true }, primary = false)
-                }
-                // The status line at the top of Settings is out of view down here, so repeat it.
-                message?.let { Text(it, style = captionStyle(Diacritica.colors.accent)) }
-            }
-        }
-        item { Gap(32.dp) }
+        item { Gap(24.dp) }
     }
 
     if (confirmRestore) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmRestore = false },
             title = { Text("Restore a backup?", style = titleStyle().copy(fontSize = 20.sp)) },
-            text = { Text("Everything currently in the app is replaced by the backup, then the app restarts.", style = bodyStyle()) },
+            text = { Text("Everything currently in the app is replaced by the backup, then the app restarts. The backup includes your Gemini key.", style = bodyStyle()) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = { confirmRestore = false; backupSource.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }) {
                     Text("Choose file", color = Diacritica.colors.accent)
@@ -348,19 +279,61 @@ fun AppearanceScreen(vm: SettingsViewModel, s: AppSettings, onBack: () -> Unit) 
     }
 }
 
-/** A clearly separated section: gap, full-width rule, then a tinted header band. */
-private fun androidx.compose.foundation.lazy.LazyListScope.section(title: String, subtitle: String?) {
-    item("sec-$title") {
-        Column(Modifier.fillMaxWidth().padding(top = 24.dp)) {
-            Hairline(heavy = true)
-            Column(
-                Modifier.fillMaxWidth().background(Diacritica.colors.surfaceAlt).padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+/**
+ * A collapsible section: one row with the title, a summary of its current values and a chevron.
+ * Returns whether it is open, so the caller adds its items only then.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.section(
+    key: String, title: String, summary: String, open: List<String>, toggle: (String) -> Unit,
+): Boolean {
+    val isOpen = key in open
+    item("sec-$key") {
+        Column(Modifier.fillMaxWidth()) {
+            Hairline(heavy = isOpen)
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(if (isOpen) Diacritica.colors.surfaceAlt else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable(role = Role.Button, onClickLabel = if (isOpen) "Close" else "Open") { toggle(key) }
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(title, style = titleStyle().copy(fontSize = Diacritica.type.headword))
-                subtitle?.let { Text(it, style = captionStyle()) }
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = bodyStyle(size = 16.sp).copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+                    if (!isOpen) Text(summary, style = captionStyle(), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                androidx.compose.material3.Icon(
+                    PolyIcons.ChevronDown, contentDescription = null, tint = Diacritica.colors.inkMuted,
+                    modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = if (isOpen) 180f else 0f },
+                )
             }
-            Hairline()
+            if (isOpen) Hairline()
+        }
+    }
+    return isOpen
+}
+
+/** A row that opens another page or runs an action. */
+@Composable
+private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = bodyStyle())
+                Text(subtitle, style = captionStyle(), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            Text("›", style = bodyStyle(Diacritica.colors.inkMuted, 20.sp))
+        }
+        Hairline(Modifier.padding(horizontal = 20.dp))
+    }
+}
+
+/** Title and a row of chips (one choice). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> ChipSetting(title: String, options: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
+    Setting(title) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { o -> PolyChip(label(o), o == selected, { onPick(o) }) }
         }
     }
 }
@@ -368,7 +341,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(title: String
 @Composable
 private fun Setting(title: String, value: String? = null, content: @Composable () -> Unit) {
     Column {
-        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row {
                 Text(title, style = bodyStyle(), modifier = Modifier.weight(1f))
                 value?.let { Text(it, style = captionStyle()) }
@@ -421,7 +394,7 @@ private fun SettingsField(value: String, onChange: (String) -> Unit, placeholder
 @Composable
 private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Column {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(title, style = bodyStyle())
                 Text(subtitle, style = captionStyle())

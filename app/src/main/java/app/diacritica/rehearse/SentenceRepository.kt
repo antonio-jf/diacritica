@@ -27,8 +27,12 @@ class SentenceRepository(private val context: Context, private val asset: String
     @Volatile private var db: SQLiteDatabase? = null
     private val recent = ArrayDeque<Long>()
 
+    /** A downloaded data pack replaces the bundled asset: files/packs/<name>.db. */
+    val packFile = File(File(context.filesDir, "packs"), asset.substringAfterLast('/'))
+
     private suspend fun get(): SQLiteDatabase = db ?: mutex.withLock {
         db ?: withContext(Dispatchers.IO) {
+            if (packFile.exists()) return@withContext SQLiteDatabase.openDatabase(packFile.path, null, SQLiteDatabase.OPEN_READONLY).also { db = it }
             val size = context.assets.openFd(asset).use { it.length }
             if (!dbFile.exists() || marker.takeIf { it.exists() }?.readText() != "asset:$size") {
                 context.assets.open(asset).use { i -> dbFile.outputStream().use { i.copyTo(it) } }
@@ -38,8 +42,24 @@ class SentenceRepository(private val context: Context, private val asset: String
         }
     }
 
-    /** False when the asset hasn't been built yet (optional databases). */
-    fun available(): Boolean = runCatching { context.assets.openFd(asset).use { true } }.getOrDefault(false)
+    /** False when neither a data pack nor the bundled asset exists (optional databases). */
+    fun available(): Boolean = packFile.exists() || bundled()
+
+    fun bundled(): Boolean = runCatching { context.assets.openFd(asset).use { true } }.getOrDefault(false)
+
+    /** Closes the database so the next query opens the newly installed (or removed) pack. */
+    suspend fun reload() = mutex.withLock { db?.close(); db = null }
+
+    /** Sentence groups per source ("news", "formal"…; Tatoeba has a single source). Empty if unavailable. */
+    suspend fun countsBySource(): Map<String, Int> = withContext(Dispatchers.IO) {
+        if (!available()) return@withContext emptyMap()
+        val d = get()
+        runCatching {
+            d.rawQuery("SELECT source, COUNT(*) FROM sgroup GROUP BY source", null).use { c ->
+                buildMap { while (c.moveToNext()) put(c.getString(0), c.getInt(1)) }
+            }
+        }.getOrElse { mapOf("tatoeba" to d.rawQuery("SELECT COUNT(*) FROM sgroup", null).use { if (it.moveToFirst()) it.getInt(0) else 0 }) }
+    }
 
     /**
      * A random sentence at one of [levels] that has a translation in at least [minLangs] of [active]

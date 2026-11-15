@@ -169,7 +169,7 @@ fun HomeScreen(
 
             // ------------------------------------------------ Progress
             SectionCard(PolyIcons.Chart, "Progress", onClick = { onOpen(HomeSection.PROGRESS) }) {
-                Text("Streaks, accuracy per language, your most common mistakes and how much you've read.", style = bodyStyle())
+                Text("Accuracy per language, your most common mistakes, Review recall and how much you've read.", style = bodyStyle())
             }
 
             // ------------------------------------------------ Library

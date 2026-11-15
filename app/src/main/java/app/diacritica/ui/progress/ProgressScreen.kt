@@ -49,11 +49,6 @@ import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.theme.Diacritica
 import java.text.NumberFormat
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.format.TextStyle as DateTextStyle
-import java.time.temporal.TemporalAdjusters
-import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,21 +74,6 @@ fun ProgressScreen(vm: ProgressViewModel, onBack: () -> Unit) {
 
         Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Gap(4.dp)
-            // ------------------------------------------------ Streaks
-            PolySurface {
-                SectionLabel("Streak")
-                Gap(8.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    BigStat(nf.format(st.streaks.current), if (st.streaks.current == 1) "day in a row" else "days in a row", Modifier.weight(1f))
-                    BigStat(nf.format(st.streaks.longest), "longest streak", Modifier.weight(1f))
-                    BigStat(nf.format(st.streaks.activeDays), "active days", Modifier.weight(1f))
-                }
-                Gap(12.dp)
-                Heatmap(st.activity)
-                Gap(4.dp)
-                Text("Any Rehearse round, Review card, lookup or story opened counts for the day.", style = captionStyle())
-            }
-
             // ------------------------------------------------ Rehearse accuracy
             PolySurface {
                 SectionLabel("Rehearse · ${nf.format(st.rounds)} " + if (st.rounds == 1) "round" else "rounds")
@@ -223,52 +203,5 @@ private fun TypeBar(label: String, count: Int, fraction: Float) {
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0.04f, 1f)).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(c.accent))
         }
         Text("$count", style = bodyStyle(size = 14.sp), modifier = Modifier.padding(start = 10.dp).width(32.dp))
-    }
-}
-
-/** The last 16 weeks, one square per day (weeks are columns, Monday on top); darker = more done that day. */
-@Composable
-private fun Heatmap(activity: Map<LocalDate, Int>) {
-    val c = Diacritica.colors
-    val today = LocalDate.now()
-    val weeks = 16
-    val start = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks((weeks - 1).toLong())
-    val active = activity.filterKeys { !it.isBefore(start) }.size
-    Column(Modifier.semantics { contentDescription = "Activity calendar: $active active days in the last $weeks weeks" }) {
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                DayOfWeek.entries.forEach { d ->
-                    Box(Modifier.size(width = 12.dp, height = 12.dp), contentAlignment = Alignment.CenterStart) {
-                        if (d == DayOfWeek.MONDAY || d == DayOfWeek.THURSDAY || d == DayOfWeek.SUNDAY) {
-                            Text(d.getDisplayName(DateTextStyle.NARROW, Locale.getDefault()), style = captionStyle().copy(fontSize = 9.sp))
-                        }
-                    }
-                }
-            }
-            for (w in 0 until weeks) {
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    for (d in 0 until 7) {
-                        val day = start.plusWeeks(w.toLong()).plusDays(d.toLong())
-                        val n = activity[day] ?: 0
-                        val color = when {
-                            day.isAfter(today) -> Color.Transparent
-                            n == 0 -> c.line
-                            n <= 2 -> c.accent.copy(alpha = 0.35f)
-                            n <= 6 -> c.accent.copy(alpha = 0.65f)
-                            else -> c.accent
-                        }
-                        Box(Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))
-                    }
-                }
-            }
-        }
-        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Less", style = captionStyle().copy(fontSize = 10.sp))
-            listOf(c.line, c.accent.copy(alpha = 0.35f), c.accent.copy(alpha = 0.65f), c.accent).forEach {
-                Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(it))
-            }
-            Text("More", style = captionStyle().copy(fontSize = 10.sp))
-            Spacer(Modifier.weight(1f))
-        }
     }
 }

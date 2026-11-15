@@ -48,6 +48,18 @@ class OnDeviceTranslator {
         return t.translate(text).await()
     }
 
+    /** Downloads one language's model now (Data packs page). */
+    suspend fun downloadModel(lang: Lang) {
+        models.download(TranslateRemoteModel.Builder(code(lang)).build(), DownloadConditions.Builder().build()).await()
+    }
+
+    /** Deletes one language's model to free space; it downloads again on next use. English can't be removed. */
+    suspend fun deleteModel(lang: Lang) {
+        if (lang == Lang.EN) return
+        translators.entries.removeAll { (k, t) -> (k.first == lang || k.second == lang).also { if (it) t.close() } }
+        models.deleteDownloadedModel(TranslateRemoteModel.Builder(code(lang)).build()).await()
+    }
+
     fun close() { translators.values.forEach { it.close() }; translators.clear() }
 
     companion object {

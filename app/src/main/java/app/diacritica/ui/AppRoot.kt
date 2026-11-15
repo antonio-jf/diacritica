@@ -72,6 +72,7 @@ fun AppRoot(
     homeVm: app.diacritica.ui.home.HomeViewModel,
     translateVm: app.diacritica.ui.translate.TranslateViewModel,
     progressVm: app.diacritica.ui.progress.ProgressViewModel,
+    packsVm: app.diacritica.ui.packs.DataPacksViewModel,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -149,7 +150,8 @@ fun AppRoot(
                             nav.goTo(Tab.DICTIONARY)
                         }
                     }
-                    composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }) }
+                    composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }) }
+                    composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
                     composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
                         app.diacritica.ui.translate.TranslateScreen(
@@ -175,7 +177,7 @@ fun AppRoot(
             val current = Tab.entries.firstOrNull { route == it.route } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY
                 route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" -> Tab.HOME
+                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" -> Tab.HOME
                 else -> null
             }
             BottomNav(current = current) {
