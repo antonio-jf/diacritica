@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window theme only. All in-app styling comes from the Compose theme tokens (ui/theme). -->
+    <style name="Theme.Diacritica" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/paper_ground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="paper_ground">#FAF8F3</color>
+    <color name="paper_ink">#1C1B19</color>
+    <color name="paper_accent">#2B4FA8</color>
+</resources>
