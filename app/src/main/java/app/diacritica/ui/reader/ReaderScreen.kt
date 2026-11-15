@@ -1,0 +1,736 @@
+package app.diacritica.ui.reader
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.diacritica.data.Lang
+import app.diacritica.data.ScriptPreference
+import app.diacritica.data.WordInfo
+import app.diacritica.reader.LoadedStory
+import app.diacritica.reader.OfficialDictionary
+import app.diacritica.settings.AppSettings
+import app.diacritica.settings.ReaderLayout
+import app.diacritica.ui.components.Gap
+import app.diacritica.ui.components.Hairline
+import app.diacritica.ui.components.LangBadge
+import app.diacritica.ui.components.PolyButton
+import app.diacritica.ui.components.PolyChip
+import app.diacritica.ui.components.PolyIconButton
+import app.diacritica.ui.components.PolyIcons
+import app.diacritica.ui.components.PolySurface
+import app.diacritica.ui.components.ScreenHeader
+import app.diacritica.ui.components.SectionLabel
+import app.diacritica.ui.components.bodyStyle
+import app.diacritica.ui.components.captionStyle
+import app.diacritica.ui.components.headwordStyle
+import app.diacritica.ui.components.titleStyle
+import app.diacritica.ui.theme.Diacritica
+
+/** Entry point of the Reader tab: the story shelf, or the open story. */
+@Composable
+fun ReaderScreen(vm: ReaderViewModel, settings: AppSettings, onOpenWord: (Lang, String) -> Unit) {
+    val st by vm.state.collectAsStateWithLifecycle()
+    val story = st.story
+    if (story == null) {
+        Shelf(vm, st, settings)
+    } else {
+        BackHandler { vm.close() }
+        StoryView(vm, st, story, settings, onOpenWord)
+    }
+}
+
+// ================================================================= shelf
+
+private val TOPICS = listOf("Daily life", "Travel", "Food", "Work", "Mystery", "Nature", "Family", "History", "City", "Friendship")
+private val LEVELS = listOf("A2", "B1", "B2", "C1")
+private val HSK = listOf(2, 3, 4, 5)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Shelf(vm: ReaderViewModel, st: ReaderUiState, settings: AppSettings) {
+    val c = Diacritica.colors
+    val shelf by vm.shelf.collectAsStateWithLifecycle()
+    var topic by rememberSaveable { mutableStateOf("") }
+    var confirmDelete by remember { mutableStateOf<ShelfItem?>(null) }
+    val a = settings.readerLangA
+    val b = settings.readerLangB
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        item { ScreenHeader("Reader") }
+        item {
+            Column(Modifier.padding(horizontal = Diacritica.spacing.screen)) {
+                Text("Parallel stories, sentence by sentence. Tap a sentence to match it across languages; press and hold a word to look it up.", style = captionStyle())
+                Gap(10.dp)
+                LangPairRow(a, b, Lang.entries, onChange = vm::setLangs)
+                Gap(14.dp)
+            }
+        }
+        item { SectionLabel("Your stories", Modifier.padding(horizontal = Diacritica.spacing.screen)) }
+        if (shelf.isEmpty()) item {
+            Text("No stories yet.", style = captionStyle(), modifier = Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 12.dp))
+        }
+        items(shelf, key = { it.story.id }) { item ->
+            val s = item.story
+            val read = if (s.sentenceCount == 0) 0 else ((s.lastSentence + 1) * 100 / s.sentenceCount).coerceIn(0, 100)
+            val started = s.lastOpenedAt != null
+            Box(Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 5.dp)) {
+                PolySurface(onClick = { vm.open(s.id) }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.titles[a] ?: item.titles[Lang.EN] ?: "Story", style = headwordStyle(19.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            item.titles[b]?.let { Text(it, style = bodyStyle(c.inkMuted, 14.sp).copy(fontStyle = FontStyle.Italic), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            Gap(6.dp)
+                            val meta = buildList {
+                                add(s.level)
+                                add("${s.sentenceCount} sentences")
+                                s.topic?.let { add(it) }
+                                add(if (started) "$read% read" else "new")
+                            }.joinToString(" · ")
+                            Text(meta, style = captionStyle())
+                            if (started) {
+                                Gap(6.dp)
+                                ProgressBar(read / 100f)
+                            }
+                        }
+                        PolyIconButton(PolyIcons.Trash, "Delete story", onClick = { confirmDelete = item }, tint = c.inkMuted)
+                    }
+                }
+            }
+        }
+        item {
+            Column(Modifier.padding(horizontal = Diacritica.spacing.screen).padding(top = 18.dp)) {
+                Hairline()
+                Gap(14.dp)
+                SectionLabel("New story")
+                Gap(4.dp)
+                Text("Written by Gemini in all six languages, aligned sentence by sentence. Needs your key and the internet; saved stories work offline.", style = captionStyle())
+                Gap(10.dp)
+                TopicField(topic) { topic = it }
+                Gap(8.dp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TOPICS.forEach { t -> PolyChip(t, selected = topic == t, onClick = { topic = if (topic == t) "" else t }) }
+                }
+                Gap(12.dp)
+                Text("Level", style = captionStyle(c.ink))
+                Gap(6.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LEVELS.forEach { l -> PolyChip(l, selected = settings.storyLevel == l, onClick = { vm.setStoryLevel(l, settings.storyHsk) }) }
+                }
+                Gap(6.dp)
+                Gap(6.dp)
+                Text("Mandarin (HSK)", style = captionStyle(c.ink))
+                Gap(6.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HSK.forEach { h -> PolyChip("HSK $h", selected = settings.storyHsk == h, onClick = { vm.setStoryLevel(settings.storyLevel, h) }) }
+                }
+                Gap(14.dp)
+                PolyButton(
+                    if (st.generating) "Writing the story…" else "Write a new story",
+                    onClick = { vm.generate(topic) }, enabled = !st.generating, modifier = Modifier.fillMaxWidth(),
+                )
+                if (st.generating) {
+                    Gap(6.dp)
+                    Text("This takes about 20–40 seconds.", style = captionStyle())
+                }
+                st.error?.let {
+                    Gap(8.dp)
+                    Text(it, style = captionStyle(c.error))
+                }
+            }
+        }
+    }
+
+    confirmDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text("Delete this story?", style = titleStyle().copy(fontSize = 20.sp)) },
+            text = { Text(item.titles[a] ?: item.titles[Lang.EN] ?: "", style = bodyStyle()) },
+            confirmButton = { TextButton(onClick = { vm.delete(item.story.id); confirmDelete = null }) { Text("Delete", color = c.error) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel", color = c.ink) } },
+            containerColor = c.ground,
+        )
+    }
+}
+
+@Composable
+private fun TopicField(value: String, onChange: (String) -> Unit) {
+    val c = Diacritica.colors
+    val shape = RoundedCornerShape(Diacritica.shapes.field)
+    Box(
+        Modifier.fillMaxWidth().clip(shape).background(c.surface)
+            .border(BorderStroke(if (Diacritica.tokens.heavyRules) 2.dp else 1.dp, if (Diacritica.tokens.heavyRules) c.rule else c.line), shape)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        if (value.isEmpty()) Text("Topic: anything you like, or pick one below", style = bodyStyle(c.inkMuted))
+        BasicTextField(
+            value = value, onValueChange = onChange, singleLine = true,
+            textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun ProgressBar(fraction: Float, modifier: Modifier = Modifier) {
+    val c = Diacritica.colors
+    Box(modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(c.line)) {
+        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(c.accent))
+    }
+}
+
+/** Two language pickers with a swap button. */
+@Composable
+private fun LangPairRow(a: Lang, b: Lang, options: List<Lang>, onChange: (Lang, Lang) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LangPicker(a, options) { l -> onChange(l, if (l == b) a else b) }
+        PolyIconButton(PolyIcons.Swap, "Swap languages", onClick = { onChange(b, a) })
+        LangPicker(b, options) { l -> onChange(if (l == a) b else a, l) }
+    }
+}
+
+@Composable
+private fun LangPicker(value: Lang, options: List<Lang>, onPick: (Lang) -> Unit) {
+    val c = Diacritica.colors
+    var open by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(Diacritica.shapes.chip)
+    Box {
+        Row(
+            Modifier.clip(shape).border(1.dp, c.line, shape).clickable { open = true }.padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LangBadge(value)
+            Spacer(Modifier.width(6.dp))
+            Text(value.nativeName, style = bodyStyle(size = 14.sp))
+            Icon(PolyIcons.ChevronDown, null, tint = c.inkMuted, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            options.forEach { l ->
+                DropdownMenuItem(
+                    text = { Text("${l.nativeName}  ·  ${l.englishName}", style = bodyStyle(if (l == value) c.accent else c.ink)) },
+                    onClick = { open = false; onPick(l) },
+                )
+            }
+        }
+    }
+}
+
+// ================================================================= story view
+
+/** Everything a sentence needs to render itself and react to touches. */
+private class SentenceEnv(
+    val vm: ReaderViewModel,
+    val story: LoadedStory,
+    val highlighted: Int?,
+    val popup: WordPopup?,
+    val showPinyin: Boolean,
+    val traditional: Boolean,
+    val a: Lang,
+    val b: Lang,
+) {
+    fun other(l: Lang) = if (l == a) b else a
+    fun text(idx: Int, l: Lang): String = story.sentences.getOrNull(idx)?.get(l).orEmpty()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StoryView(vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory, settings: AppSettings, onOpenWord: (Lang, String) -> Unit) {
+    val c = Diacritica.colors
+    val langs = story.languages
+    // Fall back to the story's own languages when the chosen pair isn't in it.
+    val a = settings.readerLangA.takeIf { it in langs } ?: langs.firstOrNull() ?: Lang.EN
+    val b = settings.readerLangB.takeIf { it in langs && it != a } ?: langs.firstOrNull { it != a } ?: a
+    val traditional = settings.script == ScriptPreference.TRADITIONAL_FIRST || settings.script == ScriptPreference.TRADITIONAL_ONLY
+    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyin, traditional, a, b)
+    var layoutMenu by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize()) {
+        // ---- top bar
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Back, "Back to stories", onClick = vm::close, tint = c.ink)
+            Column(Modifier.weight(1f)) {
+                Text(story.title(a), style = headwordStyle(18.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(story.title(b), style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (Lang.ZH == a || Lang.ZH == b) {
+                PolyChip("拼音", selected = settings.readerPinyin, onClick = { vm.setPinyin(!settings.readerPinyin) })
+                Spacer(Modifier.width(4.dp))
+            }
+            Box {
+                PolyIconButton(PolyIcons.Layout, "Reader layout", onClick = { layoutMenu = true })
+                DropdownMenu(expanded = layoutMenu, onDismissRequest = { layoutMenu = false }, containerColor = c.ground) {
+                    ReaderLayout.entries.forEach { l ->
+                        DropdownMenuItem(
+                            text = { Text(l.label, style = bodyStyle(if (l == settings.readerLayout) c.accent else c.ink)) },
+                            onClick = { layoutMenu = false; vm.setLayout(l) },
+                        )
+                    }
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Diacritica.spacing.screen).padding(bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LangPairRow(a, b, langs, onChange = vm::setLangs)
+        }
+        val n = story.sentences.size
+        val pos = (st.highlighted ?: story.story.lastSentence).coerceIn(0, (n - 1).coerceAtLeast(0))
+        ProgressBar(if (n == 0) 0f else (pos + 1f) / n, Modifier.padding(horizontal = Diacritica.spacing.screen))
+        Gap(4.dp)
+        Hairline(heavy = Diacritica.tokens.heavyRules)
+
+        Box(Modifier.weight(1f)) {
+            when (settings.readerLayout) {
+                ReaderLayout.TOP_BOTTOM -> SplitPanes(env, numbered = false)
+                ReaderLayout.NUMBERED -> SplitPanes(env, numbered = true)
+                ReaderLayout.SIDE_BY_SIDE -> SideBySide(env)
+                ReaderLayout.INTERLINEAR -> Interlinear(env)
+            }
+        }
+
+        // ---- action bar for the highlighted sentence
+        st.highlighted?.let { idx ->
+            Hairline()
+            Row(
+                Modifier.fillMaxWidth().background(c.surface).padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${idx + 1} / $n", style = captionStyle(c.ink), modifier = Modifier.padding(start = 8.dp).weight(1f))
+                PolyIconButton(PolyIcons.Up, "Previous sentence", onClick = { if (idx > 0) vm.highlight(idx - 1) })
+                PolyIconButton(PolyIcons.Down, "Next sentence", onClick = { if (idx < n - 1) vm.highlight(idx + 1) })
+                TextButton(onClick = { vm.speak(a, env.text(idx, a)) }) { Text("▶ ${a.short}", color = c.accent) }
+                TextButton(onClick = { vm.speak(b, env.text(idx, b)) }) { Text("▶ ${b.short}", color = c.accent) }
+                PolyIconButton(PolyIcons.Cards, "Add sentence to Review", onClick = { vm.addSentenceToReview(idx, a, b) })
+            }
+        }
+        st.message?.let {
+            LaunchedEffect(it) { kotlinx.coroutines.delay(1800); vm.clearMessage() }
+            Text(it, style = captionStyle(c.success), modifier = Modifier.fillMaxWidth().background(c.surface).padding(horizontal = 16.dp, vertical = 6.dp))
+        }
+    }
+
+    st.popup?.let { p ->
+        val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = vm::dismissPopup, sheetState = sheet, containerColor = c.ground) {
+            WordSheet(vm, p, env, onOpenWord = { l, w -> vm.dismissPopup(); onOpenWord(l, w) })
+        }
+    }
+}
+
+// ----------------------------------------------------------------- layouts
+
+/** Two stacked panes (top: language A, bottom: language B) whose scrolling follows each other. */
+@Composable
+private fun SplitPanes(env: SentenceEnv, numbered: Boolean) {
+    val top = rememberLazyListState(initialFirstVisibleItemIndex = (env.highlighted ?: env.story.story.lastSentence).coerceAtLeast(0))
+    val bottom = rememberLazyListState(initialFirstVisibleItemIndex = (env.highlighted ?: env.story.story.lastSentence).coerceAtLeast(0))
+    SyncScroll(top, bottom)
+    FollowHighlight(env.highlighted, top, bottom)
+    Column(Modifier.fillMaxSize()) {
+        Pane(env, env.a, top, numbered, Modifier.weight(1f))
+        Row(
+            Modifier.fillMaxWidth().background(Diacritica.colors.surface).padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LangBadge(env.b)
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.weight(1f)) { Hairline() }
+        }
+        Pane(env, env.b, bottom, numbered, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun Pane(env: SentenceEnv, lang: Lang, state: LazyListState, numbered: Boolean, modifier: Modifier) {
+    val c = Diacritica.colors
+    LazyColumn(modifier.fillMaxWidth(), state = state, contentPadding = PaddingValues(horizontal = Diacritica.spacing.screen, vertical = 10.dp)) {
+        itemsIndexed(env.story.sentences) { idx, _ ->
+            val on = env.highlighted == idx
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(if (on) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent)
+                    .padding(horizontal = 6.dp, vertical = if (numbered) 3.dp else 6.dp),
+            ) {
+                if (numbered) {
+                    Text(
+                        "${idx + 1}", style = captionStyle(if (on) c.accent else c.inkMuted).copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.width(26.dp).padding(top = 4.dp),
+                    )
+                }
+                Sentence(env, idx, lang, readingSize(), Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** One scrolling list, one row per sentence: A on the left, B on the right. */
+@Composable
+private fun SideBySide(env: SentenceEnv) {
+    val c = Diacritica.colors
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = env.story.story.lastSentence.coerceAtLeast(0))
+    FollowHighlight(env.highlighted, state)
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = Diacritica.spacing.screen, vertical = 6.dp)) {
+            Box(Modifier.weight(1f)) { LangBadge(env.a) }
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f)) { LangBadge(env.b) }
+        }
+        LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(horizontal = Diacritica.spacing.screen, vertical = 4.dp)) {
+            itemsIndexed(env.story.sentences) { idx, _ ->
+                val on = env.highlighted == idx
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(RoundedCornerShape(6.dp))
+                            .background(if (on) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent).padding(vertical = 8.dp, horizontal = 4.dp),
+                    ) {
+                        Sentence(env, idx, env.a, 16.sp, Modifier.weight(1f))
+                        Box(Modifier.padding(horizontal = 6.dp).width(1.dp).fillMaxHeight().background(c.line))
+                        Sentence(env, idx, env.b, 16.sp, Modifier.weight(1f))
+                    }
+                    Hairline()
+                }
+            }
+        }
+    }
+}
+
+/** Language A in reading size, language B as a quieter line under each sentence. */
+@Composable
+private fun Interlinear(env: SentenceEnv) {
+    val c = Diacritica.colors
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = env.story.story.lastSentence.coerceAtLeast(0))
+    FollowHighlight(env.highlighted, state)
+    LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(horizontal = Diacritica.spacing.screen, vertical = 12.dp)) {
+        itemsIndexed(env.story.sentences) { idx, _ ->
+            val on = env.highlighted == idx
+            Column(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp))
+                    .background(if (on) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent)
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+            ) {
+                Sentence(env, idx, env.a, readingSize(), Modifier.fillMaxWidth())
+                Gap(3.dp)
+                Row {
+                    Box(Modifier.padding(top = 4.dp, end = 8.dp).width(2.dp).height(14.dp).background(c.accent.copy(alpha = 0.5f)))
+                    Sentence(env, idx, env.b, 15.sp, Modifier.weight(1f), muted = true)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun readingSize(): TextUnit = (Diacritica.type.body.value + 3).sp
+
+/** Scrolling one pane moves the other to the same sentence. Only the pane the user drags leads. */
+@Composable
+private fun SyncScroll(a: LazyListState, b: LazyListState) {
+    val aDragged by a.interactionSource.collectIsDraggedAsState()
+    val bDragged by b.interactionSource.collectIsDraggedAsState()
+    var leader by remember { mutableStateOf(0) }
+    LaunchedEffect(aDragged) { if (aDragged) leader = 1 }
+    LaunchedEffect(bDragged) { if (bDragged) leader = 2 }
+    LaunchedEffect(a, b) {
+        snapshotFlow { a.firstVisibleItemIndex }.collect { if (leader == 1 && b.firstVisibleItemIndex != it) b.scrollToItem(it) }
+    }
+    LaunchedEffect(a, b) {
+        snapshotFlow { b.firstVisibleItemIndex }.collect { if (leader == 2 && a.firstVisibleItemIndex != it) a.scrollToItem(it) }
+    }
+}
+
+/** Brings a newly highlighted sentence into view in every list (when it is off screen). */
+@Composable
+private fun FollowHighlight(idx: Int?, vararg states: LazyListState) {
+    LaunchedEffect(idx) {
+        if (idx == null) return@LaunchedEffect
+        states.forEach { s ->
+            val visible = s.layoutInfo.visibleItemsInfo
+            val fully = visible.filter { it.offset >= s.layoutInfo.viewportStartOffset && it.offset + it.size <= s.layoutInfo.viewportEndOffset }
+            if (fully.none { it.index == idx }) s.animateScrollToItem((idx - 1).coerceAtLeast(0))
+        }
+    }
+}
+
+// ----------------------------------------------------------------- sentences
+
+@Composable
+private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, modifier: Modifier, muted: Boolean = false) {
+    val c = Diacritica.colors
+    val text = env.text(idx, lang)
+    val style = TextStyle(
+        fontFamily = Diacritica.fonts.reading, fontSize = size, lineHeight = (size.value * 1.5f).sp,
+        color = if (muted) c.inkMuted else c.ink,
+        fontStyle = if (muted && lang != Lang.ZH) FontStyle.Italic else FontStyle.Normal,
+    )
+    val mark = env.popup?.takeIf { it.sentenceIdx == idx && it.lang == lang }?.token
+    val onTap = { env.vm.highlight(idx) }
+    val onWord: (String) -> Unit = { w -> env.vm.lookUpWord(lang, w, idx, env.other(lang)) }
+    if (lang == Lang.ZH) {
+        ZhSentence(env, text, style, mark, onTap, onWord, modifier)
+    } else {
+        PlainSentence(text, lang, style, mark, onTap, onWord, modifier)
+    }
+}
+
+@Composable
+private fun PlainSentence(
+    text: String, lang: Lang, style: TextStyle, mark: String?,
+    onTap: () -> Unit, onWord: (String) -> Unit, modifier: Modifier,
+) {
+    val markColor = Diacritica.colors.accent.copy(alpha = 0.22f)
+    val haptics = LocalHapticFeedback.current
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val tap by rememberUpdatedState(onTap)
+    val word by rememberUpdatedState(onWord)
+    val annotated = remember(text, mark, markColor) {
+        buildAnnotatedString {
+            append(text)
+            if (!mark.isNullOrEmpty()) {
+                val i = text.indexOf(mark)
+                if (i >= 0) addStyle(SpanStyle(background = markColor), i, i + mark.length)
+            }
+        }
+    }
+    Text(
+        annotated, style = style, onTextLayout = { layout = it },
+        modifier = modifier.pointerInput(text, lang) {
+            detectTapGestures(
+                onTap = { tap() },
+                onLongPress = { pos ->
+                    val l = layout ?: return@detectTapGestures
+                    val w = wordAt(text, l.getOffsetForPosition(pos), lang) ?: return@detectTapGestures
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    word(w)
+                },
+            )
+        },
+    )
+}
+
+/** The word around [offset], with surrounding punctuation and French/Italian elision (l', dell') removed. */
+internal fun wordAt(text: String, offset: Int, lang: Lang): String? {
+    if (text.isEmpty()) return null
+    fun isWordChar(ch: Char) = ch.isLetterOrDigit() || ch == '\'' || ch == '’' || ch == '-'
+    var i = offset.coerceIn(0, text.length - 1)
+    if (!isWordChar(text[i]) && i > 0 && isWordChar(text[i - 1])) i -= 1
+    if (!isWordChar(text[i])) return null
+    var s = i
+    var e = i + 1
+    while (s > 0 && isWordChar(text[s - 1])) s--
+    while (e < text.length && isWordChar(text[e])) e++
+    var w = text.substring(s, e).trim('\'', '’', '-')
+    if (lang == Lang.FR || lang == Lang.IT) {
+        val cut = w.indexOfFirst { it == '\'' || it == '’' }
+        if (cut in 1..4) w = w.substring(cut + 1)
+    }
+    return w.takeIf { it.any(Char::isLetter) }
+}
+
+/** Mandarin: segmented words, each with its pinyin above (when on). Long-press a word to look it up. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ZhSentence(
+    env: SentenceEnv, text: String, style: TextStyle, mark: String?,
+    onTap: () -> Unit, onWord: (String) -> Unit, modifier: Modifier,
+) {
+    val c = Diacritica.colors
+    val haptics = LocalHapticFeedback.current
+    val tap by rememberUpdatedState(onTap)
+    val word by rememberUpdatedState(onWord)
+    val tokens by produceState(initialValue = emptyList<app.diacritica.data.DictionaryRepository.ZhToken>(), text) {
+        value = env.vm.zhTokens(text)
+    }
+    if (tokens.isEmpty()) {
+        Text(text, style = style, modifier = modifier.pointerInput(text) { detectTapGestures(onTap = { tap() }) })
+        return
+    }
+    val pinyinStyle = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = (style.fontSize.value * 0.58f).sp, color = c.accent)
+    FlowRow(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        tokens.forEachIndexed { i, t ->
+            val shown = if (env.traditional) t.traditional ?: t.text else t.text
+            val isWord = t.pinyin != null
+            Column(
+                Modifier
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(if (isWord && mark == t.text) c.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .pointerInput(text, i) {
+                        detectTapGestures(
+                            onTap = { tap() },
+                            onLongPress = {
+                                if (isWord) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    word(t.text)
+                                }
+                            },
+                        )
+                    }
+                    .padding(horizontal = if (isWord) 1.dp else 0.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (env.showPinyin) Text(t.pinyin ?: "", style = pinyinStyle, maxLines = 1)
+                Text(shown, style = style.copy(lineHeight = (style.fontSize.value * 1.25f).sp))
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------- word popup
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpenWord: (Lang, String) -> Unit) {
+    val c = Diacritica.colors
+    val uri = LocalUriHandler.current
+    val saved by vm.savedKeys.collectAsStateWithLifecycle()
+    val r = p.result
+    val hw: WordInfo = r?.headword ?: WordInfo(p.lang, p.token)
+    val found = r != null && !r.isEmpty
+    Column(
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp).padding(bottom = 20.dp).navigationBarsPadding(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LangBadge(p.lang, boxed = true)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                val head = hw.article?.let { a -> if (a.endsWith("'")) a + hw.word else "$a ${hw.word}" } ?: hw.word
+                val shownHead = if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head
+                Text(shownHead, style = headwordStyle(Diacritica.type.headwordLarge))
+                if (p.lang == Lang.ZH) {
+                    val extra = listOfNotNull(hw.pinyin, hw.traditional?.takeIf { it != hw.word && !env.traditional }, hw.hsk?.let { "HSK $it" })
+                    if (extra.isNotEmpty()) Text(extra.joinToString("  ·  "), style = captionStyle(c.accent))
+                }
+            }
+            PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { vm.speakWord(hw) })
+            if (found) {
+                val isSaved = "${hw.lang.code}:${hw.word}" in saved
+                PolyIconButton(
+                    if (isSaved) PolyIcons.StarFilled else PolyIcons.Star, if (isSaved) "Remove from saved" else "Save word",
+                    onClick = { vm.toggleSave(hw) }, tint = if (isSaved) c.savedStar else c.inkMuted,
+                )
+            }
+        }
+        val meta = listOfNotNull(hw.pos, hw.gender, hw.plural?.let { "pl. $it" }, hw.ipa?.let { "/$it/" }).joinToString(" · ")
+        if (meta.isNotEmpty()) Text(meta, style = captionStyle(), modifier = Modifier.padding(top = 4.dp))
+        if (r?.redirectedFrom != null || (found && !hw.word.equals(p.token, ignoreCase = true))) {
+            Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
+        }
+        hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
+
+        when {
+            p.loading -> { Gap(14.dp); Text("Looking up…", style = captionStyle()) }
+            p.fetching -> { Gap(14.dp); Text("Not in the offline dictionary. Downloading it…", style = captionStyle()) }
+            !found -> { Gap(14.dp); Text("Not in the offline dictionary.", style = captionStyle()) }
+            else -> {
+                val concept = r!!.concepts.getOrNull(r.selected)
+                Gap(14.dp)
+                SectionLabel(concept?.label?.let { "Meaning · $it" } ?: "Translations")
+                Gap(6.dp)
+                val order = listOf(env.other(p.lang), Lang.EN).distinct().filter { it != p.lang }
+                val rows = r.results.filter { it.lang != p.lang }.sortedBy { lr -> order.indexOf(lr.lang).let { if (it < 0) 99 else it } }
+                rows.forEach { lr ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
+                        Box(Modifier.widthIn(min = 40.dp)) { LangBadge(lr.lang) }
+                        val words = lr.words.take(3).joinToString(", ") { w ->
+                            val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
+                            val shown = if (w.lang == Lang.ZH && env.traditional) w.traditional ?: base else base
+                            if (w.lang == Lang.ZH && w.pinyin != null) "$shown ${w.pinyin}" else shown
+                        }
+                        Text(words.ifEmpty { "—" }, style = bodyStyle(if (words.isEmpty()) c.inkMuted else c.ink), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        // The sentence it came from, in both languages.
+        val src = env.text(p.sentenceIdx, p.lang)
+        val tr = env.text(p.sentenceIdx, env.other(p.lang))
+        if (src.isNotEmpty()) {
+            Gap(14.dp)
+            Hairline()
+            Gap(10.dp)
+            Text(src, style = bodyStyle(size = 14.sp))
+            if (tr.isNotEmpty() && env.other(p.lang) != p.lang) Text(tr, style = bodyStyle(c.inkMuted, 14.sp).copy(fontStyle = FontStyle.Italic))
+        }
+
+        Gap(16.dp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (found) PolyButton("Open in Dictionary", onClick = { onOpenWord(hw.lang, hw.word) })
+            PolyButton(
+                "${OfficialDictionary.name(p.lang)} ↗",
+                onClick = { runCatching { uri.openUri(OfficialDictionary.url(p.lang, hw.word, hw.traditional)) } },
+                primary = false,
+            )
+        }
+    }
+}

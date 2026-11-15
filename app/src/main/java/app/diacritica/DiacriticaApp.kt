@@ -1,0 +1,41 @@
+package app.diacritica
+
+import app.diacritica.backup.BackupManager
+import android.app.Application
+import app.diacritica.data.DictionaryDatabase
+import app.diacritica.data.DictionaryRepository
+import app.diacritica.data.online.OnlineLookup
+import app.diacritica.rehearse.GeminiClient
+import app.diacritica.rehearse.SentenceRepository
+import app.diacritica.rehearse.LiteraryRepository
+import app.diacritica.reader.StoryRepository
+import app.diacritica.review.ReviewRepository
+import app.diacritica.data.user.UserDatabase
+import app.diacritica.settings.SettingsRepository
+import app.diacritica.tts.Speaker
+
+/** Manual dependency container; small enough that a DI framework isn't worth it yet. */
+class AppContainer(app: Application) {
+    val dictionaryDb = DictionaryDatabase(app)
+    val dictionary = DictionaryRepository(dictionaryDb)
+    val userDb = UserDatabase.create(app)
+    val settings = SettingsRepository(app)
+    val speaker = Speaker(app)
+    val online = OnlineLookup(app, dictionaryDb)
+    val review = ReviewRepository(userDb, dictionary)
+    val sentences = SentenceRepository(app)
+    val literary = LiteraryRepository(app)
+    val gemini = GeminiClient()
+    val stories = StoryRepository(userDb, gemini)
+    val backup = BackupManager(app, userDb)
+}
+
+class DiacriticaApp : Application() {
+    lateinit var container: AppContainer
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        container = AppContainer(this)
+    }
+}

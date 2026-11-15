@@ -1,0 +1,15 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+pipeline/sample/data/
+pipeline/**/__pycache__/
+
+# Pipeline inputs (several GB) and caches: download them as described in README.
+pipeline/data/
+# The full dictionary (~240 MB) is built locally; the repo ships the small starter at the same path.
+# Use `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` after building it.

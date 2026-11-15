@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo F · Diacritics: acute (accent blue), grave, circumflex, tilde, umlaut and caron in a ring.
+     Drawn on a 0..100 grid, scaled into the 66dp safe zone of the 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="25"
+        android:translateY="25"
+        android:scaleX="0.58"
+        android:scaleY="0.58">
+        <!-- acute ´ -->
+        <path
+            android:pathData="M44,24 L56,10"
+            android:strokeColor="#2B4FA8"
+            android:strokeWidth="7"
+            android:strokeLineCap="round" />
+        <!-- grave ` -->
+        <path
+            android:pathData="M74,24 L84,38"
+            android:strokeColor="#1C1B19"
+            android:strokeWidth="7"
+            android:strokeLineCap="round" />
+        <!-- circumflex ^ -->
+        <path
+            android:pathData="M68,74 L77,63 L86,74"
+            android:strokeColor="#1C1B19"
+            android:strokeWidth="7"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- tilde ~ -->
+        <path
+            android:pathData="M36,88 C40,80 45,80 50,85 C55,90 60,90 64,82"
+            android:strokeColor="#1C1B19"
+            android:strokeWidth="7"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- caron ˇ -->
+        <path
+            android:pathData="M12,26 L21,37 L30,26"
+            android:strokeColor="#1C1B19"
+            android:strokeWidth="7"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- umlaut ¨ -->
+        <path
+            android:pathData="M10,64 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z M23,64 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z"
+            android:fillColor="#1C1B19" />
+    </group>
+</vector>

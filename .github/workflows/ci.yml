@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:            # every branch; pull requests show these checks too
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    name: Data pipeline (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the starter dictionary
+        run: python3 pipeline/sample/make_sample.py
+      - name: Dictionary pipeline tests
+        working-directory: pipeline
+        run: python3 test_build.py -v
+      - name: Literary pipeline tests
+        working-directory: pipeline
+        run: python3 test_literary.py -v
+      - name: Starter dictionary in the repo is up to date
+        run: |
+          # make_sample.py rewrites the bundled starter DB; it must still open and have the sample words.
+          python3 - <<'PY'
+          import sqlite3
+          con = sqlite3.connect("app/src/main/assets/dict/dictionary.db")
+          n = con.execute("SELECT COUNT(*) FROM concept").fetchone()[0]
+          assert n > 0, "starter dictionary is empty"
+          print(f"starter dictionary: {n} concepts")
+          PY
+
+  android:
+    name: Build and unit tests (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+      - name: Unit tests
+        run: ./gradlew --stacktrace testDebugUnitTest
+      - name: Build debug APK
+        run: ./gradlew --stacktrace assembleDebug
+      - name: Room schema is committed
+        # A schema change without a committed schema JSON breaks auto-migrations for existing installs.
+        run: git status --porcelain app/schemas && test -z "$(git status --porcelain app/schemas)"
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: diacritica-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  lint:
+    name: Android lint (report)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Report-only until a lint baseline is committed; see the uploaded HTML report.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Lint
+        run: ./gradlew --stacktrace lintDebug
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
