@@ -125,7 +125,7 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
                         AnswerField(l, st.answers[l].orEmpty(), { vm.setAnswer(l, it) }, hint = if (l == Lang.ZH && settings.pinyinHint) st.references[l]?.firstOrNull() else null, vm = vm)
                     }
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PolyButton("Check", vm::submit, modifier = Modifier.weight(1f), enabled = st.answers.values.any { it.isNotBlank() })
+                        PolyButton("Check", vm::submit, modifier = Modifier.weight(1f), enabled = st.targets.any { st.answers[it]?.isNotBlank() == true })
                         PolyButton("Skip", vm::next, primary = false)
                     }
                 } else {

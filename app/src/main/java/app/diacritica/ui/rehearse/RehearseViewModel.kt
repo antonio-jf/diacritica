@@ -307,7 +307,42 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             val updated = if (l in cur) cur - l else cur + l
             if (updated.isEmpty()) return@launch
             c.settings.setRehearseLangs(updated)
-            if (!_state.value.submitted) next()
+            if (!_state.value.submitted) retarget(s.activeLanguages.filter { it in updated })
+        }
+    }
+
+    /**
+     * Keeps the current sentence and only changes which languages you answer in: answers you've typed stay,
+     * a new language gets its reference (from the sentence, the cache, or Gemini). A new sentence comes only
+     * from Skip or Next sentence.
+     */
+    private suspend fun retarget(practice: List<Lang>) {
+        val st = _state.value
+        val group = st.group ?: return
+        val prompt = st.promptLang ?: return
+        if (st.path == RehearsePath.REVERSE) return          // Reverse always answers in English/Spanish
+        val targets = practice.filter { it != prompt }
+        if (targets.isEmpty()) return                         // only the prompt's language left: keep the fields
+        val refs = st.references.filterKeys { it in targets }.toMutableMap()
+        val generated = st.generated.filter { it in targets }.toMutableSet()
+        targets.filter { it !in refs }.forEach { l ->
+            group.texts[l]?.let { t ->
+                refs[l] = if (l == Lang.ZH) (t.map { runCatching { c.dictionary.toSimplified(it) }.getOrDefault(it) } + t).distinct() else t
+            }
+        }
+        if (group.id > 0) c.userDb.generatedRefs().forGroup(group.id).forEach { g ->
+            val l = Lang.fromCode(g.lang)
+            if (l != null && l in targets && l !in refs) { refs[l] = listOf(g.text); generated += l }
+        }
+        _state.update { it.copy(targets = targets, references = refs, generated = generated, answers = it.answers.filterKeys { k -> k in targets || it.answers[k]?.isNotBlank() == true }) }
+        // A newly added language without a human reference: ask Gemini once and cache it.
+        val missing = targets.filter { it !in refs }
+        val s = c.settings.settings.first()
+        if (missing.isNotEmpty() && s.geminiKey.isNotBlank() && c.online.isOnline()) {
+            runCatching { c.gemini.translate(s.geminiKey, s.geminiModel, prompt, st.prompt, missing) }.getOrNull()?.forEach { (l, t) ->
+                if (group.id > 0) c.userDb.generatedRefs().save(GeneratedRef(group.id, l.code, t))
+                _state.update { cur -> if (cur.group?.id == group.id) cur.copy(references = cur.references + (l to listOf(t)), generated = cur.generated + l) else cur }
+            }
         }
     }
 
