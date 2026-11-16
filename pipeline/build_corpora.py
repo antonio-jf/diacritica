@@ -14,7 +14,7 @@ A2 ≤ 2,000, B1 ≤ 5,000, B2 ≤ 12,000, C1 ≤ 30,000.
 
 Run on your computer (downloads are cached in data/opus/; Europarl is the big one, ~200 MB per pair):
   cd pipeline
-  python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/corpora/corpora.db
+  python3 build_corpora.py --freq data/en_50k.txt --out build/corpora.db
 
 Options:
   --corpora news,formal,encyclopedic   which ones (default: all three)

@@ -62,6 +62,10 @@ android {
     buildTypes {
         val key = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         release {
+            // Phones and tablets from the last several years are all 64-bit ARM. Shipping only that
+            // instead of four processor types cuts the APK from ~116 MB to ~40 MB. Debug builds keep
+            // every type, so emulators still work.
+            ndk { abiFilters += "arm64-v8a" }
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = key

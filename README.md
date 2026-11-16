@@ -37,7 +37,7 @@ The repository ships the ~15-word starter dictionary at `app/src/main/assets/dic
 
 ## Releases
 
-Every push to `main` (a merged pull request) runs `.github/workflows/release.yml`: unit tests, a signed release APK, and a GitHub Release tagged `v0.3.<commit count>` with the APK and its SHA-256. Download the APK from the latest release on the phone and install it; each release updates the previous one. You can also run it by hand from the Actions tab.
+Every push to `main` (a merged pull request) runs `.github/workflows/release.yml`: unit tests, a signed release APK, and a GitHub Release tagged `v0.3.<commit count>` with the APK and its SHA-256. The release APK contains only 64-bit ARM code (every recent phone and tablet; about 40 MB); debug builds keep all processor types for emulators. Download the APK from the latest release on the phone and install it; each release updates the previous one. You can also run it by hand from the Actions tab.
 
 Signing: all releases use one key, kept out of the repo. CI reads it from four repository secrets (`DIACRITICA_KEYSTORE_BASE64`, `DIACRITICA_KEYSTORE_PASSWORD`, `DIACRITICA_KEY_ALIAS`, `DIACRITICA_KEY_PASSWORD`). Locally, `keystore.properties` in the project root (gitignored) points at the same key, so builds from Android Studio and from Releases can update each other. Without it, local builds use the debug key. Lose the key and future releases can't update installed copies: keep a backup.
 
@@ -133,14 +133,14 @@ These come from [OPUS](https://opus.nlpl.eu), an open collection of human-transl
 | Formal | Europarl (European Parliament proceedings) | free to use |
 | Encyclopedic | Wikimedia (Wikipedia articles translated by editors) | CC BY-SA |
 
-Build them once on your computer (needs internet; Europarl is the big download, about 200 MB per language pair; files are cached in `data/opus/`):
+They are not bundled in the APK: install them from **Settings › Data packs** (about 2 MB). To rebuild the pack yourself (needs internet; Europarl is the big download, about 200 MB per language pair; files are cached in `data/opus/`):
 
 ```
 cd pipeline
-python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/corpora/corpora.db
+python3 build_corpora.py --freq data/en_50k.txt --out build/corpora.db
 ```
 
-English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
+English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then run `make_packs.py --corpora build/corpora.db` and upload the pack (see Data packs). Until the pack is installed, these paths show an everyday sentence.
 
 ## Tests
 
@@ -186,7 +186,7 @@ Home › Progress, for the last 7 days, 30 days or all time:
 
 Settings › Data packs shows everything kept for offline use and downloads bigger data instead of building it on a computer:
 
-- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences, Classics). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
+- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences, Classics). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app (the starter dictionary and Everyday sentences; News/Formal/Encyclopedic and Classics are packs only).
 - **On this phone:** the dictionary (built-in, imported file or pack; import a `.db` you built), downloaded words (Wiktionary lookups), sentence counts per Rehearse source, Translate's on-device models per language (download or delete), and a shortcut to the phone's voices.
 
 Publishing packs (on your computer, after building the databases):
@@ -196,7 +196,7 @@ cd pipeline
 python3 make_packs.py --out dist \
     --dictionary ../app/src/main/assets/dict/dictionary.db \
     --sentences ../app/src/main/assets/sentences/sentences.db \
-    --corpora ../app/src/main/assets/corpora/corpora.db
+    --corpora build/corpora.db
 gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica" --latest=false
 # updates: gh release upload data-packs dist/* --clobber
 ```

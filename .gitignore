@@ -15,6 +15,9 @@ pipeline/data/
 # Use `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` after building it.
 # Data-pack build output (pipeline/make_packs.py); published as release assets, not committed.
 pipeline/dist/
+# Databases that ship only as data packs (pipeline/build_corpora.py writes here), not in the APK.
+pipeline/build/
+app/src/main/assets/corpora/
 # Android Studio / OS
 *.hprof
 # Classics (~150 MB): build with pipeline/build_books.py and publish as a data pack, don't commit.

@@ -10,7 +10,7 @@ output folder to the GitHub release with the tag "data-packs"; the app reads
   python3 make_packs.py --out dist \\
       --dictionary ../app/src/main/assets/dict/dictionary.db \\
       --sentences ../app/src/main/assets/sentences/sentences.db \\
-      --corpora ../app/src/main/assets/corpora/corpora.db \\
+      --corpora build/corpora.db \\
       --books ../app/src/main/assets/books/books.db
   gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica" --latest=false
   # later updates: gh release upload data-packs dist/* --clobber
