@@ -132,6 +132,7 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
         ) {
             PathPicker(settings.rehearsePath, onPick = vm::setPath)
             if (settings.rehearsePath == RehearsePath.GRAMMAR) FocusPicker(settings, onPick = vm::setGrammarFocus)
+            LengthPicker(settings.rehearseLength, settings.rehearsePath, onPick = vm::setLength)
             FromPicker(settings, onPick = vm::setFrom)
             LanguagePicker(settings, onToggle = vm::toggleRehearseLang)
         }
@@ -212,6 +213,29 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
                     },
                     onClick = { open = false; if (p != current) onPick(p) },
                 )
+            }
+        }
+    }
+}
+
+/** "1 sentence ▾" / "3 sentences ▾": a single sentence or a short passage per round. */
+@Composable
+private fun LengthPicker(current: Int, path: RehearsePath, onPick: (Int) -> Unit) {
+    val c = Diacritica.colors
+    var open by remember { mutableStateOf(false) }
+    Box {
+        DropChip(if (current == 1) "1 sentence" else "$current sentences") { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            MenuSection("Length")
+            ChoiceMenuItem("1 sentence", current == 1, { open = false; if (current != 1) onPick(1) })
+            listOf(2, 3).forEach { n ->
+                ChoiceMenuItem("$n sentences", current == n, { open = false; if (current != n) onPick(n) },
+                    note = when (path) {
+                        RehearsePath.FROM_READING -> "In a row from a story you've opened"
+                        RehearsePath.WEAK_SPOTS -> "Weak spots replays rounds as they were"
+                        RehearsePath.GRAMMAR, RehearsePath.CONVERSATION, RehearsePath.IDIOMS -> "A short passage written by Gemini"
+                        else -> "A short passage written by Gemini in this path's style"
+                    }.takeIf { n == 2 })
             }
         }
     }

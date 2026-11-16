@@ -273,7 +273,11 @@ class GeminiClient {
     /** One generated exercise: the sentence in every language, plus a short note (situation or grammar point). */
     data class Exercise(val texts: Map<Lang, String>, val note: String?)
 
-    enum class ExerciseKind { GRAMMAR, CONVERSATION, IDIOM }
+    /**
+     * GRAMMAR / CONVERSATION / IDIOM are the Gemini paths. PASSAGE writes a short connected text in the style
+     * given as `focus` (everyday life, a news report…) for the sentence-bank paths when you ask for 2–3 sentences.
+     */
+    enum class ExerciseKind { GRAMMAR, CONVERSATION, IDIOM, PASSAGE }
 
     /**
      * Writes one new practice sentence in all [langs], aligned in meaning.
@@ -283,8 +287,10 @@ class GeminiClient {
      */
     suspend fun generateExercise(
         apiKey: String, model: String, kind: ExerciseKind, focus: String?, levelEu: String, hsk: Int,
-        langs: List<Lang>, avoid: List<String> = emptyList(),
+        langs: List<Lang>, avoid: List<String> = emptyList(), sentences: Int = 1,
     ): Exercise {
+        val n = sentences.coerceIn(1, 3)
+        val unit = if (n == 1) "ONE sentence" else "a short connected passage of exactly $n sentences (one small scene, story or explanation)"
         val schema = buildJsonObject {
             put("type", "OBJECT")
             putJsonObject("properties") {
@@ -296,24 +302,30 @@ class GeminiClient {
         val user = buildString {
             when (kind) {
                 ExerciseKind.GRAMMAR -> {
-                    appendLine("Write ONE new sentence for translation practice that makes the learner use: $focus.")
-                    appendLine("The sentence must require that structure in the languages where it exists, and sound natural in every language.")
+                    appendLine("Write $unit for translation practice that makes the learner use: $focus.")
+                    appendLine("It must require that structure (at least once) in the languages where it exists, and sound natural in every language.")
                     appendLine("\"note\": one short English sentence naming the structure the learner should use (no full answer).")
                 }
                 ExerciseKind.CONVERSATION -> {
-                    appendLine("Write ONE natural line someone would actually say in an everyday conversation (shop, travel, work, friends, family, phone call, doctor…). Vary the situation.")
+                    appendLine(if (n == 1) "Write ONE natural line someone would actually say in an everyday conversation (shop, travel, work, friends, family, phone call, doctor…). Vary the situation."
+                        else "Write $n natural lines one person would say in a row in an everyday conversation (shop, travel, work, friends, family, phone call, doctor…). Vary the situation.")
                     appendLine("Use spoken register: contractions, common expressions, polite forms where natural.")
                     appendLine("\"note\": the situation in one short English sentence, e.g. \"At a pharmacy, asking for something for a cough.\"")
                 }
                 ExerciseKind.IDIOM -> {
-                    appendLine("Pick ONE common idiom, proverb or set expression and write a short sentence using it.")
+                    appendLine("Pick ONE common idiom, proverb or set expression and write " + (if (n == 1) "a short sentence" else "$unit") + " using it.")
                     appendLine("In each language use that language's own natural equivalent idiom (e.g. 'it's raining cats and dogs' → 'il pleut des cordes'); for Mandarin a common 成语 or saying where one fits.")
                     appendLine("\"note\": the meaning of the idiom in one short English sentence.")
+                }
+                ExerciseKind.PASSAGE -> {
+                    appendLine("Write $unit for translation practice: $focus.")
+                    appendLine("Natural, idiomatic text a native speaker would write; human-translation quality in every language.")
+                    appendLine("\"note\": empty string.")
                 }
             }
             appendLine("Languages: " + langs.joinToString { "${it.code} (${it.englishName})" } + ". Fill every language.")
             appendLine("Level: $levelEu (CEFR) for the European languages; HSK $hsk for Mandarin, in simplified characters with Chinese punctuation.")
-            appendLine("Keep it to one sentence of at most 20 words.")
+            appendLine(if (n == 1) "Keep it to one sentence of at most 20 words." else "Exactly $n sentences, at most 18 words each; each language's text is the whole passage.")
             if (avoid.isNotEmpty()) append("Do not reuse any of these: " + avoid.takeLast(15).joinToString(" | "))
         }
         val out = call(apiKey, model, user, schema, system = "You write practice sentences for language learners. Return only JSON.")

@@ -140,6 +140,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     private suspend fun pick(s: AppSettings): Pick? {
+        if (s.rehearseLength > 1) passagePick(s)?.let { return it }
         val active = s.activeLanguages
         val everyday: suspend (String?) -> Pick? = { notice ->
             runCatching { c.sentences.next(s.levels, active) }.getOrNull()?.let { Pick(it, "Tatoeba", notice = notice) }
@@ -221,6 +222,94 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         )
     }
 
+    /**
+     * Length 2–3: a short passage instead of one sentence.
+     * - Gemini paths write a passage directly (see [generated]).
+     * - From my reading takes consecutive sentences of a story you've opened.
+     * - The sentence banks (Everyday, My words, Reverse, News, Formal, Encyclopedic) hold unrelated single sentences,
+     *   so Gemini writes a passage in that path's style; without a key or offline, a Reader passage, else one sentence.
+     * - Weak spots replays rounds as they were, so it returns null here.
+     */
+    private suspend fun passagePick(s: AppSettings): Pick? {
+        val n = s.rehearseLength
+        val active = s.activeLanguages
+        val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
+        return when (s.rehearsePath) {
+            RehearsePath.WEAK_SPOTS -> null
+            RehearsePath.GRAMMAR, RehearsePath.CONVERSATION, RehearsePath.IDIOMS -> null   // generated() asks for n sentences
+            RehearsePath.FROM_READING -> readingPassage(n)
+            else -> {
+                val style = when (s.rehearsePath) {
+                    RehearsePath.NEWS -> "a short news report (who, what, where), neutral journalistic register"
+                    RehearsePath.FORMAL -> "formal institutional register, like a parliamentary statement or an official letter"
+                    RehearsePath.ENCYCLOPEDIC -> "a short encyclopedia-style explanation of a real topic (place, science, history, culture)"
+                    else -> "everyday life (home, work, shopping, travel, friends, plans, feelings)"
+                }
+                val word = if (s.rehearsePath == RehearsePath.MY_WORDS)
+                    runCatching { myWords(active).filter { it.first in s.rehearseLanguages }.randomOrNull() }.getOrNull() else null
+                if (s.geminiKey.isNotBlank() && c.online.isOnline()) {
+                    val focus = style + (word?.let { (l, w) -> ". In the ${l.englishName} text use the word \"$w\" (and its natural equivalents in the others)" } ?: "")
+                    val group = runCatching { writePassage(s, focus, n) }.getOrNull()
+                    if (group != null) {
+                        val reverse = s.rehearsePath == RehearsePath.REVERSE
+                        return Pick(
+                            group, "Written by Gemini", practice = word, aiWritten = true,
+                            promptLangs = when {
+                                word != null -> active.filter { it != word.first }
+                                reverse -> s.rehearseLanguages.filter { it !in natives }.ifEmpty { null }
+                                else -> null
+                            },
+                            targets = if (reverse) natives else null,
+                        )
+                    }
+                }
+                val why = if (s.geminiKey.isBlank()) "Passages for this path are written by Gemini (add a key in Settings › Rehearse)"
+                    else "Gemini couldn't write a passage right now"
+                readingPassage(n)?.copy(notice = "$why, so here's a passage from your reading.")
+                    ?: c.sentences.next(s.levels, active)?.let { Pick(it, "Tatoeba", notice = "$why, so here's a single sentence.") }
+            }
+        }
+    }
+
+    /** [n] consecutive sentences of a story you've opened, up to where you've read. */
+    private suspend fun readingPassage(n: Int): Pick? {
+        val opened = c.stories.all().first().filter { it.lastOpenedAt != null }.ifEmpty { return null }
+        repeat(6) {
+            val story = opened.random()
+            val loaded = c.stories.load(story.id) ?: return@repeat
+            if (loaded.sentences.size < n) return@repeat
+            val maxStart = (story.lastSentence.coerceIn(0, loaded.sentences.lastIndex) - n + 1).coerceIn(0, loaded.sentences.size - n)
+            val start = (0..maxStart).random()
+            val id = storyGroupId(story.id, start, n)
+            if (id in recentIds && it < 5) return@repeat
+            val group = storyPassage(loaded.sentences, start, n, id, story.level) ?: return@repeat
+            return Pick(group, "From “${loaded.title(Lang.EN)}”")
+        }
+        return null
+    }
+
+    /** Joins sentences [start, start+n) of a story into one group (no spaces between Mandarin sentences). */
+    private fun storyPassage(sentences: List<Map<Lang, String>>, start: Int, n: Int, id: Long, level: String): SentenceGroup? {
+        if (start !in sentences.indices) return null
+        val part = sentences.subList(start, (start + n).coerceAtMost(sentences.size))
+        val langs = part.first().keys.filter { l -> part.all { it[l] != null } }
+        val texts = langs.associateWith { l -> listOf(part.joinToString(if (l == Lang.ZH) "" else " ") { it[l]!!.trim() }) }
+        return if (texts.size < 2) null else SentenceGroup(id, level, texts)
+    }
+
+    /** A passage in [focus]'s style, stored like other generated sentences (so Weak spots and the archive can reload it). */
+    private suspend fun writePassage(s: AppSettings, focus: String, n: Int): SentenceGroup {
+        val active = s.activeLanguages
+        val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
+        val from = fromLang(s)
+        val langs = active.filter { it in s.rehearseLanguages || it in natives || it == from }
+        val level = s.levels.ifEmpty { setOf("B1") }.random()
+        val ex = c.gemini.generateExercise(s.geminiKey, s.geminiModel, GeminiClient.ExerciseKind.PASSAGE, focus, level, s.storyHsk, langs, recentPrompts.toList(), sentences = n)
+        val id = -(System.currentTimeMillis())
+        ex.texts.forEach { (l, t) -> c.userDb.generatedRefs().save(GeneratedRef(id, l.code, t)) }
+        return SentenceGroup(id, level, ex.texts.mapValues { (_, t) -> listOf(t) })
+    }
+
     /** Grammar focus, Conversation and Idioms: Gemini writes the sentence in all your languages. */
     private suspend fun generated(s: AppSettings): Pick {
         if (s.geminiKey.isBlank()) throw IllegalStateException("This path needs a Gemini API key (Settings › Rehearse).")
@@ -238,7 +327,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val topic = GrammarTopics.byKey(s.grammarFocus)
         val ex = c.gemini.generateExercise(
             s.geminiKey, s.geminiModel, kind, topic.instruction.takeIf { kind == GeminiClient.ExerciseKind.GRAMMAR },
-            level, s.storyHsk, langs, recentPrompts.toList(),
+            level, s.storyHsk, langs, recentPrompts.toList(), sentences = s.rehearseLength,
         )
         // Stored like AI references, so Weak spots can bring the sentence back later.
         val id = -(System.currentTimeMillis())
@@ -261,14 +350,17 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             if (texts.size < 2) null else SentenceGroup(id, "", texts) to refs.firstOrNull { it.lang == NOTE }?.text
         }
         else -> {
-            val n = -id - 1
+            val raw = -id - 1
+            val len = (raw / PASSAGE_STEP).toInt() + 1
+            val n = raw % PASSAGE_STEP
             c.stories.load(n / STORY_STRIDE)?.let { st ->
-                st.sentences.getOrNull((n % STORY_STRIDE).toInt())?.let { m -> SentenceGroup(id, st.story.level, m.mapValues { (_, t) -> listOf(t) }) to null }
+                storyPassage(st.sentences, (n % STORY_STRIDE).toInt(), len, id, st.story.level)?.let { it to null }
             }
         }
     }
 
-    private fun storyGroupId(storyId: Long, idx: Int) = -(storyId * STORY_STRIDE + idx + 1)
+    /** Story sentence ids; a passage of [len] sentences adds (len - 1) × [PASSAGE_STEP] so it can be reloaded. */
+    private fun storyGroupId(storyId: Long, idx: Int, len: Int = 1) = -(storyId * STORY_STRIDE + idx + 1 + (len - 1).coerceAtLeast(0) * PASSAGE_STEP)
 
     private suspend fun zhRefs(zh: List<String>, script: ScriptPreference): List<String> {
         val simp = zh.map { runCatching { c.dictionary.toSimplified(it) }.getOrDefault(it) }
@@ -278,6 +370,10 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The fixed "Translate from" language, if it's still one of your languages. */
     private fun fromLang(s: AppSettings): Lang? = s.rehearseFrom?.takeIf { it in s.activeLanguages }
+
+    fun setLength(n: Int) {
+        viewModelScope.launch { c.settings.setRehearseLength(n); next() }
+    }
 
     fun setFrom(l: Lang?) {
         viewModelScope.launch { c.settings.setRehearseFrom(l); next() }
@@ -667,6 +763,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         /** Ids of Gemini-written sentences are -(time in ms), so they never collide with story ids. */
         private const val GENERATED_BASE = 1_000_000_000_000L
         private const val STORY_STRIDE = 10_000L
+        /** Below GENERATED_BASE and above any single story sentence id (story ids < 10 million). */
+        private const val PASSAGE_STEP = 100_000_000_000L
         /** OPUS sentence ids (News, Formal, Encyclopedic) are offset so they never collide with Tatoeba ids. */
         private const val CORPUS_BASE = 10_000_000_000L
         private const val NOTE = "note"

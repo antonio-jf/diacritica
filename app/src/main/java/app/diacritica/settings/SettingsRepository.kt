@@ -100,6 +100,8 @@ data class AppSettings(
     val translateEngine: TranslateEngine = TranslateEngine.ON_DEVICE,
     /** Languages to translate into in Rehearse (empty = all active languages). */
     val rehearseLangs: Set<Lang> = emptySet(),
+    /** Sentences per Rehearse round: 1, or a short passage of 2–3. */
+    val rehearseLength: Int = 1,
     /** Rehearse prompts only in this language (null = rotate through your languages). */
     val rehearseFrom: Lang? = null,
     // Reader
@@ -161,6 +163,7 @@ class SettingsRepository(private val context: Context) {
         val translateEngine = stringPreferencesKey("translate_engine")
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
+        val rehearseLength = intPreferencesKey("rehearse_length")
         val rehearseFrom = stringPreferencesKey("rehearse_from")
         val readerLayout = stringPreferencesKey("layout_reader")
         val readerLangA = stringPreferencesKey("reader_lang_a")
@@ -211,6 +214,7 @@ class SettingsRepository(private val context: Context) {
             grammarFocus = p[K.grammarFocus] ?: d.grammarFocus,
             translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
+            rehearseLength = (p[K.rehearseLength] ?: d.rehearseLength).coerceIn(1, 3),
             rehearseFrom = p[K.rehearseFrom]?.let { Lang.fromCode(it) },
             readerLayout = enumOr(p[K.readerLayout], d.readerLayout),
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
@@ -276,6 +280,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReaderShowMyWords(v: Boolean) = context.dataStore.edit { it[K.readerShowMyWords] = v }
     suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
+    suspend fun setRehearseLength(v: Int) = context.dataStore.edit { it[K.rehearseLength] = v.coerceIn(1, 3) }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }
     suspend fun setRehearseFrom(v: Lang?) = context.dataStore.edit { if (v == null) it.remove(K.rehearseFrom) else it[K.rehearseFrom] = v.code }
