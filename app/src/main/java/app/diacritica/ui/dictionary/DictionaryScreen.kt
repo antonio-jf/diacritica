@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
@@ -212,7 +213,10 @@ private fun SearchField(
                     cursorBrush = SolidColor(c.accent),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
                     keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester).semantics { contentDescription = "Search word" },
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                        // Tapping in to type a new word goes back to auto-detect; pick a language again from the chip if needed.
+                        .onFocusChanged { if (it.isFocused && source != null) onSourceChange(null) }
+                        .semantics { contentDescription = "Search word" },
                 )
             }
             if (query.isNotEmpty()) PolyIconButton(PolyIcons.Close, "Clear", onClear, tint = c.inkMuted)
