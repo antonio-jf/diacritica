@@ -267,6 +267,11 @@ Settings › Backup & restore writes one `.zip` with the user database (saved wo
 
 **Moving data from the old ID (`com.polyglot.dict`).** In `app/build.gradle.kts` set `legacyId = true` and Run: this updates the old app and gives it Backup. Back up, set `legacyId = false`, Run, then Restore in Diacritica. Afterwards the old app can be uninstalled.
 
+## Automatic backup and app updates
+
+- **Automatic backup** (Settings › Automatic backup): choose a folder once (Google Drive, a USB stick, Documents…). Every day the app writes `diacritica-backup-YYYY-MM-DD.zip` there and keeps the newest three. To move to another device, use Restore there and pick the newest file.
+- **App updates** (Settings › App updates, and a banner on Home when there's one): checks GitHub Releases once a day, downloads with Android's download manager (resumes after dropped connections), checks the SHA-256, then opens the installer. The first time, Android asks to allow installs from Diacritica.
+
 ## Words that aren't stored on the phone
 
 When a word isn't in the offline dictionary, the app downloads it from kaikki.org (Wiktionary

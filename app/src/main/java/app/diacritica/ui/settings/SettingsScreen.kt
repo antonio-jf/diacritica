@@ -72,6 +72,7 @@ fun SettingsScreen(
     val message by vm.message.collectAsStateWithLifecycle()
     val backupTarget = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let(vm::exportBackup) }
     val backupSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::restoreBackup) }
+    val autoFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let { vm.autoBackup.enable(it) } }
     var confirmRestore by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // Sections start closed; each header shows a one-line summary of its current values.
     var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(listOf<String>()) }
@@ -201,6 +202,32 @@ fun SettingsScreen(
                     backupTarget.launch("diacritica-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip")
                 }
                 LinkRow("Restore…", "Replaces everything in the app, then restarts it") { confirmRestore = true }
+                // ---- Automatic backup
+                val auto by vm.autoBackup.status.collectAsStateWithLifecycle()
+                Text("Automatic backup", style = captionStyle(), modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp))
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (auto.folder == null) {
+                        Text(
+                            "Every day, a backup file goes into a folder you choose (Google Drive, a USB stick, Documents…); the last ${app.diacritica.backup.AutoBackup.KEEP} are kept. On your other device, use Restore and pick the newest file there.",
+                            style = captionStyle(),
+                        )
+                        PolyButton("Choose a folder…", { autoFolder.launch(null) }, primary = false)
+                    } else {
+                        Text("Daily, into “${auto.folderName ?: "the chosen folder"}”.", style = bodyStyle(size = 14.sp))
+                        auto.lastAt?.let { at ->
+                            Text(
+                                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(at)) +
+                                    " · " + (auto.lastResult ?: ""),
+                                style = captionStyle(if (auto.lastResult?.startsWith("Backup saved") == true) Diacritica.colors.inkMuted else Diacritica.colors.error),
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PolyButton("Back up now", { vm.autoBackup.runNow() }, primary = false)
+                            PolyButton("Change folder", { autoFolder.launch(auto.folder) }, primary = false)
+                            PolyButton("Turn off", { vm.autoBackup.disable() }, primary = false)
+                        }
+                    }
+                }
                 message?.let { Text(it, style = captionStyle(Diacritica.colors.accent), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
                 // ---- App updates (GitHub Releases)
                 val update by vm.updater.state.collectAsStateWithLifecycle()

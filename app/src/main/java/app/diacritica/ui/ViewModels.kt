@@ -45,6 +45,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     val settings: StateFlow<AppSettings?> = c.settings.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val updater get() = c.updater
+    val autoBackup get() = c.autoBackup
 
     private val _dictInfo = MutableStateFlow<DictionaryInfo?>(null)
     val dictInfo: StateFlow<DictionaryInfo?> = _dictInfo.asStateFlow()

@@ -1,6 +1,7 @@
 package app.diacritica
 
 import app.diacritica.backup.BackupManager
+import app.diacritica.backup.AutoBackup
 import app.diacritica.translate.OnDeviceTranslator
 import app.diacritica.packs.PackManager
 import android.app.Application
@@ -44,6 +45,7 @@ class AppContainer(app: Application) {
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
     val backup = BackupManager(app, userDb)
+    val autoBackup = AutoBackup(app)
     val tests = TestStore(app)
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
 }
@@ -55,5 +57,7 @@ class DiacriticaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Re-register the daily backup (no-op if already scheduled or no folder chosen).
+        runCatching { container.autoBackup.schedule() }
     }
 }

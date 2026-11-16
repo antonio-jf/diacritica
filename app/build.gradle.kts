@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
     implementation(libs.mlkit.digital.ink)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.documentfile)
     implementation(libs.kotlinx.coroutines.play.services)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
