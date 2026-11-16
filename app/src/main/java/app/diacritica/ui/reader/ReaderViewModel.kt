@@ -1,5 +1,11 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.data.TextNorm
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.combine
 import app.diacritica.undo.removeSavedWord
 import app.diacritica.undo.deleteStory
 import androidx.lifecycle.ViewModel
@@ -159,6 +165,34 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun reveal(idx: Int) = _state.update { it.copy(revealed = it.revealed + idx) }
 
     fun setTapLookup(on: Boolean) { viewModelScope.launch { c.settings.setReaderTapLookup(on) } }
+    fun setShowMyWords(on: Boolean) { viewModelScope.launch { c.settings.setReaderShowMyWords(on) } }
+
+    /**
+     * Your words in the open story's languages: normalized word form → 1 (learning: saved or in Review)
+     * or 2 (known: a mature card). Forms come from the dictionary's tables, so "nahm" counts for nehmen.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val wordMarks: StateFlow<Map<Lang, Map<String, Int>>> = combine(
+        c.userDb.saved().all(),
+        c.userDb.cards().knowledge(),
+        _state.map { it.story?.languages.orEmpty() }.distinctUntilChanged(),
+    ) { saved, knowledge, langs -> Triple(saved, knowledge, langs) }
+        .mapLatest { (saved, knowledge, langs) ->
+            withContext(Dispatchers.IO) {
+                val status = HashMap<Pair<Lang, String>, Int>()
+                saved.forEach { w -> Lang.fromCode(w.lang)?.takeIf { it in langs }?.let { status.merge(it to w.word, 1) { a, b -> maxOf(a, b) } } }
+                knowledge.forEach { k -> Lang.fromCode(k.lang)?.takeIf { it in langs }?.let { status.merge(it to k.word, if (k.known == 1) 2 else 1) { a, b -> maxOf(a, b) } } }
+                val out = HashMap<Lang, HashMap<String, Int>>()
+                for ((key, v) in status) {
+                    val (lang, word) = key
+                    val m = out.getOrPut(lang) { HashMap() }
+                    val forms = if (lang == Lang.ZH) setOf(word) else runCatching { c.dictionary.surfaceForms(lang, word) }.getOrDefault(setOf(TextNorm.normalize(word)))
+                    forms.forEach { f -> m.merge(f, v) { a, b -> maxOf(a, b) } }
+                }
+                out.mapValues { it.value.toMap() }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     fun setHideOther(on: Boolean) { viewModelScope.launch { c.settings.setReaderHideOther(on) } }
 
     fun delete(id: Long) {

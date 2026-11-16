@@ -458,6 +458,8 @@ private class SentenceEnv(
     /** The second language is hidden until revealed sentence by sentence. */
     val hideOther: Boolean = false,
     val revealed: Set<Int> = emptySet(),
+    /** Your words per language (normalized form → 1 learning, 2 known); empty when shading is off. */
+    val marks: Map<Lang, Map<String, Int>> = emptyMap(),
 ) {
     fun other(l: Lang) = if (l == a) b else a
 
@@ -482,11 +484,13 @@ private fun StoryView(
     val a = settings.readerLangA.takeIf { it in langs } ?: langs.firstOrNull() ?: Lang.EN
     val b = settings.readerLangB.takeIf { it in langs && it != a } ?: langs.firstOrNull { it != a } ?: a
     val traditional = settings.script == ScriptPreference.TRADITIONAL_FIRST || settings.script == ScriptPreference.TRADITIONAL_ONLY
+    val reading by vm.reading.collectAsStateWithLifecycle()
+    val wordMarks by vm.wordMarks.collectAsStateWithLifecycle()
     val env = SentenceEnv(
         vm, story, st.highlighted, st.popup, settings.readerPinyinMode, settings.readerPinyinTop, traditional, a, b, settings.readerSplit,
         tapLookup = settings.readerTapLookup, hideOther = settings.readerHideOther, revealed = st.revealed,
+        marks = if (settings.readerShowMyWords) wordMarks else emptyMap(),
     )
-    val reading by vm.reading.collectAsStateWithLifecycle()
     var layoutMenu by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -519,6 +523,15 @@ private fun StoryView(
                     DropdownMenuItem(
                         text = { Text((if (settings.readerHideOther) "✓ " else "") + "Hide the translation until tapped", style = bodyStyle(if (settings.readerHideOther) c.accent else c.ink)) },
                         onClick = { layoutMenu = false; vm.setHideOther(!settings.readerHideOther) },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text((if (settings.readerShowMyWords) "✓ " else "") + "Show my words", style = bodyStyle(if (settings.readerShowMyWords) c.accent else c.ink))
+                                Text("yellow: learning · green: known", style = captionStyle())
+                            }
+                        },
+                        onClick = { layoutMenu = false; vm.setShowMyWords(!settings.readerShowMyWords) },
                     )
                     Text("Word popup", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
                     PopupLayout.entries.forEach { l ->
@@ -783,7 +796,7 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
     if (lang == Lang.ZH) {
         ZhSentence(env, text, style, mark ?: match, onTap, onWord, modifier, matchOnly = mark == null && match != null)
     } else {
-        PlainSentence(text, lang, style, mark, onTap, onWord, modifier, match = match, tapLookup = env.tapLookup)
+        PlainSentence(text, lang, style, mark, onTap, onWord, modifier, match = match, tapLookup = env.tapLookup, mine = env.marks[lang].orEmpty())
     }
 }
 
@@ -793,7 +806,10 @@ private fun PlainSentence(
     onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
     match: String? = null,
     tapLookup: Boolean = false,
+    mine: Map<String, Int> = emptyMap(),
 ) {
+    val learningColor = Diacritica.colors.warning.copy(alpha = 0.22f)
+    val knownColor = Diacritica.colors.success.copy(alpha = 0.16f)
     var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val markColor = Diacritica.colors.accent.copy(alpha = 0.22f)
     val matchColor = Diacritica.colors.accent
@@ -801,9 +817,19 @@ private fun PlainSentence(
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val tap by rememberUpdatedState(onTap)
     val word by rememberUpdatedState(onWord)
-    val annotated = remember(text, mark, match, markColor) {
+    val annotated = remember(text, mark, match, markColor, mine) {
         buildAnnotatedString {
             append(text)
+            // Your words: learning (saved / in Review) and known (mature cards).
+            if (mine.isNotEmpty()) {
+                for (m in myWordPattern.findAll(text)) {
+                    val w = m.value
+                    // "l'homme", "dell'acqua": also try the part after the apostrophe.
+                    val status = mine[TextNorm.normalize(w)] ?: w.substringAfterLast('\'').substringAfterLast('’')
+                        .takeIf { it.length < w.length }?.let { mine[TextNorm.normalize(it)] }
+                    if (status != null) addStyle(SpanStyle(background = if (status >= 2) knownColor else learningColor), m.range.first, m.range.last + 1)
+                }
+            }
             if (!mark.isNullOrEmpty()) {
                 val i = text.indexOf(mark)
                 if (i >= 0) addStyle(SpanStyle(background = markColor), i, i + mark.length)
@@ -892,7 +918,14 @@ private fun ZhSentence(
                 Modifier
                     .onGloballyPositioned { tc = it }
                     .clip(RoundedCornerShape(3.dp))
-                    .background(if (isWord && !matchOnly && mark == t.text) c.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .background(
+                        when {
+                            isWord && !matchOnly && mark == t.text -> c.accent.copy(alpha = 0.22f)
+                            (env.marks[Lang.ZH]?.get(t.text) ?: 0) >= 2 -> c.success.copy(alpha = 0.16f)
+                            (env.marks[Lang.ZH]?.get(t.text) ?: 0) == 1 -> c.warning.copy(alpha = 0.22f)
+                            else -> androidx.compose.ui.graphics.Color.Transparent
+                        },
+                    )
                     .then(
                         // The translation of a word pressed in the other language: an accent underline.
                         if (matchOnly && isWord && mark != null && (t.text in mark || mark in t.text)) Modifier.drawBehind {
@@ -1158,3 +1191,6 @@ private fun ReadAloudButton(playing: Boolean, a: Lang, b: Lang, onPlay: (List<La
         }
     }
 }
+
+/** Words for "Show my words": letters, with inner apostrophes and hyphens. */
+private val myWordPattern = Regex("[\\p{L}\\p{M}][\\p{L}\\p{M}'’-]*")

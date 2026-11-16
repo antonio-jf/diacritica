@@ -68,6 +68,9 @@ data class Card(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
+/** How well you know a word: [known] = 1 when one of its cards is mature (review state, stability ≥ 21 days). */
+data class WordKnowledge(val lang: String, val word: String, val known: Int)
+
 @Entity(tableName = "review_log", indices = [Index(value = ["at"])])
 data class ReviewLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -275,6 +278,10 @@ interface CardDao {
 
     @Query("SELECT * FROM card WHERE lang = :lang AND word = :word AND kind != 'SENTENCE'")
     suspend fun wordCards(lang: String, word: String): List<Card>
+
+    /** Every word with Review cards, and whether it's known (Reader shading). */
+    @Query("SELECT lang, word, MAX(CASE WHEN state = 2 AND stability >= 21 THEN 1 ELSE 0 END) AS known FROM card WHERE kind != 'SENTENCE' GROUP BY lang, word")
+    fun knowledge(): kotlinx.coroutines.flow.Flow<List<WordKnowledge>>
 
     /** Puts back deleted cards (Undo) with their ids, so their review history reconnects. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
