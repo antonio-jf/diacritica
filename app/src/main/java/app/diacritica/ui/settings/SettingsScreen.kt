@@ -123,6 +123,12 @@ fun SettingsScreen(
             }
         }
 
+        // ------------------------------------------------ Bottom bar
+        val barSummary = (listOf("Home") + s.navTabs.mapNotNull { app.diacritica.ui.Tab.byRoute(it)?.label }).joinToString(" · ")
+        if (section("bottombar", "Bottom bar", barSummary, open, toggle)) {
+            item { BottomBarEditor(s.navTabs, vm::setNavTabs) }
+        }
+
         // ------------------------------------------------ Languages
         val langSummary = s.activeLanguages.joinToString(" ") { it.short } + " · search " + (s.sourceLang?.short ?: "auto")
         if (section("languages", "Languages", langSummary, open, toggle)) {
@@ -403,16 +409,18 @@ private fun GeminiKeySetting(savedKey: String, savedModel: String, vm: SettingsV
             PolyButton(if (show) "Hide" else "Show", { show = !show }, primary = false)
             if (savedKey.isNotBlank()) PolyButton("Test", vm::testGeminiKey, primary = false)
         }
+        Gap(4.dp)
         Text("Model", style = captionStyle())
-        app.diacritica.rehearse.GeminiClient.CHOICES.forEach { (id, label, note) ->
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                PolyChip(label, savedModel == id, { model = id; vm.setGeminiModel(id) })
-                Text("  $note", style = captionStyle(), modifier = Modifier.weight(1f))
-            }
+        val models = app.diacritica.rehearse.GeminiClient.MODELS
+        models.forEach { m -> ModelCard(m, selected = savedModel == m.id, onPick = { model = m.id; vm.setGeminiModel(m.id) }) }
+        // Any other model ID (for a model Google adds later).
+        val custom = models.none { it.id == savedModel }
+        var other by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(custom) }
+        OtherModelCard(selected = custom, open = other || custom, onToggle = { other = !other }) {
+            SettingsField(model, { model = it }, "e.g. gemini-4-flash", mask = false)
+            if (model.isNotBlank() && model != savedModel) PolyButton("Use this model", { vm.setGeminiModel(model.trim()) }, primary = false)
         }
-        Text("If a model uses up its free requests for the day, the app switches to Flash-Lite until they reset. Or type another model ID:", style = captionStyle())
-        SettingsField(model, { model = it }, app.diacritica.rehearse.GeminiClient.DEFAULT_MODEL, mask = false)
-        if (model != savedModel) PolyButton("Save model", { vm.setGeminiModel(model.trim()) }, primary = false)
+        Text("When a model runs out of free requests for the day, the app switches to Flash-Lite until midnight Pacific time (1–2 a.m. in Mexico City).", style = captionStyle())
     }
 }
 
@@ -450,3 +458,125 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
     }
 }
 
+
+/** Choose and order the sections in the bottom bar (Home is always first). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BottomBarEditor(current: List<String>, onChange: (List<String>) -> Unit) {
+    val c = Diacritica.colors
+    val chosen = current.mapNotNull { app.diacritica.ui.Tab.byRoute(it) }.filter { it != app.diacritica.ui.Tab.HOME }
+    Column(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Home is always first. Pick up to ${app.diacritica.settings.MAX_NAV_TABS} more and set their order; the rest stay on Home.", style = captionStyle())
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Icon(app.diacritica.ui.Tab.HOME.icon, null, tint = c.inkMuted, modifier = Modifier.size(20.dp))
+            Text("   Home", style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+        }
+        chosen.forEachIndexed { i, t ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Icon(t.icon, null, tint = c.ink, modifier = Modifier.size(20.dp))
+                Text("   ${t.label}", style = bodyStyle(), modifier = Modifier.weight(1f))
+                val routes = chosen.map { it.route }
+                if (i > 0) PolyIconButton(PolyIcons.Up, "Move ${t.label} left", {
+                    onChange(routes.toMutableList().apply { add(i - 1, removeAt(i)) })
+                }, tint = c.inkMuted)
+                if (i < chosen.lastIndex) PolyIconButton(PolyIcons.Down, "Move ${t.label} right", {
+                    onChange(routes.toMutableList().apply { add(i + 1, removeAt(i)) })
+                }, tint = c.inkMuted)
+                PolyIconButton(PolyIcons.Close, "Remove ${t.label} from the bar", { onChange(routes - t.route) }, tint = c.inkMuted)
+            }
+        }
+        val others = app.diacritica.ui.Tab.entries.filter { it != app.diacritica.ui.Tab.HOME && it !in chosen }
+        if (others.isNotEmpty()) {
+            val full = chosen.size >= app.diacritica.settings.MAX_NAV_TABS
+            Text(if (full) "The bar is full: remove one to add another." else "Add to the bar", style = captionStyle(), modifier = Modifier.padding(top = 6.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                others.forEach { t ->
+                    PolyChip(t.label, selected = false, { if (!full) onChange(chosen.map { it.route } + t.route) }, icon = t.icon)
+                }
+            }
+        }
+        if (current != app.diacritica.settings.DEFAULT_NAV_TABS) {
+            Text("Reset to Dictionary · Reader · Rehearse · Review", style = captionStyle(c.accent),
+                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).clickable { onChange(app.diacritica.settings.DEFAULT_NAV_TABS) }.padding(vertical = 8.dp))
+        }
+    }
+}
+
+/** One Gemini model: name, what it's best for, speed and quality meters, free daily allowance. */
+@Composable
+private fun ModelCard(m: app.diacritica.rehearse.GeminiClient.ModelInfo, selected: Boolean, onPick: () -> Unit) {
+    val c = Diacritica.colors
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(shape)
+            .background(if (selected) c.accentSoft.copy(alpha = 0.45f) else c.surface)
+            .border(if (selected) 1.5.dp else 1.dp, if (selected) c.accent else c.line, shape)
+            .clickable(role = Role.RadioButton, onClick = onPick).padding(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        RadioDot(selected, Modifier.padding(top = 3.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(m.name, style = bodyStyle().copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.weight(1f, fill = false))
+                if (m.recommended) {
+                    Spacer(Modifier.width(8.dp))
+                    Text("Recommended", style = captionStyle(c.onAccentSoft),
+                        modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(c.accentSoft).padding(horizontal = 6.dp, vertical = 1.dp))
+                }
+            }
+            Text(m.bestFor, style = captionStyle(c.ink))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Meter("Speed", m.speed)
+                Meter("Quality", m.quality)
+            }
+            Text("Free: ${m.freePerDay} requests a day", style = captionStyle())
+        }
+    }
+}
+
+/** "Other model": a custom model ID, shown when chosen or expanded. */
+@Composable
+private fun OtherModelCard(selected: Boolean, open: Boolean, onToggle: () -> Unit, content: @Composable () -> Unit) {
+    val c = Diacritica.colors
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(shape)
+            .background(if (selected) c.accentSoft.copy(alpha = 0.45f) else c.surface)
+            .border(if (selected) 1.5.dp else 1.dp, if (selected) c.accent else c.line, shape).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onToggle), verticalAlignment = Alignment.CenterVertically) {
+            RadioDot(selected)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Other model", style = bodyStyle().copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+                Text("Type a model ID, for one Google adds later", style = captionStyle())
+            }
+        }
+        if (open) content()
+    }
+}
+
+@Composable
+private fun RadioDot(selected: Boolean, modifier: Modifier = Modifier) {
+    val c = Diacritica.colors
+    Box(modifier.size(18.dp).clip(androidx.compose.foundation.shape.CircleShape)
+        .border(1.5.dp, if (selected) c.accent else c.inkMuted, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        if (selected) Box(Modifier.size(9.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accent))
+    }
+}
+
+/** "Speed ▮▮▯": three small bars. */
+@Composable
+private fun Meter(label: String, value: Int) {
+    val c = Diacritica.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("$label ", style = captionStyle())
+        (1..3).forEach { i ->
+            Box(Modifier.padding(start = 2.dp).size(width = 10.dp, height = 6.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+                .background(if (i <= value) c.accent else c.surfaceAlt))
+        }
+    }
+}

@@ -356,8 +356,9 @@ fun verdictLabel(v: Verdict): String = when (v) {
     Verdict.UNGRADED -> "Not checked"
 }
 
-fun verdictMark(v: Verdict): String = when (v) {
-    Verdict.CORRECT -> "✓"; Verdict.ACCEPTABLE -> "≈"; Verdict.INCORRECT -> "✕"; Verdict.UNGRADED -> "?"
+/** Drawn icon for a verdict (replaces the old ✓ ≈ ✕ ? glyphs). */
+fun verdictIcon(v: Verdict): androidx.compose.ui.graphics.vector.ImageVector = when (v) {
+    Verdict.CORRECT -> PolyIcons.Check; Verdict.ACCEPTABLE -> PolyIcons.Approx; Verdict.INCORRECT -> PolyIcons.Close; Verdict.UNGRADED -> PolyIcons.Question
 }
 
 /** Layout 1: one tab per language. */
@@ -372,7 +373,7 @@ private fun TabsFeedback(st: RehearseUiState, vm: RehearseViewModel) {
     ) {
         st.targets.forEach { l ->
             val f = st.feedback[l]
-            PolyChip("${l.short} ${f?.let { verdictMark(it.verdict) } ?: ""}", selected == l.code, { selected = l.code })
+            PolyChip(l.short, selected == l.code, { selected = l.code }, icon = f?.let { verdictIcon(it.verdict) }, iconTint = f?.let { verdictColor(it.verdict) })
         }
     }
     Hairline(Modifier.padding(horizontal = 16.dp))
@@ -435,7 +436,7 @@ private fun TilesFeedback(st: RehearseUiState, vm: RehearseViewModel) {
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 LangBadge(l)
-                Text(verdictMark(f.verdict), style = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = verdictColor(f.verdict)))
+                androidx.compose.material3.Icon(verdictIcon(f.verdict), verdictLabel(f.verdict), tint = verdictColor(f.verdict), modifier = Modifier.size(28.dp))
                 Text(
                     if (f.errors.isEmpty()) verdictLabel(f.verdict) else "${f.errors.size} " + if (f.errors.size == 1) "error" else "errors",
                     style = captionStyle(), maxLines = 1,
@@ -468,7 +469,10 @@ private fun ReportFeedback(st: RehearseUiState, vm: RehearseViewModel) {
             Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LangBadge(l)
-                    Text("${verdictMark(f.verdict)} ${verdictLabel(f.verdict)}", style = captionStyle(verdictColor(f.verdict)), modifier = Modifier.weight(1f))
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Icon(verdictIcon(f.verdict), null, tint = verdictColor(f.verdict), modifier = Modifier.size(16.dp))
+                        Text("  " + verdictLabel(f.verdict), style = captionStyle(verdictColor(f.verdict)))
+                    }
                     if (f.errors.isNotEmpty()) Text(f.errors.map { it.type.replace('-', ' ') }.distinct().joinToString(" · "), style = captionStyle(), maxLines = 1)
                 }
                 val corrected = f.corrected?.let { plain(it) }

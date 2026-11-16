@@ -1,5 +1,6 @@
 package app.diacritica.ui.translate
 
+import app.diacritica.ui.components.ChoiceMenuItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -208,12 +209,9 @@ private fun SourcePicker(current: Lang?, langs: List<Lang>, onPick: (Lang?) -> U
             Icon(PolyIcons.ChevronDown, null, tint = c.inkMuted, modifier = Modifier.padding(start = 4.dp).size(16.dp))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
-            DropdownMenuItem(text = { Text("Detect language", style = bodyStyle(if (current == null) c.accent else c.ink)) }, onClick = { open = false; onPick(null) })
+            ChoiceMenuItem("Detect language", current == null, { open = false; onPick(null) })
             langs.forEach { l ->
-                DropdownMenuItem(
-                    text = { Text("${l.nativeName}  ·  ${l.englishName}", style = bodyStyle(if (l == current) c.accent else c.ink)) },
-                    onClick = { open = false; onPick(l) },
-                )
+                ChoiceMenuItem(l.nativeName, l == current, { open = false; onPick(l) }, note = l.englishName)
             }
         }
     }

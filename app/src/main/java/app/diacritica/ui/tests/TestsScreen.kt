@@ -1,5 +1,8 @@
 package app.diacritica.ui.tests
 
+import app.diacritica.tests.TestRequest
+import app.diacritica.tests.TestGenerator
+import app.diacritica.tests.SentenceLength
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -134,6 +137,15 @@ private fun TestList(vm: TestsViewModel, settings: AppSettings, attempts: List<T
                 SectionLabel("Unfinished")
                 open1.forEach { a -> AttemptRow(vm, a) { vm.open(a) } }
             }
+            GenerateCard(vm, settings)
+            val mine by vm.generated.collectAsStateWithLifecycle()
+            if (mine.isNotEmpty()) {
+                SectionLabel("Your tests")
+                mine.forEach { t ->
+                    val best = attempts.filter { it.testId == t.id && it.review != null }.maxOfOrNull { it.review!!.score }
+                    TestCard(vm, t, settings, best, expanded = open == t.id, onToggle = { open = if (open == t.id) null else t.id }, onDelete = { vm.deleteGenerated(t) })
+                }
+            }
             SectionLabel("Tests")
             vm.tests.forEach { t ->
                 val best = attempts.filter { it.testId == t.id && it.review != null }.maxOfOrNull { it.review!!.score }
@@ -150,7 +162,7 @@ private fun TestList(vm: TestsViewModel, settings: AppSettings, attempts: List<T
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TestCard(vm: TestsViewModel, t: TestSet, settings: AppSettings, best: Int?, expanded: Boolean, onToggle: () -> Unit) {
+private fun TestCard(vm: TestsViewModel, t: TestSet, settings: AppSettings, best: Int?, expanded: Boolean, onToggle: () -> Unit, onDelete: (() -> Unit)? = null) {
     val c = Diacritica.colors
     PolySurface(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable(onClick = onToggle), verticalAlignment = Alignment.Top) {
@@ -189,6 +201,10 @@ private fun TestCard(vm: TestsViewModel, t: TestSet, settings: AppSettings, best
                 if (langs.isEmpty()) "Pick at least one language" else "Start · ${langs.size * t.items.size} answers",
                 { vm.start(t, source, langs) }, enabled = langs.isNotEmpty(),
             )
+            onDelete?.let { del ->
+                Text("Delete this test", style = captionStyle(c.error),
+                    modifier = Modifier.padding(top = 6.dp).clip(RoundedCornerShape(4.dp)).clickable(onClick = del).padding(vertical = 6.dp))
+            }
         }
     }
 }
@@ -517,5 +533,76 @@ private fun AnswersOnly(a: TestAttempt, t: TestSet) {
                 }
             }
         }
+    }
+}
+
+/** "Write a new test": level, HSK, sentence length, how many, optional grammar focus and theme; Gemini writes it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GenerateCard(vm: TestsViewModel, settings: AppSettings) {
+    val c = Diacritica.colors
+    val st by vm.state.collectAsStateWithLifecycle()
+    var open by rememberSaveable { mutableStateOf(false) }
+    var level by rememberSaveable { mutableStateOf("B2") }
+    var hsk by rememberSaveable { mutableStateOf(4) }
+    var length by rememberSaveable { mutableStateOf(SentenceLength.MEDIUM.name) }
+    var count by rememberSaveable { mutableStateOf(8) }
+    var focus by rememberSaveable { mutableStateOf("mixed") }
+    var topic by rememberSaveable { mutableStateOf("") }
+    PolySurface(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { open = !open }, verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Write a new test", style = titleStyle().copy(fontSize = 18.sp))
+                Text("Choose the level and sentence length; Gemini writes it.", style = captionStyle())
+            }
+            Icon(PolyIcons.ChevronDown, if (open) "Collapse" else "Expand", tint = c.inkMuted, modifier = Modifier.size(18.dp))
+        }
+        if (!open) return@PolySurface
+        Gap(10.dp)
+        Text("Level (French, German, Italian)", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TestGenerator.LEVELS.forEach { l -> PolyChip(l, level == l, { level = l }) }
+        }
+        Gap(8.dp)
+        Text("Mandarin", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            (1..6).forEach { h -> PolyChip("HSK $h", hsk == h, { hsk = h }) }
+        }
+        Gap(8.dp)
+        Text("Sentence length", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SentenceLength.entries.forEach { l -> PolyChip("${l.label} · ${l.words.substringBefore(',')}", length == l.name, { length = l.name }) }
+        }
+        Gap(8.dp)
+        Text("Sentences", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TestGenerator.COUNTS.forEach { n -> PolyChip("$n", count == n, { count = n }) }
+        }
+        Gap(8.dp)
+        Text("Grammar focus", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            app.diacritica.rehearse.GrammarTopics.forLanguages(settings.activeLanguages).forEach { t ->
+                PolyChip(t.label, focus == t.key, { focus = t.key })
+            }
+        }
+        Gap(8.dp)
+        val shape = RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(12.dp))
+        BasicTextField(
+            value = topic, onValueChange = { topic = it.take(80) }, singleLine = true,
+            textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent),
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(12.dp)) {
+                    if (topic.isEmpty()) Text("Theme (optional): travel, work, family…", style = bodyStyle(c.inkMuted))
+                    inner()
+                }
+            },
+        )
+        Gap(10.dp)
+        PolyButton(
+            if (st.generating) "Writing your test…" else "Write the test",
+            { vm.generate(TestRequest(level, hsk, SentenceLength.valueOf(length), count, focus, topic)) },
+            enabled = !st.generating,
+        )
+        st.generateError?.let { Text(it, style = bodyStyle(c.error, 14.sp), modifier = Modifier.padding(top = 6.dp)) }
     }
 }

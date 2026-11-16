@@ -54,8 +54,6 @@ data class WordPopup(
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
 
 data class ReaderUiState(
-    /** Sentences whose hidden translation you've revealed ("Hide the translation until tapped"). */
-    val revealed: Set<Int> = emptySet(),
     val story: LoadedStory? = null,
     val highlighted: Int? = null,
     val popup: WordPopup? = null,
@@ -139,7 +137,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
 
     fun close() {
         if (reading.value?.storyId == _state.value.story?.story?.id) c.readAloud.stop()
-        _state.update { it.copy(story = null, highlighted = null, popup = null, revealed = emptySet()) }
+        _state.update { it.copy(story = null, highlighted = null, popup = null) }
     }
 
     /** What read-aloud is playing (any story), for the play/stop button. */
@@ -166,7 +164,6 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
 
     fun stopReading() = c.readAloud.stop()
 
-    fun reveal(idx: Int) = _state.update { it.copy(revealed = it.revealed + idx) }
 
     fun setTapLookup(on: Boolean) { viewModelScope.launch { c.settings.setReaderTapLookup(on) } }
     fun setShowMyWords(on: Boolean) { viewModelScope.launch { c.settings.setReaderShowMyWords(on) } }
@@ -197,7 +194,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
-    fun setHideOther(on: Boolean) { viewModelScope.launch { c.settings.setReaderHideOther(on) } }
+
 
     fun delete(id: Long) {
         if (reading.value?.storyId == id) c.readAloud.stop()

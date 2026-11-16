@@ -164,7 +164,7 @@ Wiktionary's translation tables have gaps (*trickster* has none at all). The dic
 
 ## Gemini models and free limits
 
-Settings › Gemini offers 3.5 Flash-Lite (default: the largest free allowance, about 500 requests a day), 3.6 Flash and 3.8 Flash (smarter, about 20 free requests a day), or any model ID. When a model runs out of free requests for the day, the app switches to Flash-Lite until midnight Pacific time. A retired ID saved earlier (`gemini-3.5-flash`, which Google now forwards to 3.6 Flash and its small quota) is replaced by the default.
+Settings › Rehearse › Gemini shows each model as a card (what it's best for, speed and quality, free daily allowance): 3.5 Flash-Lite (recommended: about 500 free requests a day), 3.6 Flash and 3.8 Flash (sharper, about 20 a day), or any other model ID. When a model runs out of free requests for the day, the app switches to Flash-Lite until midnight Pacific time. A retired ID saved earlier (`gemini-3.5-flash`, which Google now forwards to 3.6 Flash and its small quota) is replaced by the default.
 
 ## Grammar
 
@@ -179,6 +179,14 @@ Home › Grammar (also linked from Tests) gathers what you keep getting wrong:
 
 - **Inflected words** say what they are: long-press *nahm* and the popup shows "nahm: first/third-person singular preterite of **nehmen** ›"; tap it to look up *nehmen*. Also in the Dictionary. Ambiguous forms list both (*fui*: preterite of *ir* and of *ser*).
 - **Pinyin** (拼音 menu in Mandarin stories): on every word, only on words with uncommon characters (outside the 500 / 1,000 / 2,000 / 3,000 most common; default 1,000), or off. Character ranks come from the most frequent HSK word each character appears in (`assets/zh/char_rank.txt`). A sentence with no uncommon characters gets no pinyin row.
+
+### Tests on demand
+
+Tests › *Write a new test*: pick a level (A2–C1), an HSK level for Mandarin, sentence length (short, medium, long), how many sentences (6–12), an optional grammar focus and theme. Gemini writes it in one request; it appears under *Your tests* and works like the bundled ones (reviews, lessons, Grammar page). Deleting one can be undone.
+
+## Bottom bar
+
+Settings › Bottom bar: Home plus up to four sections of your choice (Dictionary, Reader, Rehearse, Review, Tests, Grammar, Translate, Progress, Library), in your order.
 
 ## Chinese handwriting
 
@@ -270,7 +278,7 @@ Settings › Backup & restore writes one `.zip` with the user database (saved wo
 ## Reader and Rehearse extras
 
 - **Read aloud** (▶ in a story): from the highlighted sentence to the end, one language or both alternating; continues with the screen off (notification with Stop). Tap a sentence to jump there.
-- **Reader menu:** *Tap a word to look it up* (long-press then highlights), *Hide the translation until tapped*, *Show my words* (yellow: learning, green: known; inflected forms count).
+- **Reader menu:** *Tap a word to look it up* (long-press then highlights), *Show my words*, pinyin (every word, uncommon characters only, or off) (yellow: learning, green: known; inflected forms count).
 - **From your own text** (Reader › New story): paste up to 8,000 characters; it's split into sentences, translated (Gemini in one request or on the phone) and saved as a story.
 - **Hands-free Rehearse** (🎤 in Rehearse): the prompt is read aloud, you answer each language by voice, then hear the verdict and the right sentence; continues until you stop. Uses the phone's voice input (download offline speech languages for best results).
 - **Undo** after deleting saved words, history, stories, archive rounds and tests; **swipe** to delete history and saved words; **Copy/Share** on word pages.

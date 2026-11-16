@@ -175,7 +175,7 @@ fun PolyButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 
 /** Selectable chip: sense picker, source language, settings choices. */
 @Composable
-fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, iconTint: Color? = null) {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.chip)
     val style = Diacritica.tokens.surfaceStyle
@@ -203,7 +203,11 @@ fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
         SurfaceStyle.RULED -> modifier.background(if (selected) c.ink else Color.Transparent).border(if (selected) 0.dp else 1.dp, c.line)
             .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp)
     }
-    Column(m) {
+    Row(m, verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            androidx.compose.material3.Icon(icon, null, tint = iconTint ?: label.color, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(5.dp))
+        }
         Text(text, style = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

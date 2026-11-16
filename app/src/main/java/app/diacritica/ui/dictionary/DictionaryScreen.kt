@@ -1,5 +1,7 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.MenuSection
+import app.diacritica.ui.components.ChoiceMenuItem
 import app.diacritica.data.user.HistoryItem
 import app.diacritica.ui.components.SwipeToDelete
 import android.app.Activity
@@ -108,11 +110,9 @@ fun DictionaryScreen(
                 Box {
                     PolyIconButton(PolyIcons.Layout, "Results layout: ${settings.dictionaryLayout.label}", { menu = true }, tint = Diacritica.colors.inkMuted)
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Diacritica.colors.ground) {
+                        MenuSection("Results layout")
                         DictionaryLayout.entries.forEach { l ->
-                            DropdownMenuItem(
-                                text = { Text(l.label, style = bodyStyle(if (l == settings.dictionaryLayout) Diacritica.colors.accent else Diacritica.colors.ink)) },
-                                onClick = { menu = false; onLayoutChange(l) },
-                            )
+                            ChoiceMenuItem(l.label, l == settings.dictionaryLayout, { menu = false; onLayoutChange(l) })
                         }
                     }
                 }

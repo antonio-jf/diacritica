@@ -1,5 +1,7 @@
 package app.diacritica.ui.tests
 
+import app.diacritica.tests.TestRequest
+import app.diacritica.tests.TestGenerator
 import app.diacritica.undo.deleteTestAttempt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,6 +35,9 @@ data class TestsUiState(
     val position: Int = 0,
     val reviewing: Boolean = false,
     val message: String? = null,
+    /** Gemini is writing a new test. */
+    val generating: Boolean = false,
+    val generateError: String? = null,
 )
 
 class TestsViewModel(private val c: AppContainer) : ViewModel() {
@@ -40,6 +45,33 @@ class TestsViewModel(private val c: AppContainer) : ViewModel() {
     val state: StateFlow<TestsUiState> = _state.asStateFlow()
     val attempts: StateFlow<List<TestAttempt>> = c.tests.attempts
     val tests: List<TestSet> get() = c.tests.tests
+    /** Tests written on demand, newest first. */
+    val generated: StateFlow<List<TestSet>> = c.tests.generated
+
+    /** Asks Gemini for a new test with these settings; it appears under "Your tests". */
+    fun generate(r: TestRequest) {
+        if (_state.value.generating) return
+        _state.update { it.copy(generating = true, generateError = null) }
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val result = when {
+                s.geminiKey.isBlank() -> Result.failure(GeminiClient.GeminiException("New tests are written by Gemini: add your API key in Settings."))
+                !c.online.isOnline() -> Result.failure(GeminiClient.GeminiException("You're offline. Connect to write a new test."))
+                else -> runCatching { TestGenerator.generate(c.gemini, s.geminiKey, s.geminiModel, r) }
+            }
+            result.onSuccess { t -> c.tests.addGenerated(t) }
+            _state.update {
+                it.copy(generating = false, generateError = result.exceptionOrNull()?.let { e -> (e as? GeminiClient.GeminiException)?.message ?: "Couldn't write the test. Try again." })
+            }
+        }
+    }
+
+    fun deleteGenerated(t: TestSet) {
+        viewModelScope.launch {
+            c.tests.deleteGenerated(t.id)
+            c.undo.offer("“${t.title}” deleted") { c.tests.addGenerated(t) }
+        }
+    }
     private var saveJob: Job? = null
 
     init { viewModelScope.launch { c.tests.load() } }
@@ -58,7 +90,7 @@ class TestsViewModel(private val c: AppContainer) : ViewModel() {
             val draft = attempts.value.firstOrNull { it.testId == test.id && it.status == AttemptStatus.DRAFT && it.source == source && it.langs == langs }
             val a = draft ?: TestAttempt(
                 id = System.currentTimeMillis(), testId = test.id, title = test.title, source = source, langs = langs,
-                startedAt = System.currentTimeMillis(), custom = test.takeIf { c.tests.test(it.id) == null },
+                startedAt = System.currentTimeMillis(), custom = test.takeIf { c.tests.tests.none { b -> b.id == it.id } },
             ).also { c.tests.save(it) }
             val firstEmpty = (0 until test.items.size).firstOrNull { i -> langs.any { a.answer(i, it).isBlank() } } ?: 0
             _state.update { TestsUiState(page = TestsPage.Take(a.id), position = firstEmpty) }

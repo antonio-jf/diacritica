@@ -36,6 +36,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
     private val dictDir get() = File(context.filesDir, "dict")
     private val fetchedFile get() = File(dictDir, "fetched.jsonl")
     private val testsFile get() = File(context.filesDir, "tests/attempts.json")
+    private val generatedTestsFile get() = File(context.filesDir, "tests/generated.json")
 
     /** Writes the backup to [uri]. Returns a short summary for the user. */
     suspend fun export(uri: Uri): String = withContext(Dispatchers.IO) {
@@ -51,7 +52,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
                 put("dbVersion", userDb.openHelper.readableDatabase.version)
             }
             zip.putNextEntry(ZipEntry(MANIFEST)); zip.write(manifest.toString().toByteArray()); zip.closeEntry()
-            for ((name, file) in listOf(DB_ENTRY to dbFile, SETTINGS_ENTRY to settingsFile, FETCHED_ENTRY to fetchedFile, TESTS_ENTRY to testsFile)) {
+            for ((name, file) in listOf(DB_ENTRY to dbFile, SETTINGS_ENTRY to settingsFile, FETCHED_ENTRY to fetchedFile, TESTS_ENTRY to testsFile, GEN_TESTS_ENTRY to generatedTestsFile)) {
                 if (!file.exists()) continue
                 zip.putNextEntry(ZipEntry(name))
                 file.inputStream().use { bytes += it.copyTo(zip) }
@@ -74,7 +75,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
                 val e = zip.nextEntry ?: break
                 when (e.name) {
                     MANIFEST -> manifest = runCatching { Json.parseToJsonElement(zip.readBytes().decodeToString()) as JsonObject }.getOrNull()
-                    DB_ENTRY, SETTINGS_ENTRY, FETCHED_ENTRY, TESTS_ENTRY -> File(tmp, e.name).outputStream().use { zip.copyTo(it) }
+                    DB_ENTRY, SETTINGS_ENTRY, FETCHED_ENTRY, TESTS_ENTRY, GEN_TESTS_ENTRY -> File(tmp, e.name).outputStream().use { zip.copyTo(it) }
                 }
             }
         }
@@ -99,6 +100,7 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
             File(dictDir, "source.txt").delete()
         }
         File(tmp, TESTS_ENTRY).takeIf { it.exists() }?.let { testsFile.parentFile?.mkdirs(); it.copyTo(testsFile, overwrite = true) }
+        File(tmp, GEN_TESTS_ENTRY).takeIf { it.exists() }?.let { generatedTestsFile.parentFile?.mkdirs(); it.copyTo(generatedTestsFile, overwrite = true) }
         tmp.deleteRecursively()
         restart()
         null
@@ -120,5 +122,6 @@ class BackupManager(private val context: Context, private val userDb: UserDataba
         private const val SETTINGS_ENTRY = "settings.preferences_pb"
         private const val FETCHED_ENTRY = "fetched.jsonl"
         private const val TESTS_ENTRY = "tests.json"
+        private const val GEN_TESTS_ENTRY = "generated-tests.json"
     }
 }
