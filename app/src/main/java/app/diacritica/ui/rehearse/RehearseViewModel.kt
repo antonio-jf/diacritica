@@ -1,5 +1,9 @@
 package app.diacritica.ui.rehearse
 
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import app.diacritica.undo.deleteRehearseRound
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -480,6 +484,88 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             c.review.addSentenceCard(lang, st.prompt, answer)
             _state.update { it.copy(addedToReview = it.addedToReview + lang) }
         }
+    }
+
+    // ------------------------------------------------------------------ hands-free
+
+    /** Hands-free status for the screen: what's happening now, or null when off. */
+    private val _handsFree = MutableStateFlow<String?>(null)
+    val handsFree: StateFlow<String?> = _handsFree.asStateFlow()
+
+    /** The language the screen should listen in now (it opens voice input), or null. */
+    private val _listen = MutableStateFlow<Lang?>(null)
+    val listen: StateFlow<Lang?> = _listen.asStateFlow()
+    private val heard = Channel<String?>(Channel.CONFLATED)
+    private var handsFreeJob: Job? = null
+
+    /** What voice input returned (null if cancelled, which pauses hands-free). */
+    fun onHeard(text: String?) { _listen.value = null; heard.trySend(text) }
+
+    /**
+     * Hands-free rounds until stopped: read the prompt aloud, listen for each language's answer,
+     * check, read back each verdict and the right sentence, then the next round.
+     */
+    fun startHandsFree() {
+        if (handsFreeJob?.isActive == true) return
+        handsFreeJob = viewModelScope.launch {
+            try {
+                while (true) {
+                    _handsFree.value = "Getting a sentence…"
+                    val ready = _state.first { !it.loading }
+                    if (ready.group == null || ready.empty) { _handsFree.value = null; return@launch }
+                    if (ready.submitted) { nextAndWait(ready.group.id); continue }
+                    val rate = c.settings.settings.first().speechRate
+                    val promptLang = ready.promptLang ?: return@launch
+                    _handsFree.value = "Listen…"
+                    if (!c.speaker.speakAndWait(ready.prompt, promptLang, rate)) return@launch
+                    for (l in ready.targets) {
+                        _handsFree.value = "Say it in ${l.englishName}"
+                        while (heard.tryReceive().isSuccess) { /* drop stale results */ }
+                        _listen.value = l
+                        val text = heard.receive() ?: return@launch // cancelled: stop
+                        setAnswer(l, text)
+                    }
+                    _handsFree.value = "Checking…"
+                    submit()
+                    val checked = _state.first { it.submitted && !it.checking }
+                    for (l in ready.targets) {
+                        val f = checked.feedback[l] ?: continue
+                        val verdict = when (f.verdict) {
+                            Verdict.CORRECT -> "Correct."
+                            Verdict.ACCEPTABLE -> "Almost."
+                            Verdict.INCORRECT -> "Not quite."
+                            Verdict.UNGRADED -> "Here's one way to say it."
+                        }
+                        _handsFree.value = "${l.englishName}: $verdict"
+                        if (!c.speaker.speakAndWait(verdict, Lang.EN, rate)) return@launch
+                        val right = f.corrected?.takeIf { f.verdict != Verdict.CORRECT } ?: f.reference
+                        if (f.verdict != Verdict.CORRECT && !right.isNullOrBlank()) {
+                            if (!c.speaker.speakAndWait(right, l, rate)) return@launch
+                        }
+                        delay(300)
+                    }
+                    delay(900)
+                    nextAndWait(ready.group.id)
+                }
+            } finally {
+                _listen.value = null
+                _handsFree.value = null
+            }
+        }
+    }
+
+    /** Loads the next sentence and waits (up to 30 s) until it has replaced [previous]. */
+    private suspend fun nextAndWait(previous: Long) {
+        next()
+        withTimeoutOrNull(30_000) { _state.first { !it.loading && (it.group?.id != previous || it.error != null || it.empty) } }
+    }
+
+    fun stopHandsFree() {
+        handsFreeJob?.cancel()
+        handsFreeJob = null
+        c.speaker.stop()
+        _listen.value = null
+        _handsFree.value = null
     }
 
     fun speakPrompt() {

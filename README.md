@@ -267,6 +267,14 @@ Settings › Backup & restore writes one `.zip` with the user database (saved wo
 
 **Moving data from the old ID (`com.polyglot.dict`).** In `app/build.gradle.kts` set `legacyId = true` and Run: this updates the old app and gives it Backup. Back up, set `legacyId = false`, Run, then Restore in Diacritica. Afterwards the old app can be uninstalled.
 
+## Reader and Rehearse extras
+
+- **Read aloud** (▶ in a story): from the highlighted sentence to the end, one language or both alternating; continues with the screen off (notification with Stop). Tap a sentence to jump there.
+- **Reader menu:** *Tap a word to look it up* (long-press then highlights), *Hide the translation until tapped*, *Show my words* (yellow: learning, green: known; inflected forms count).
+- **From your own text** (Reader › New story): paste up to 8,000 characters; it's split into sentences, translated (Gemini in one request or on the phone) and saved as a story.
+- **Hands-free Rehearse** (🎤 in Rehearse): the prompt is read aloud, you answer each language by voice, then hear the verdict and the right sentence; continues until you stop. Uses the phone's voice input (download offline speech languages for best results).
+- **Undo** after deleting saved words, history, stories, archive rounds and tests; **swipe** to delete history and saved words; **Copy/Share** on word pages.
+
 ## Automatic backup and app updates
 
 - **Automatic backup** (Settings › Automatic backup): choose a folder once (Google Drive, a USB stick, Documents…). Every day the app writes `diacritica-backup-YYYY-MM-DD.zip` there and keeps the newest three. To move to another device, use Restore there and pick the newest file.

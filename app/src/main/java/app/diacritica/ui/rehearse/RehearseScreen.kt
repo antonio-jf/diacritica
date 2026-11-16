@@ -1,5 +1,12 @@
 package app.diacritica.ui.rehearse
 
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.DisposableEffect
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.speech.RecognizerIntent
+import android.content.Intent
+import android.app.Activity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,10 +87,38 @@ import app.diacritica.ui.theme.SurfaceStyle
 fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings: () -> Unit, onOpenArchive: () -> Unit) {
     LaunchedEffect(Unit) { vm.ensureStarted() }
     val st by vm.state.collectAsStateWithLifecycle()
+    val handsFree by vm.handsFree.collectAsStateWithLifecycle()
+    val listen by vm.listen.collectAsStateWithLifecycle()
+    // Hands-free: open the system voice input in the requested language; its result goes back to the round.
+    val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val text = if (res.resultCode == Activity.RESULT_OK) res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() else null
+        vm.onHeard(text)
+    }
+    LaunchedEffect(listen) {
+        val l = listen ?: return@LaunchedEffect
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, l.locale.toLanguageTag())
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Say it in ${l.englishName}")
+        runCatching { voice.launch(intent) }.onFailure { vm.onHeard(null) }
+    }
+    // Keep the screen on during hands-free rounds.
+    val view = LocalView.current
+    DisposableEffect(handsFree != null) {
+        view.keepScreenOn = handsFree != null
+        onDispose { view.keepScreenOn = false }
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         ScreenHeader("Rehearse") {
             if (st.roundsDone > 0) Text("${st.roundsDone} done", style = captionStyle())
+            PolyIconButton(
+                if (handsFree != null) PolyIcons.Stop else PolyIcons.Mic,
+                if (handsFree != null) "Stop hands-free" else "Hands-free: listen and answer by voice",
+                { if (handsFree != null) vm.stopHandsFree() else vm.startHandsFree() },
+                tint = if (handsFree != null) Diacritica.colors.accent else Diacritica.colors.inkMuted,
+            )
             PolyIconButton(PolyIcons.Archive, "Rehearse archive", onOpenArchive, tint = Diacritica.colors.inkMuted)
         }
         Row(
@@ -101,6 +136,19 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
             SectionLabel("Practise")
             settings.activeLanguages.forEach { l ->
                 PolyChip(l.short, l in settings.rehearseLanguages, { vm.toggleRehearseLang(l) })
+            }
+        }
+        handsFree?.let { status ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Diacritica.spacing.screen, vertical = 6.dp)
+                    .clip(RoundedCornerShape(8.dp)).background(Diacritica.colors.accentSoft).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hands-free", style = captionStyle(Diacritica.colors.onAccentSoft))
+                    Text(status, style = bodyStyle(Diacritica.colors.onAccentSoft))
+                }
+                PolyButton("Stop", vm::stopHandsFree, primary = false)
             }
         }
         if (!st.loading) st.notice?.let {
