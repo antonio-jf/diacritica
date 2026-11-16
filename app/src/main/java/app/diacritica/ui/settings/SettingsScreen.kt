@@ -30,6 +30,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -200,6 +202,15 @@ fun SettingsScreen(
                 }
                 LinkRow("Restore…", "Replaces everything in the app, then restarts it") { confirmRestore = true }
                 message?.let { Text(it, style = captionStyle(Diacritica.colors.accent), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+                // ---- App updates (GitHub Releases)
+                val update by vm.updater.state.collectAsStateWithLifecycle()
+                var auto by remember { mutableStateOf(vm.updater.autoCheck) }
+                Text("App updates", style = captionStyle(), modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp))
+                UpdatePanel(update, vm.updater, compact = false, modifier = Modifier.padding(horizontal = 20.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Check for updates by itself (once a day)", style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(checked = auto, onCheckedChange = { auto = it; vm.updater.autoCheck = it })
+                }
                 Text(
                     "Sources: Wiktionary (CC BY-SA), CC-CEDICT (CC BY-SA), Tatoeba (CC BY 2.0 FR), OPUS. Fonts: SIL Open Font License.",
                     style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),

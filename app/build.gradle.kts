@@ -84,6 +84,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // VERSION_CODE for the update check
     }
     androidResources {
         // The prebuilt dictionary is copied out of assets byte-for-byte; keep it uncompressed.

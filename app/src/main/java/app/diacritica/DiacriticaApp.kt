@@ -16,6 +16,7 @@ import app.diacritica.reader.StoryRepository
 import app.diacritica.reader.BooksRepository
 import app.diacritica.reader.ReadAloud
 import app.diacritica.undo.UndoManager
+import app.diacritica.update.Updater
 import app.diacritica.review.ReviewRepository
 import app.diacritica.data.user.UserDatabase
 import app.diacritica.settings.SettingsRepository
@@ -32,6 +33,7 @@ class AppContainer(app: Application) {
     val speaker = Speaker(app)
     val readAloud = ReadAloud(app, speaker)
     val undo = UndoManager()
+    val updater = Updater(app)
     val online = OnlineLookup(app, dictionaryDb)
     val review = ReviewRepository(userDb, dictionary)
     val sentences = SentenceRepository(app)

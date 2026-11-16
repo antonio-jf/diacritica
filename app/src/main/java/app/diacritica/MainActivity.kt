@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.processText()
+        // Looks for a newer release on GitHub at most once a day (and resumes an update download).
+        container.updater.check()
         setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, container.undo, sharedText.value) }
     }
 
