@@ -175,6 +175,11 @@ Home › Grammar (also linked from Tests) gathers what you keep getting wrong:
 - **Rehearse:** switches Rehearse to Grammar focus on the matching structure (German cases, subjunctive, 了/过…).
 - **Your lessons:** every lesson from your test reviews, newest first; the same lesson from several tests appears once with a count. Each can be practised as a mini test.
 
+## Reader: forms and pinyin
+
+- **Inflected words** say what they are: long-press *nahm* and the popup shows "nahm: first/third-person singular preterite of **nehmen** ›"; tap it to look up *nehmen*. Also in the Dictionary. Ambiguous forms list both (*fui*: preterite of *ir* and of *ser*).
+- **Pinyin** (拼音 menu in Mandarin stories): on every word, only on words with uncommon characters (outside the 500 / 1,000 / 2,000 / 3,000 most common; default 1,000), or off. Character ranks come from the most frequent HSK word each character appears in (`assets/zh/char_rank.txt`). A sentence with no uncommon characters gets no pinyin row.
+
 ## Chinese handwriting
 
 A writing square (with 田字格 guide lines) for Mandarin characters, in the Dictionary search bar, in Translate and in Mandarin test answers. Candidates appear as you write; tap one to insert it. Recognition runs on the phone with ML Kit Digital Ink; the model (about 20 MB) downloads once, the first time you write.

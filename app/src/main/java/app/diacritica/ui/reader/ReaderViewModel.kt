@@ -145,6 +145,13 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setPinyin(on: Boolean) { viewModelScope.launch { c.settings.setReaderPinyin(on) } }
 
+    fun setPinyinMode(mode: app.diacritica.settings.PinyinMode, top: Int? = null) {
+        viewModelScope.launch { c.settings.setReaderPinyinMode(mode, top) }
+    }
+
+    /** True if [word] has a character outside the [top] most common, so its pinyin is shown in "uncommon" mode. */
+    fun isRare(word: String, top: Int): Boolean = c.zhLexicon.hasRareChar(word, top)
+
     fun setStoryLevel(level: String, hsk: Int) { viewModelScope.launch { c.settings.setStoryLevel(level, hsk) } }
 
     /** Tap on a sentence: highlight it in both languages and remember the position. */

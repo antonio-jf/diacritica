@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.draw.drawBehind
+import app.diacritica.settings.PinyinMode
 import app.diacritica.settings.PopupLayout
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
@@ -116,6 +117,7 @@ import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.components.headwordStyle
 import app.diacritica.ui.components.titleStyle
 import app.diacritica.ui.components.FalseFriendNote
+import app.diacritica.ui.components.FormNotes
 import app.diacritica.ui.theme.Diacritica
 
 /** Entry point of the Reader tab: the story shelf, or the open story. */
@@ -434,7 +436,9 @@ private class SentenceEnv(
     val story: LoadedStory,
     val highlighted: Int?,
     val popup: WordPopup?,
-    val showPinyin: Boolean,
+    val pinyinMode: PinyinMode,
+    /** In RARE mode: characters outside this many most common ones get pinyin. */
+    val pinyinTop: Int,
     val traditional: Boolean,
     val a: Lang,
     val b: Lang,
@@ -442,6 +446,13 @@ private class SentenceEnv(
     val split: Float = 0.5f,
 ) {
     fun other(l: Lang) = if (l == a) b else a
+
+    /** The pinyin to show above [t], or null (common word in RARE mode, or pinyin off). */
+    fun pinyinFor(t: app.diacritica.data.DictionaryRepository.ZhToken): String? = when (pinyinMode) {
+        PinyinMode.OFF -> null
+        PinyinMode.ALL -> t.pinyin
+        PinyinMode.RARE -> t.pinyin?.takeIf { vm.isRare(t.text, pinyinTop) }
+    }
     fun text(idx: Int, l: Lang): String = story.sentences.getOrNull(idx)?.get(l).orEmpty()
 }
 
@@ -457,7 +468,7 @@ private fun StoryView(
     val a = settings.readerLangA.takeIf { it in langs } ?: langs.firstOrNull() ?: Lang.EN
     val b = settings.readerLangB.takeIf { it in langs && it != a } ?: langs.firstOrNull { it != a } ?: a
     val traditional = settings.script == ScriptPreference.TRADITIONAL_FIRST || settings.script == ScriptPreference.TRADITIONAL_ONLY
-    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyin, traditional, a, b, settings.readerSplit)
+    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyinMode, settings.readerPinyinTop, traditional, a, b, settings.readerSplit)
     var layoutMenu by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -469,7 +480,7 @@ private fun StoryView(
                 Text(story.title(b), style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (Lang.ZH == a || Lang.ZH == b) {
-                PolyChip("拼音", selected = settings.readerPinyin, onClick = { vm.setPinyin(!settings.readerPinyin) })
+                PinyinMenu(settings.readerPinyinMode, settings.readerPinyinTop, vm::setPinyinMode)
                 Spacer(Modifier.width(4.dp))
             }
             Box {
@@ -828,6 +839,8 @@ private fun ZhSentence(
         return
     }
     val pinyinStyle = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = (style.fontSize.value * 0.58f).sp, color = c.accent)
+    // Only reserve a pinyin row when at least one word in the sentence gets pinyin.
+    val pinyinRow = remember(tokens, env.pinyinMode, env.pinyinTop) { tokens.any { env.pinyinFor(it) != null } }
     FlowRow(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         tokens.forEachIndexed { i, t -> key(text, i) {
             val shown = if (env.traditional) t.traditional ?: t.text else t.text
@@ -864,7 +877,7 @@ private fun ZhSentence(
                     .padding(horizontal = if (isWord) 1.dp else 0.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (env.showPinyin) Text(t.pinyin ?: "", style = pinyinStyle, maxLines = 1)
+                if (pinyinRow) Text(env.pinyinFor(t) ?: "", style = pinyinStyle, maxLines = 1)
                 Text(shown, style = style.copy(lineHeight = (style.fontSize.value * 1.25f).sp))
             }
         } }
@@ -904,6 +917,7 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
                 Text(if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head, style = headwordStyle(19.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val sub = listOfNotNull(hw.pinyin, hw.pos, hw.gender).joinToString(" · ")
                 if (sub.isNotEmpty()) Text(sub, style = captionStyle(if (hw.pinyin != null) c.accent else c.inkMuted), maxLines = 1)
+                FormNotes(p.token, r?.forms.orEmpty(), onLemma = { l -> vm.lookUpWord(p.lang, l, p.sentenceIdx, env.other(p.lang), p.anchor) }, max = 1)
             }
             PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { vm.speakWord(hw) })
         }
@@ -977,7 +991,10 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
         }
         val meta = listOfNotNull(hw.pos, hw.gender, hw.plural?.let { "pl. $it" }, hw.ipa?.let { "/$it/" }).joinToString(" · ")
         if (meta.isNotEmpty()) Text(meta, style = captionStyle(), modifier = Modifier.padding(top = 4.dp))
-        if (r?.redirectedFrom != null || (found && !hw.word.equals(p.token, ignoreCase = true))) {
+        val forms = r?.forms.orEmpty()
+        if (forms.isNotEmpty()) {
+            FormNotes(p.token, forms, onLemma = { l -> vm.lookUpWord(p.lang, l, p.sentenceIdx, env.other(p.lang), p.anchor) }, modifier = Modifier.padding(top = 4.dp))
+        } else if (r?.redirectedFrom != null || (found && !hw.word.equals(p.token, ignoreCase = true))) {
             Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
@@ -1028,6 +1045,41 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
                 "${OfficialDictionary.name(p.lang)} ↗",
                 onClick = { runCatching { uri.openUri(OfficialDictionary.url(p.lang, hw.word, hw.traditional)) } },
                 primary = false,
+            )
+        }
+    }
+}
+
+/** "拼音 ▾": pinyin for every word, only for uncommon characters (outside the top 500–3,000), or off. */
+@Composable
+private fun PinyinMenu(mode: PinyinMode, top: Int, onPick: (PinyinMode, Int?) -> Unit) {
+    val c = Diacritica.colors
+    var open by remember { mutableStateOf(false) }
+    Box {
+        PolyChip(
+            when (mode) { PinyinMode.ALL -> "拼音"; PinyinMode.RARE -> "拼音 · rare"; PinyinMode.OFF -> "拼音 off" },
+            selected = mode != PinyinMode.OFF, onClick = { open = true },
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            DropdownMenuItem(
+                text = { Text("Pinyin on every word", style = bodyStyle(if (mode == PinyinMode.ALL) c.accent else c.ink)) },
+                onClick = { open = false; onPick(PinyinMode.ALL, null) },
+            )
+            listOf(500, 1000, 2000, 3000).forEach { n ->
+                val on = mode == PinyinMode.RARE && top == n
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text("Only uncommon characters", style = bodyStyle(if (on) c.accent else c.ink))
+                            Text("outside the ${"%,d".format(n)} most common", style = captionStyle())
+                        }
+                    },
+                    onClick = { open = false; onPick(PinyinMode.RARE, n) },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("No pinyin", style = bodyStyle(if (mode == PinyinMode.OFF) c.accent else c.ink)) },
+                onClick = { open = false; onPick(PinyinMode.OFF, null) },
             )
         }
     }

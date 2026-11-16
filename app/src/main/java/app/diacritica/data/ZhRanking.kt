@@ -7,25 +7,41 @@ import android.content.Context
  *  - hsk.tsv: HSK 3.0 level per word (7 = levels 7–9)
  *  - main_readings.tsv: the everyday reading of common characters that have several (看 kàn, not kān)
  */
-class ZhLexicon(private val hsk: Map<String, Int>, private val mainReading: Map<String, String>) {
+class ZhLexicon(
+    private val hsk: Map<String, Int>,
+    private val mainReading: Map<String, String>,
+    private val charRank: Map<Char, Int> = emptyMap(),
+) {
     fun hsk(word: String): Int? = hsk[word]
     fun mainReading(word: String): String? = mainReading[word]
+
+    /** 1 = most common character; null when it's outside the ranked ~3,000. */
+    fun charRank(ch: Char): Int? = charRank[ch]
+
+    /** True if [word] has a Chinese character outside the [top] most common (so its pinyin is worth showing). */
+    fun hasRareChar(word: String, top: Int): Boolean =
+        word.any { TextNorm.containsHan(it.toString()) && (charRank[it] ?: Int.MAX_VALUE) > top }
 
     companion object {
         val EMPTY = ZhLexicon(emptyMap(), emptyMap())
 
-        fun parse(hskTsv: String, readingsTsv: String): ZhLexicon {
+        fun parseRanks(text: String): Map<Char, Int> =
+            text.lineSequence().filter { it.isNotBlank() && !it.startsWith("#") }.joinToString("").trim()
+                .withIndex().associate { (i, ch) -> ch to i + 1 }
+
+        fun parse(hskTsv: String, readingsTsv: String, charRanks: String = ""): ZhLexicon {
             fun pairs(t: String) = t.lineSequence().filter { it.isNotBlank() && !it.startsWith("#") }
                 .mapNotNull { l -> l.split('\t').takeIf { it.size >= 2 }?.let { it[0].trim() to it[1].trim() } }
             return ZhLexicon(
                 pairs(hskTsv).mapNotNull { (w, l) -> l.toIntOrNull()?.let { w to it } }.toMap(),
                 pairs(readingsTsv).toMap(),
+                parseRanks(charRanks),
             )
         }
 
         fun fromAssets(context: Context): ZhLexicon = runCatching {
             fun read(name: String) = context.assets.open("zh/$name").bufferedReader().use { it.readText() }
-            parse(read("hsk.tsv"), read("main_readings.tsv"))
+            parse(read("hsk.tsv"), read("main_readings.tsv"), read("char_rank.txt"))
         }.getOrDefault(EMPTY)
     }
 }
