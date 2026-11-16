@@ -29,9 +29,42 @@ class TestStore(private val context: Context) {
         runCatching { TestBank.parse(context.assets.open("tests/tests.json").bufferedReader().use { it.readText() }) }.getOrDefault(emptyList())
     }
 
-    fun test(id: String): TestSet? = tests.firstOrNull { it.id == id }
+    fun test(id: String): TestSet? = tests.firstOrNull { it.id == id } ?: generated.value.firstOrNull { it.id == id }
 
-    suspend fun load() = lock.withLock { ensureLoaded() }
+    // ---------------------------------------------------------------- tests written on demand
+
+    val generatedFile: File get() = File(context.filesDir, "tests/generated.json")
+    private val setSerializer = ListSerializer(TestSet.serializer())
+    private val _generated = MutableStateFlow<List<TestSet>>(emptyList())
+    /** Tests Gemini wrote for you, newest first. */
+    val generated: StateFlow<List<TestSet>> = _generated.asStateFlow()
+
+    private suspend fun loadGenerated() = withContext(Dispatchers.IO) {
+        if (_generated.value.isEmpty() && generatedFile.exists()) {
+            _generated.value = runCatching { json.decodeFromString(setSerializer, generatedFile.readText()) }.getOrDefault(emptyList())
+        }
+    }
+
+    suspend fun addGenerated(t: TestSet) = lock.withLock {
+        loadGenerated()
+        _generated.update { listOf(t) + it.filter { x -> x.id != t.id } }
+        writeGenerated()
+    }
+
+    suspend fun deleteGenerated(id: String) = lock.withLock {
+        loadGenerated()
+        _generated.update { it.filter { x -> x.id != id } }
+        writeGenerated()
+    }
+
+    private suspend fun writeGenerated() = withContext(Dispatchers.IO) {
+        generatedFile.parentFile?.mkdirs()
+        val tmp = File(generatedFile.path + ".tmp")
+        tmp.writeText(json.encodeToString(setSerializer, _generated.value))
+        tmp.renameTo(generatedFile)
+    }
+
+    suspend fun load() = lock.withLock { ensureLoaded(); loadGenerated() }
 
     private suspend fun ensureLoaded() {
         if (loaded) return

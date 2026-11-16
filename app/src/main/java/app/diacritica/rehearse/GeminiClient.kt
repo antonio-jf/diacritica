@@ -27,6 +27,12 @@ class GeminiClient {
 
     class GeminiException(message: String) : Exception(message)
 
+    /** A model choice for Settings. */
+    data class ModelInfo(
+        val id: String, val name: String, val bestFor: String,
+        val speed: Int, val quality: Int, val freePerDay: String, val recommended: Boolean = false,
+    )
+
     companion object {
         /**
          * Tried in order when the chosen model is unavailable (renamed or retired) or has used up its
@@ -36,10 +42,17 @@ class GeminiClient {
         const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
         /** Models offered in Settings: (id, label, note). */
-        val CHOICES = listOf(
-            Triple("gemini-3.5-flash-lite", "3.5 Flash-Lite", "Default. Fast, with the most free requests per day (about 500)."),
-            Triple("gemini-3.6-flash", "3.6 Flash", "Smarter grading; only about 20 free requests per day."),
-            Triple("gemini-3.8-flash", "3.8 Flash", "Newest; also a small free allowance."),
+        /**
+         * Models offered in Settings. Speed and quality are 1–3, relative to each other; free allowances
+         * are approximate (Google doesn't publish them and changes them; AI Studio shows yours).
+         */
+        val MODELS = listOf(
+            ModelInfo("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", "Everyday use: grading, sentences, stories",
+                speed = 3, quality = 2, freePerDay = "about 500", recommended = true),
+            ModelInfo("gemini-3.6-flash", "Gemini 3.6 Flash", "Sharper corrections and lessons for tests",
+                speed = 2, quality = 3, freePerDay = "about 20"),
+            ModelInfo("gemini-3.8-flash", "Gemini 3.8 Flash", "Newest model; strongest explanations",
+                speed = 2, quality = 3, freePerDay = "about 20"),
         )
 
         /** Retired IDs that Google forwards to another model (and counts there): use the default instead. */
