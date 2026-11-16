@@ -33,8 +33,9 @@ object TextImport {
             while (end != BreakIterator.DONE) {
                 val s = para.substring(start, end).trim()
                 if (s.isNotEmpty()) {
-                    val letters = s.count { ch -> ch.isLetter() }
-                    if (letters < 3 && out.isNotEmpty()) out[out.lastIndex] = out.last() + " " + s else out += s
+                    // "…" or "Dr." on its own joins the previous sentence; Chinese sentences can be two characters ("你呢？").
+                    val fragment = s.count { ch -> ch.isLetter() } < 3 && !app.diacritica.data.TextNorm.containsHan(s)
+                    if (fragment && out.isNotEmpty()) out[out.lastIndex] = out.last() + " " + s else out += s
                 }
                 start = end
                 end = it.next()
