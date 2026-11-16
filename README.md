@@ -162,6 +162,15 @@ Wiktionary's translation tables have gaps (*trickster* has none at all). The dic
 - **HSK levels** (HSK 3.0; 7 = levels 7–9) from `assets/zh/hsk.tsv` ([complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary), MIT), so no dictionary rebuild is needed.
 - **Meanings in CC-CEDICT's order:** 放 shows *put, place, release, free…* rather than *lay* first. Up to three CC-CEDICT meanings that Wiktionary doesn't link are added (放: *release*, *free*).
 
+## Grammar
+
+Home › Grammar (also linked from Tests) gathers what you keep getting wrong:
+
+- **Weak points:** mistake types per language from Gemini-checked Rehearse rounds and reviewed tests, worst first (mistakes in the last 30 days, then overall), with the trend against the 30 days before and your latest example. A type that happened only once is left out. The top three are marked *Recommended next*.
+- **Practice test:** Gemini writes six new sentences aimed at that point, based on your own mistakes, and opens them as a test (reviewed like any other, so it feeds back into this page).
+- **Rehearse:** switches Rehearse to Grammar focus on the matching structure (German cases, subjunctive, 了/过…).
+- **Your lessons:** every lesson from your test reviews, newest first; the same lesson from several tests appears once with a count. Each can be practised as a mini test.
+
 ## Chinese handwriting
 
 A writing square (with 田字格 guide lines) for Mandarin characters, in the Dictionary search bar, in Translate and in Mandarin test answers. Candidates appear as you write; tap one to insert it. Recognition runs on the phone with ML Kit Digital Ink; the model (about 20 MB) downloads once, the first time you write.

@@ -72,6 +72,11 @@ class TestsViewModel(private val c: AppContainer) : ViewModel() {
         start(TestBank.fromLesson(lesson, base), Lang.EN, langs)
     }
 
+    /** [practise] for a lesson shown on the Grammar page, which knows only the attempt's id. */
+    fun practiseFrom(lesson: Lesson, attemptId: Long) {
+        c.tests.get(attemptId)?.let { practise(lesson, it) }
+    }
+
     fun open(a: TestAttempt) {
         _state.update {
             when (a.status) {

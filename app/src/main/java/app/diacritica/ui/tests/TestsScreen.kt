@@ -84,11 +84,11 @@ import java.util.Date
  * corrections and grammar lessons aimed at your mistakes.
  */
 @Composable
-fun TestsScreen(vm: TestsViewModel, settings: AppSettings, onBack: () -> Unit, onOpenSettings: () -> Unit) {
+fun TestsScreen(vm: TestsViewModel, settings: AppSettings, onBack: () -> Unit, onOpenSettings: () -> Unit, onOpenGrammar: () -> Unit = {}) {
     val st by vm.state.collectAsStateWithLifecycle()
     val attempts by vm.attempts.collectAsStateWithLifecycle()
     when (val p = st.page) {
-        TestsPage.List -> TestList(vm, settings, attempts, onBack)
+        TestsPage.List -> TestList(vm, settings, attempts, onBack, onOpenGrammar)
         is TestsPage.Take -> {
             BackHandler { vm.backToList() }
             val a = attempts.firstOrNull { it.id == p.attemptId }
@@ -107,7 +107,7 @@ fun TestsScreen(vm: TestsViewModel, settings: AppSettings, onBack: () -> Unit, o
 // ================================================================== list
 
 @Composable
-private fun TestList(vm: TestsViewModel, settings: AppSettings, attempts: List<TestAttempt>, onBack: () -> Unit) {
+private fun TestList(vm: TestsViewModel, settings: AppSettings, attempts: List<TestAttempt>, onBack: () -> Unit, onOpenGrammar: () -> Unit) {
     val c = Diacritica.colors
     val pad = Diacritica.spacing.screen
     var open by rememberSaveable { mutableStateOf<String?>(null) }
@@ -122,6 +122,13 @@ private fun TestList(vm: TestsViewModel, settings: AppSettings, attempts: List<T
                     "and short grammar lessons aimed at what you got wrong. Reviews are written by Gemini (your key).",
                 style = bodyStyle(c.inkMuted, 14.sp),
             )
+            if (attempts.any { it.status == AttemptStatus.REVIEWED }) {
+                Text(
+                    "Your weak points and all your lessons ›",
+                    style = captionStyle(c.accent),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onOpenGrammar).padding(vertical = 6.dp),
+                )
+            }
             val open1 = attempts.filter { it.status != AttemptStatus.REVIEWED }
             if (open1.isNotEmpty()) {
                 SectionLabel("Unfinished")
@@ -378,6 +385,7 @@ private fun ResultView(vm: TestsViewModel, a: TestAttempt, t: TestSet, reviewing
             // ------------------------------------------------ lessons
             if (r.lessons.isNotEmpty()) {
                 SectionLabel(if (r.lessons.size == 1) "Your lesson" else "Your lessons")
+                Text("They're also kept on the Grammar page (Home › Grammar).", style = captionStyle())
                 r.lessons.forEach { lesson -> LessonCard(lesson, onSpeak = vm::speak, onPractise = { vm.practise(lesson, a) }) }
             }
 
@@ -411,10 +419,16 @@ private fun LangScore(lang: Lang, score: Int) {
 }
 
 @Composable
-private fun LessonCard(lesson: Lesson, onSpeak: (Lang, String) -> Unit, onPractise: () -> Unit) {
+internal fun LessonCard(
+    lesson: Lesson,
+    onSpeak: (Lang, String) -> Unit,
+    onPractise: () -> Unit,
+    source: String? = null,
+    startOpen: Boolean = true,
+) {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
-    var open by rememberSaveable(lesson.title) { mutableStateOf(true) }
+    var open by rememberSaveable(lesson.title) { mutableStateOf(startOpen) }
     Column(
         Modifier.fillMaxWidth().clip(shape).background(c.accentSoft.copy(alpha = 0.45f)).border(1.dp, c.accent.copy(alpha = 0.5f), shape).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -424,6 +438,7 @@ private fun LessonCard(lesson: Lesson, onSpeak: (Lang, String) -> Unit, onPracti
             Text(lesson.title, style = titleStyle().copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
             Icon(PolyIcons.ChevronDown, if (open) "Collapse" else "Expand", tint = c.inkMuted, modifier = Modifier.size(18.dp))
         }
+        source?.let { Text(it, style = captionStyle()) }
         if (!open) return@Column
         if (lesson.why.isNotBlank()) Text(lesson.why, style = captionStyle(c.accent))
         Text(InlineMarkdown.render(lesson.explanation, c.ink), style = bodyStyle(size = 15.sp))

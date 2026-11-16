@@ -305,6 +305,15 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setRehearsePath(p); next() }
     }
 
+    /** Grammar focus on [key] (from the Grammar page's weak points), with a fresh sentence. */
+    fun focusGrammar(key: String) {
+        viewModelScope.launch {
+            c.settings.setRehearsePath(RehearsePath.GRAMMAR)
+            c.settings.setGrammarFocus(key)
+            next()
+        }
+    }
+
     fun setGrammarFocus(key: String) {
         viewModelScope.launch { c.settings.setGrammarFocus(key); next() }
     }
