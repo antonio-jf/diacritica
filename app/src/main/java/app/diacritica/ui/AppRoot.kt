@@ -74,6 +74,7 @@ fun AppRoot(
     progressVm: app.diacritica.ui.progress.ProgressViewModel,
     packsVm: app.diacritica.ui.packs.DataPacksViewModel,
     testsVm: app.diacritica.ui.tests.TestsViewModel,
+    grammarVm: app.diacritica.ui.grammar.GrammarViewModel,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -116,6 +117,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.TRANSLATE -> nav.navigate("translate")
                                     app.diacritica.ui.home.HomeSection.PROGRESS -> nav.navigate("progress")
                                     app.diacritica.ui.home.HomeSection.TESTS -> nav.navigate("tests")
+                                    app.diacritica.ui.home.HomeSection.GRAMMAR -> nav.navigate("grammar")
                                 }
                             },
                         )
@@ -157,7 +159,20 @@ fun AppRoot(
                     composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }) }
                     composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
                     composable("tests") {
-                        app.diacritica.ui.tests.TestsScreen(testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") })
+                        app.diacritica.ui.tests.TestsScreen(
+                            testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") },
+                            onOpenGrammar = { nav.navigate("grammar") },
+                        )
+                    }
+                    composable("grammar") {
+                        app.diacritica.ui.grammar.GrammarScreen(
+                            grammarVm,
+                            onBack = { nav.popBackStack() },
+                            onStartTest = { test, lang -> testsVm.start(test, Lang.EN, listOf(lang)); nav.navigate("tests") },
+                            onPractiseLesson = { lesson, attemptId -> testsVm.practiseFrom(lesson, attemptId); nav.navigate("tests") },
+                            onRehearse = { topic -> rehearseVm.focusGrammar(topic); nav.goTo(Tab.REHEARSE) },
+                            onOpenTests = { nav.navigate("tests") },
+                        )
                     }
                     composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
@@ -184,7 +199,7 @@ fun AppRoot(
             val current = Tab.entries.firstOrNull { route == it.route } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY
                 route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" || route == "tests" -> Tab.HOME
+                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" || route == "tests" || route == "grammar" -> Tab.HOME
                 else -> null
             }
             BottomNav(current = current) {
