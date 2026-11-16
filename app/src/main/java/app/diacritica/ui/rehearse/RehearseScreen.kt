@@ -365,7 +365,14 @@ private fun Feedback(st: RehearseUiState, settings: AppSettings, vm: RehearseVie
         Text("$ok / ${st.targets.size}", style = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Diacritica.colors.ink))
         if (st.checking) Text("Checking with Gemini…", style = captionStyle(Diacritica.colors.accent))
     }
-    st.aiError?.let { Text(it, style = captionStyle(Diacritica.colors.warning), modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) }
+    st.aiError?.let { err ->
+        Row(Modifier.padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(err, style = captionStyle(Diacritica.colors.warning), modifier = Modifier.weight(1f))
+            if (!err.contains("API key")) {
+                androidx.compose.material3.TextButton(onClick = vm::retryAiCheck) { Text("Check again", style = captionStyle(Diacritica.colors.accent)) }
+            }
+        }
+    }
     Gap(8.dp)
     when (settings.rehearseLayout) {
         RehearseLayout.TABS -> TabsFeedback(st, vm)
