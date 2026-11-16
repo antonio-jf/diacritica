@@ -1,5 +1,6 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.textScaled
 import androidx.compose.foundation.clickable
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.components.bodyStyle
@@ -152,7 +153,7 @@ private fun LazyListScope.tableLayout(results: List<LangResult>, actions: WordAc
     item("table-head") {
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                Text("LANG", style = captionStyle(), modifier = Modifier.width(48.dp))
+                Text("LANG", style = captionStyle(), modifier = Modifier.width(48.dp.textScaled()))
                 Text("WORD", style = captionStyle(), modifier = Modifier.weight(1.2f))
                 Text("GRAMMAR", style = captionStyle(), modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(44.dp))
@@ -173,7 +174,7 @@ private fun LazyListScope.tableLayout(results: List<LangResult>, actions: WordAc
                     Modifier.fillMaxWidth().clickable(role = Role.Button) { actions.onOpen(w) }.padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.width(48.dp)) { if (i == 0) LangBadge(r.lang) }
+                    Box(Modifier.width(48.dp.textScaled())) { if (i == 0) LangBadge(r.lang) }
                     Column(Modifier.weight(1.2f)) {
                         Text(
                             (w.article?.let { a -> if (a.endsWith("'")) a else "$a " } ?: "") + w.word +

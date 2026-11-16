@@ -1,5 +1,6 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.ui.components.textScaled
 import app.diacritica.ui.components.MenuSection
 import app.diacritica.ui.components.ToggleMenuItem
 import androidx.compose.ui.unit.Dp
@@ -639,7 +640,7 @@ private fun Pane(env: SentenceEnv, lang: Lang, state: LazyListState, numbered: B
                 if (numbered) {
                     Text(
                         "${idx + 1}", style = captionStyle(if (on) c.accent else c.inkMuted).copy(fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.width(26.dp).padding(top = 4.dp),
+                        modifier = Modifier.width(26.dp.textScaled()).padding(top = 4.dp),
                     )
                 }
                 Sentence(env, idx, lang, readingSize(), Modifier.weight(1f))

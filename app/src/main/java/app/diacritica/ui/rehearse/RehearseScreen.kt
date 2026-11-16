@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.rehearse
 
 import androidx.compose.ui.platform.LocalView
@@ -156,7 +158,7 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
             )
             st.error != null -> Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(st.error!!, style = bodyStyle())
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PolyButton("Try again", vm::next)
                     PolyButton("Use Everyday", { vm.setPath(RehearsePath.EVERYDAY) }, primary = false)
                 }

@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.tests
 
+import app.diacritica.ui.components.textScaled
 import app.diacritica.tests.TestRequest
 import app.diacritica.tests.TestGenerator
 import app.diacritica.tests.SentenceLength
@@ -368,7 +371,7 @@ private fun ResultView(vm: TestsViewModel, a: TestAttempt, t: TestSet, reviewing
                         Gap(4.dp)
                         a.error?.let { Text(it, style = bodyStyle(c.error, 14.sp)) }
                         Gap(10.dp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PolyButton("Send for review", { vm.submit(a.id) })
                             if (a.error?.contains("key") == true) PolyButton("Settings", onOpenSettings, primary = false)
                         }
@@ -413,7 +416,7 @@ private fun ResultView(vm: TestsViewModel, a: TestAttempt, t: TestSet, reviewing
                     r.forItem(i).forEach { ar -> AnswerReviewView(ar) }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 PolyButton("Take it again", { vm.retake(a) })
                 PolyButton("Delete", { vm.delete(a.id) }, primary = false)
             }
@@ -430,7 +433,7 @@ private fun LangScore(lang: Lang, score: Int) {
         Box(Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(c.surfaceAlt)) {
             Box(Modifier.fillMaxWidth(score / 100f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(scoreColor(score)))
         }
-        Text("$score", style = captionStyle(c.ink), modifier = Modifier.width(40.dp).padding(start = 10.dp))
+        Text("$score", style = captionStyle(c.ink), modifier = Modifier.width(40.dp.textScaled()).padding(start = 10.dp))
     }
 }
 

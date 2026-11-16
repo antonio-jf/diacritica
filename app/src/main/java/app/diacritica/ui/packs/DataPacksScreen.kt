@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.packs
 
 import androidx.compose.foundation.layout.size
@@ -148,7 +150,7 @@ fun DataPacksScreen(vm: DataPacksViewModel, settings: AppSettings, onBack: () ->
                             Text("Cancel", style = captionStyle(c.accent), modifier = Modifier.textLink { vm.cancel(p) }.padding(horizontal = 6.dp, vertical = 8.dp))
                         }
                     } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (current != p.version) {
                                 PolyButton(if (current == null) "Download" else "Update", {
                                     if (st.metered && p.bytes > 20L * 1024 * 1024) confirm = p else vm.install(p)
@@ -185,7 +187,7 @@ fun DataPacksScreen(vm: DataPacksViewModel, settings: AppSettings, onBack: () ->
                     Switch(checked = st.onlineLookup, onCheckedChange = vm::setOnlineLookup)
                 }
                 Gap(8.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PolyButton("Import file…", { picker.launch(arrayOf("*/*")) }, primary = false)
                     if (st.dictionarySource != "bundled") PolyButton("Use the built-in one", vm::resetDictionary, primary = false)
                 }
