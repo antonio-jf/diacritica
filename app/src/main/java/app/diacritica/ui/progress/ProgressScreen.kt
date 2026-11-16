@@ -1,5 +1,6 @@
 package app.diacritica.ui.progress
 
+import app.diacritica.ui.components.textScaled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.widthIn
@@ -192,7 +193,7 @@ private fun LangBar(lang: Lang, fraction: Float, value: String, detail: String, 
             Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(c.line)) {
                 Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(color))
             }
-            Text(value, style = bodyStyle(size = 14.sp).copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(start = 10.dp).width(44.dp))
+            Text(value, style = bodyStyle(size = 14.sp).copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(start = 10.dp).width(44.dp.textScaled()))
         }
         Text(detail, style = captionStyle(), modifier = Modifier.padding(start = 40.dp))
     }
@@ -202,10 +203,10 @@ private fun LangBar(lang: Lang, fraction: Float, value: String, detail: String, 
 private fun TypeBar(label: String, count: Int, fraction: Float) {
     val c = Diacritica.colors
     Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = bodyStyle(size = 14.sp), modifier = Modifier.width(120.dp), maxLines = 1)
+        Text(label, style = bodyStyle(size = 14.sp), modifier = Modifier.width(120.dp.textScaled()), maxLines = 1)
         Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(c.line)) {
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0.04f, 1f)).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(c.accent))
         }
-        Text("$count", style = bodyStyle(size = 14.sp), modifier = Modifier.padding(start = 10.dp).width(32.dp))
+        Text("$count", style = bodyStyle(size = 14.sp), modifier = Modifier.padding(start = 10.dp).width(32.dp.textScaled()))
     }
 }

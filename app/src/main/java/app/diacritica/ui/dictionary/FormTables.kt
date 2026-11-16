@@ -1,5 +1,6 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.textScaled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -182,7 +183,7 @@ fun FormsSection(lang: Lang, forms: List<FormRow>) {
 @Composable
 private fun KeyValue(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Text(label, style = captionStyle(), modifier = Modifier.width(150.dp))
+        Text(label, style = captionStyle(), modifier = Modifier.width(150.dp.textScaled()))
         Text(value, style = bodyStyle(), modifier = Modifier.weight(1f))
     }
 }
@@ -218,7 +219,7 @@ private fun ConjugationCard(table: ConjugationTable, pronouns: Map<Pair<Int, Boo
 @Composable
 private fun PersonCell(pronoun: String, form: String?, modifier: Modifier) {
     Row(modifier.padding(vertical = 3.dp)) {
-        Text(pronoun, style = captionStyle(), modifier = Modifier.width(76.dp))
+        Text(pronoun, style = captionStyle(), modifier = Modifier.width(76.dp.textScaled()))
         Text(form ?: "—", style = bodyStyle(if (form == null) Diacritica.colors.inkMuted else Diacritica.colors.ink), modifier = Modifier.weight(1f))
     }
 }
@@ -227,14 +228,14 @@ private fun PersonCell(pronoun: String, form: String?, modifier: Modifier) {
 private fun DeclensionCard(table: DeclensionTable) {
     TableBox("Declension") {
         Row(Modifier.fillMaxWidth()) {
-            Text("", modifier = Modifier.width(96.dp))
+            Text("", modifier = Modifier.width(96.dp.textScaled()))
             Text("Singular", style = captionStyle(), modifier = Modifier.weight(1f))
             Text("Plural", style = captionStyle(), modifier = Modifier.weight(1f))
         }
         table.rows.forEachIndexed { i, (case, sg, pl) ->
             if (i > 0) Hairline()
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                Text(case, style = captionStyle(), modifier = Modifier.width(96.dp))
+                Text(case, style = captionStyle(), modifier = Modifier.width(96.dp.textScaled()))
                 Text(sg ?: "—", style = bodyStyle(), modifier = Modifier.weight(1f))
                 Text(pl ?: "—", style = bodyStyle(), modifier = Modifier.weight(1f))
             }

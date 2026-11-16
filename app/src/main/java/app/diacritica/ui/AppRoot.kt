@@ -242,6 +242,8 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
     Column(Modifier.fillMaxWidth().background(if (tokens.surfaceStyle == SurfaceStyle.TONAL) c.surface else c.ground).navigationBarsPadding()) {
         Hairline(heavy = tokens.heavyRules)
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceAround) {
+            val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+            val navScale = if (fontScale > 1.3f) 1.3f / fontScale else 1f
             items.forEach { t ->
                 val selected = t == current
                 val pill = selected && (tokens.surfaceStyle == SurfaceStyle.TONAL || tokens.surfaceStyle == SurfaceStyle.RULED)
@@ -272,9 +274,11 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
                     Text(
                         t.label,
                         style = TextStyle(
-                            fontFamily = tokens.fonts.label, fontSize = 11.sp, color = fg,
+                            // Tab labels grow with the system font size only up to 1.3x, so five tabs still fit.
+                            fontFamily = tokens.fonts.label, fontSize = (11f * navScale).sp, color = fg,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         ),
+                        maxLines = 1, softWrap = false,
                     )
                     if (selected && tokens.surfaceStyle == SurfaceStyle.HAIRLINE) {
                         Box(Modifier.padding(top = 3.dp).width(18.dp).height(2.dp).background(c.accent))

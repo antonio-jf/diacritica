@@ -1,5 +1,6 @@
 package app.diacritica.ui.components
 
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,9 +99,10 @@ fun LangBadge(lang: Lang, modifier: Modifier = Modifier, boxed: Boolean = false)
         val fg = if (tokens.languageColors) lc.content else Diacritica.colors.onAccentSoft
         Box(
             modifier
-                .size(36.dp)
+                .defaultMinSize(36.dp, 36.dp)
                 .clip(RoundedCornerShape(minOf(Diacritica.shapes.chip, 12.dp)))
-                .background(bg),
+                .background(bg)
+                .padding(horizontal = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(lang.short, style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg))
@@ -169,9 +171,21 @@ fun PolyButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = fg.copy(alpha = if (enabled) 1f else 0.4f)))
+        Text(
+            text, style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = fg.copy(alpha = if (enabled) 1f else 0.4f)),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(vertical = 6.dp),
+        )
     }
 }
+
+/**
+ * A width for a column of text (labels, numbers) that grows with the system font size, so larger text gets
+ * more room instead of wrapping letter by letter. Never shrinks below [this]; capped at 1.6x so a label column
+ * can't take over a phone screen.
+ */
+@Composable
+fun Dp.textScaled(): Dp = this * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
 
 /** Selectable chip: sense picker, source language, settings choices. */
 @Composable
