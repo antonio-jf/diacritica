@@ -1,5 +1,6 @@
 package app.diacritica.settings
 
+import app.diacritica.rehearse.Difficulty
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -102,6 +103,10 @@ data class AppSettings(
     val rehearseLangs: Set<Lang> = emptySet(),
     /** Sentences per Rehearse round: 1, or a short passage of 2–3. */
     val rehearseLength: Int = 1,
+    /** Rehearse difficulty, 1–10 (see rehearse/Difficulty.kt), for the European languages… */
+    val rehearseLevel: Int = 5,
+    /** …and for Mandarin. */
+    val rehearseZhLevel: Int = 3,
     /** Rehearse prompts only in this language (null = rotate through your languages). */
     val rehearseFrom: Lang? = null,
     // Reader
@@ -164,6 +169,8 @@ class SettingsRepository(private val context: Context) {
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
         val rehearseLength = intPreferencesKey("rehearse_length")
+        val rehearseLevel = intPreferencesKey("rehearse_level")
+        val rehearseZhLevel = intPreferencesKey("rehearse_zh_level")
         val rehearseFrom = stringPreferencesKey("rehearse_from")
         val readerLayout = stringPreferencesKey("layout_reader")
         val readerLangA = stringPreferencesKey("reader_lang_a")
@@ -215,6 +222,9 @@ class SettingsRepository(private val context: Context) {
             translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
             rehearseLength = (p[K.rehearseLength] ?: d.rehearseLength).coerceIn(1, 3),
+            // Upgrading from the A2/B1/B2 chips and the Story HSK setting: start from what was chosen there.
+            rehearseLevel = (p[K.rehearseLevel] ?: p[K.levels]?.let { Difficulty.fromCefr(it) } ?: d.rehearseLevel).coerceIn(1, 10),
+            rehearseZhLevel = (p[K.rehearseZhLevel] ?: p[K.storyHsk]?.let { Difficulty.fromHsk(it) } ?: d.rehearseZhLevel).coerceIn(1, 10),
             rehearseFrom = p[K.rehearseFrom]?.let { Lang.fromCode(it) },
             readerLayout = enumOr(p[K.readerLayout], d.readerLayout),
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
@@ -280,6 +290,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReaderShowMyWords(v: Boolean) = context.dataStore.edit { it[K.readerShowMyWords] = v }
     suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
+    suspend fun setRehearseLevel(v: Int) = context.dataStore.edit { it[K.rehearseLevel] = v.coerceIn(1, 10) }
+    suspend fun setRehearseZhLevel(v: Int) = context.dataStore.edit { it[K.rehearseZhLevel] = v.coerceIn(1, 10) }
     suspend fun setRehearseLength(v: Int) = context.dataStore.edit { it[K.rehearseLength] = v.coerceIn(1, 3) }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }

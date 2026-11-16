@@ -2,6 +2,7 @@
 
 package app.diacritica.ui.settings
 
+import app.diacritica.data.Lang
 import android.os.Build
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -70,6 +71,7 @@ fun SettingsScreen(
     onBack: (() -> Unit)? = null,
     onOpenAppearance: () -> Unit = {},
     onOpenDataPacks: () -> Unit = {},
+    onOpenRehearseSettings: () -> Unit = {},
 ) {
     val message by vm.message.collectAsStateWithLifecycle()
     val backupTarget = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let(vm::exportBackup) }
@@ -163,26 +165,11 @@ fun SettingsScreen(
 
         // ------------------------------------------------ Rehearse
         val rehearseSummary = (if (s.geminiKey.isBlank()) "No Gemini key" else "Gemini on") + " · " +
-            s.rehearseLanguages.joinToString(" ") { it.short } + " · " + s.levels.sorted().joinToString("/")
+            s.rehearseLanguages.joinToString(" ") { it.short } + " · level ${s.rehearseLevel}" +
+            (if (Lang.ZH in s.activeLanguages) " (Mandarin ${s.rehearseZhLevel})" else "")
         if (section("rehearse", "Rehearse", rehearseSummary, open, toggle)) {
             item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
-            item {
-                Setting("Practise") {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        s.activeLanguages.forEach { l -> PolyChip(l.short, l in s.rehearseLanguages, { vm.toggleRehearseLang(l) }) }
-                    }
-                }
-            }
-            item {
-                Setting("Levels") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("A2", "B1", "B2").forEach { lv -> PolyChip(lv, lv in s.levels, { vm.toggleLevel(lv) }) }
-                    }
-                }
-            }
-            item { SwitchRow("Accents required", "A wrong accent counts as an error", s.strictAccents, vm::setStrictAccents) }
-            item { SwitchRow("Tones required", "For Mandarin typed in pinyin", s.strictTones, vm::setStrictTones) }
-            item { SwitchRow("Pinyin hint", "Show the pinyin under the Mandarin field", s.pinyinHint, vm::setPinyinHint) }
+            item { LinkRow("Rehearse settings", "Level, path, length, languages and how answers are checked", onOpenRehearseSettings) }
         }
 
         // ------------------------------------------------ Review and pronunciation
@@ -360,7 +347,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
 
 /** A row that opens another page or runs an action. */
 @Composable
-private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
+internal fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -385,7 +372,7 @@ private fun <T> ChipSetting(title: String, options: List<T>, selected: T, label:
 }
 
 @Composable
-private fun Setting(title: String, value: String? = null, content: @Composable () -> Unit) {
+internal fun Setting(title: String, value: String? = null, content: @Composable () -> Unit) {
     Column {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row {
@@ -447,7 +434,7 @@ private fun SettingsField(value: String, onChange: (String) -> Unit, placeholder
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Column {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {

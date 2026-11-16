@@ -110,7 +110,7 @@ private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, unchecked: 
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(fmt.format(Date(r.at)) + " · " + r.level + (r.practiceWord?.let { " · $it" } ?: ""), style = captionStyle(), modifier = Modifier.weight(1f))
+                Text(fmt.format(Date(r.at)) + " · " + app.diacritica.rehearse.Difficulty.label(r.level) + (r.practiceWord?.let { " · $it" } ?: ""), style = captionStyle(), modifier = Modifier.weight(1f))
                 Text("${r.correct} / ${r.total}", style = captionStyle(Diacritica.colors.ink))
             }
             Text(r.prompt, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 16.sp, color = Diacritica.colors.ink), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -153,7 +153,7 @@ fun ArchiveDetailScreen(vm: RehearseViewModel, id: Long, onBack: () -> Unit) {
             PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), padding = PaddingValues(16.dp)) {
                 val lang = Lang.fromCode(r.promptLang)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("From ${lang?.englishName ?: r.promptLang} · ${r.level}", Modifier.weight(1f))
+                    SectionLabel("From ${lang?.englishName ?: r.promptLang} · ${app.diacritica.rehearse.Difficulty.label(r.level)}", Modifier.weight(1f))
                     lang?.let { l -> PolyIconButton(PolyIcons.Speaker, "Play sentence", { vm.speak(l, r.prompt) }) }
                 }
                 Text(r.prompt, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 20.sp, color = Diacritica.colors.ink, lineHeight = 28.sp))
