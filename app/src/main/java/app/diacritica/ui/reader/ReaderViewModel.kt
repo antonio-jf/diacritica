@@ -75,7 +75,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    private val zhCache = HashMap<String, List<DictionaryRepository.ZhToken>>()
+    private val zhCache = java.util.concurrent.ConcurrentHashMap<String, List<DictionaryRepository.ZhToken>>()
 
     init { viewModelScope.launch { runCatching { c.stories.ensureStarter() } } }
 
@@ -145,6 +145,13 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setPinyin(on: Boolean) { viewModelScope.launch { c.settings.setReaderPinyin(on) } }
 
+    fun setPinyinMode(mode: app.diacritica.settings.PinyinMode, top: Int? = null) {
+        viewModelScope.launch { c.settings.setReaderPinyinMode(mode, top) }
+    }
+
+    /** True if [word] has a character outside the [top] most common, so its pinyin is shown in "uncommon" mode. */
+    fun isRare(word: String, top: Int): Boolean = c.zhLexicon.hasRareChar(word, top)
+
     fun setStoryLevel(level: String, hsk: Int) { viewModelScope.launch { c.settings.setStoryLevel(level, hsk) } }
 
     /** Tap on a sentence: highlight it in both languages and remember the position. */
@@ -156,7 +163,11 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     suspend fun zhTokens(text: String): List<DictionaryRepository.ZhToken> =
-        zhCache[text] ?: runCatching { c.dictionary.segmentZh(text) }.getOrDefault(emptyList()).also { zhCache[text] = it }
+        zhCache[text] ?: runCatching { c.dictionary.segmentZh(text) }.getOrNull()
+            // Only successful splits are kept: a failure (dictionary still opening) is retried next time,
+            // and meanwhile every character can still be pressed on its own.
+            ?.also { if (it.isNotEmpty()) zhCache[text] = it }
+            ?: text.map { DictionaryRepository.ZhToken(it.toString(), null, null) }
 
     /** Long-press on a word: look it up (offline first; downloads it if missing and allowed). */
     fun lookUpWord(lang: Lang, rawToken: String, sentenceIdx: Int, otherLang: Lang, anchor: WordAnchor? = null) {
@@ -165,7 +176,8 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         _state.update { it.copy(popup = WordPopup(lang, token, sentenceIdx, anchor = anchor), highlighted = sentenceIdx) }
         viewModelScope.launch {
             val s = c.settings.settings.first()
-            val langs = listOf(lang, otherLang, Lang.EN).distinct()
+            // The word's language, the other Reader language, English, then the rest of your languages.
+            val langs = (listOf(lang, otherLang, Lang.EN) + s.activeLanguages).distinct()
             suspend fun run() = runCatching { c.dictionary.lookup(token, lang, langs, s.script) }.getOrNull()
             var r = run()
             _state.update { st -> if (st.popup?.token == token) st.copy(popup = st.popup.copy(loading = false, result = r)) else st }

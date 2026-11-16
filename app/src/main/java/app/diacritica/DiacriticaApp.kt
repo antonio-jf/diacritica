@@ -22,7 +22,9 @@ import app.diacritica.tts.Speaker
 /** Manual dependency container; small enough that a DI framework isn't worth it yet. */
 class AppContainer(app: Application) {
     val dictionaryDb = DictionaryDatabase(app)
-    val dictionary = DictionaryRepository(dictionaryDb, lazy { ZhLexicon.fromAssets(app) })
+    /** Bundled Mandarin data: HSK levels, everyday readings, character frequency. */
+    val zhLexicon: ZhLexicon by lazy { ZhLexicon.fromAssets(app) }
+    val dictionary = DictionaryRepository(dictionaryDb, lazy { zhLexicon })
     val userDb = UserDatabase.create(app)
     val settings = SettingsRepository(app)
     val speaker = Speaker(app)

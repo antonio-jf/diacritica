@@ -63,4 +63,18 @@ class ZhRankingTest {
         assertEquals("xíng", lex.mainReading("行"))
         assertEquals("HSK 7–9", ZhRanking.hskLabel(7))
     }
+
+    @Test fun rareCharacters() {
+        val lex = ZhLexicon.parse(
+            File("src/main/assets/zh/hsk.tsv").readText(),
+            File("src/main/assets/zh/main_readings.tsv").readText(),
+            File("src/main/assets/zh/char_rank.txt").readText(),
+        )
+        assertEquals(1, lex.charRank('的'))
+        assertTrue(!lex.hasRareChar("老师", 1000))   // 师 ranks high thanks to 老师
+        assertTrue(lex.hasRareChar("渔夫", 1000))    // 渔 is uncommon
+        assertTrue(!lex.hasRareChar("渔夫", 3000))   // …but within the top 3,000
+        assertTrue(!lex.hasRareChar("，", 10))        // punctuation is never "rare"
+        assertTrue(lex.hasRareChar("龘", 3000))       // unranked
+    }
 }

@@ -55,6 +55,7 @@ class DictionaryRepository(
             selected = sel,
             results = results,
             redirectedFrom = if (lemma != null) q else null,
+            forms = if (lang == Lang.ZH) emptyList() else formNotes(db, lang, q),
             suggestions = if (concepts.isEmpty()) suggestions(db, lang, q) else emptyList(),
             zhAlternatives = if (lang == Lang.ZH) zhAlternatives(db, q) else emptyList(),
         )
@@ -101,6 +102,18 @@ class DictionaryRepository(
         while (moveToNext()) out += Concept(getLong(0), getString(1), getStringOrNull(2), getStringOrNull(3) ?: "")
         return out
     }
+
+    /**
+     * What [q] is a form of, from its Wiktionary "form of" senses: "nahm" → (nehmen, "first/third-person
+     * singular preterite"). Several when ambiguous ("fui": ir and ser). Empty for base forms.
+     */
+    private fun formNotes(db: SQLiteDatabase, lang: Lang, q: String): List<FormNote> =
+        db.rawQuery(
+            "SELECT s.form_of, s.gloss FROM entry e JOIN sense s ON s.entry_id = e.id " +
+                "WHERE e.lang = ? AND e.norm = ? AND s.form_of IS NOT NULL AND s.form_of != e.word ORDER BY (e.word = ?) DESC, e.id, s.ord LIMIT 6",
+            arrayOf(lang.code, TextNorm.normalize(q), q),
+        ).use { c -> buildList { while (c.moveToNext()) add(FormNoteText.parse(c.getString(0), c.getString(1))) } }
+            .distinctBy { it.lemma to it.description }.take(3)
 
     private fun lemmaFor(db: SQLiteDatabase, lang: Lang, q: String): String? =
         db.rawQuery(

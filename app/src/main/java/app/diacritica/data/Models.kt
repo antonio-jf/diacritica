@@ -33,6 +33,9 @@ data class WordInfo(
 /** All words for one language under the selected sense; empty = no translation in the data. */
 data class LangResult(val lang: Lang, val words: List<WordInfo>)
 
+/** What an inflected word is: "nahm" → description "first/third-person singular preterite", lemma "nehmen". */
+data class FormNote(val lemma: String, val description: String)
+
 data class LookupResult(
     val query: String,
     val source: Lang,
@@ -44,6 +47,8 @@ data class LookupResult(
     val results: List<LangResult>,
     /** Set when the query was an inflected form, e.g. "chiavi" → "chiave". */
     val redirectedFrom: String? = null,
+    /** What the query is a form of, from Wiktionary ("first/third-person singular preterite of nehmen"). */
+    val forms: List<FormNote> = emptyList(),
     val suggestions: List<String> = emptyList(),
     /** Other Chinese words matching a pinyin/hanzi query (homophones). */
     val zhAlternatives: List<ZhReading> = emptyList(),
@@ -87,3 +92,13 @@ data class DetailResult(
 )
 
 data class DictionaryInfo(val label: String, val builtAt: String, val languages: List<Lang>, val sizeBytes: Long)
+
+object FormNoteText {
+    /** "first/third-person singular preterite of nehmen" → description "first/third-person singular preterite". */
+    fun parse(lemma: String, gloss: String): FormNote {
+        val g = gloss.trim().trimEnd('.')
+        val cut = Regex("\\s+of\\s+${Regex.escape(lemma)}\\b.*$", RegexOption.IGNORE_CASE)
+        val desc = g.replace(cut, "").trim().ifEmpty { "form" }
+        return FormNote(lemma, desc)
+    }
+}

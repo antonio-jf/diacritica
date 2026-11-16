@@ -30,6 +30,9 @@ enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"
 enum class DictionaryLayout(val label: String) { LIST("List"), CARDS("Cards"), GRID("Grid"), TABLE("Table") }
 enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKED("Stacked cards"), TILES("Score tiles"), REPORT("Report rows") }
 /** How the Reader shows a long-pressed word. */
+/** Pinyin above Chinese in the Reader: every word, only words with uncommon characters, or none. */
+enum class PinyinMode { ALL, RARE, OFF }
+
 enum class PopupLayout(val label: String) { SHEET("Bottom sheet"), FLOATING("Floating card"), TOOLTIP("Tooltip") }
 enum class ReaderLayout(val label: String) {
     TOP_BOTTOM("Top / bottom"), SIDE_BY_SIDE("Side by side"), INTERLINEAR("Interlinear"), NUMBERED("Numbered split"),
@@ -98,6 +101,9 @@ data class AppSettings(
     val readerLangA: Lang = Lang.FR,
     val readerLangB: Lang = Lang.ES,
     val readerPinyin: Boolean = true,
+    val readerPinyinMode: PinyinMode = PinyinMode.RARE,
+    /** In RARE mode, characters outside this many most common ones get pinyin. */
+    val readerPinyinTop: Int = 1000,
     val readerPopup: PopupLayout = PopupLayout.SHEET,
     /** Top/bottom layouts: share of the height for the top pane (dragged with the divider). */
     val readerSplit: Float = 0.5f,
@@ -147,6 +153,8 @@ class SettingsRepository(private val context: Context) {
         val readerLangA = stringPreferencesKey("reader_lang_a")
         val readerLangB = stringPreferencesKey("reader_lang_b")
         val readerPinyin = booleanPreferencesKey("reader_pinyin")
+        val readerPinyinMode = stringPreferencesKey("reader_pinyin_mode")
+        val readerPinyinTop = intPreferencesKey("reader_pinyin_top")
         val readerPopup = stringPreferencesKey("layout_word_popup")
         val readerSplit = floatPreferencesKey("reader_split")
         val storyLevel = stringPreferencesKey("story_level")
@@ -191,6 +199,10 @@ class SettingsRepository(private val context: Context) {
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
             readerLangB = p[K.readerLangB]?.let { Lang.fromCode(it) } ?: d.readerLangB,
             readerPinyin = p[K.readerPinyin] ?: d.readerPinyin,
+            // Before the mode existed there was only on/off: keep "off" for people who turned it off.
+            readerPinyinMode = p[K.readerPinyinMode]?.let { enumOr(it, d.readerPinyinMode) }
+                ?: if (p[K.readerPinyin] == false) PinyinMode.OFF else d.readerPinyinMode,
+            readerPinyinTop = p[K.readerPinyinTop] ?: d.readerPinyinTop,
             readerPopup = enumOr(p[K.readerPopup], d.readerPopup),
             readerSplit = (p[K.readerSplit] ?: d.readerSplit).coerceIn(0.2f, 0.8f),
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
@@ -233,6 +245,11 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }
     suspend fun setReaderPinyin(v: Boolean) = context.dataStore.edit { it[K.readerPinyin] = v }
+    suspend fun setReaderPinyinMode(mode: PinyinMode, top: Int? = null) = context.dataStore.edit {
+        it[K.readerPinyinMode] = mode.name
+        it[K.readerPinyin] = mode != PinyinMode.OFF
+        if (top != null) it[K.readerPinyinTop] = top
+    }
     suspend fun setReaderPopup(v: PopupLayout) = context.dataStore.edit { it[K.readerPopup] = v.name }
     suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }

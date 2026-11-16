@@ -70,6 +70,7 @@ import app.diacritica.ui.components.SectionLabel
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.components.FalseFriendNote
+import app.diacritica.ui.components.FormNotes
 import app.diacritica.ui.components.HandwritingPad
 import app.diacritica.ui.theme.Diacritica
 import app.diacritica.ui.theme.SurfaceStyle
@@ -146,7 +147,7 @@ fun DictionaryScreen(
             r == null -> {}
             r.isEmpty -> if (state.online != OnlineStatus.FETCHING) item("empty") { EmptyResult(r) { vm.lookUp(it, r.source) } }
             else -> {
-                item("head") { Headword(r, actions, onPickLang = { onSourceChange(it); vm.lookUp(r.query, it) }) }
+                item("head") { Headword(r, actions, onPickLang = { onSourceChange(it); vm.lookUp(r.query, it) }, onLookUp = { w, l -> vm.lookUp(w, l) }) }
                 if (r.zhAlternatives.isNotEmpty()) item("zh-alt") { ZhAlternatives(r) { vm.lookUp(it, Lang.ZH) } }
                 if (r.concepts.size > 1) item("senses") { SensePicker(r) { vm.selectSense(it) } }
                 val warnings = vm.falseFriends(r, settings.activeLanguages)
@@ -261,7 +262,7 @@ private fun SourceSelector(source: Lang?, active: List<Lang>, onChange: (Lang?) 
 // ---------------------------------------------------------------- result pieces
 
 @Composable
-private fun Headword(r: LookupResult, actions: WordActions, onPickLang: (Lang) -> Unit) {
+private fun Headword(r: LookupResult, actions: WordActions, onPickLang: (Lang) -> Unit, onLookUp: (String, Lang) -> Unit) {
     val h = r.headword ?: return
     Column(Modifier.padding(horizontal = Diacritica.spacing.screen).padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -273,7 +274,12 @@ private fun Headword(r: LookupResult, actions: WordActions, onPickLang: (Lang) -
             }
             WordActionButtons(h, actions)
         }
-        r.redirectedFrom?.let { Text("“$it” is a form of “${h.word}”.", style = captionStyle(Diacritica.colors.warning)) }
+        if (r.forms.isNotEmpty()) {
+            // Looking up the base word from here replaces the search, like typing it.
+            FormNotes(r.query, r.forms, onLemma = { l -> onLookUp(l, r.source) })
+        } else {
+            r.redirectedFrom?.let { Text("“$it” is a form of “${h.word}”.", style = captionStyle(Diacritica.colors.warning)) }
+        }
         if (r.alsoFoundIn.isNotEmpty()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Also a word in", style = captionStyle())
