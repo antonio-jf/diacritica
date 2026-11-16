@@ -12,7 +12,13 @@ import kotlinx.coroutines.withContext
  * language is mapped to concepts (English headword, or a translation in another language), and the
  * selected concept is shown in every active language.
  */
-class DictionaryRepository(private val database: DictionaryDatabase) {
+class DictionaryRepository(
+    private val database: DictionaryDatabase,
+    zhLexicon: Lazy<ZhLexicon> = lazyOf(ZhLexicon.EMPTY),
+) {
+    /** HSK levels and everyday readings for Mandarin (bundled; the dictionary file has neither). */
+    private val zhLex by zhLexicon
+
 
     suspend fun lookup(
         query: String,
@@ -62,9 +68,7 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
         val direct = when (lang) {
             Lang.EN -> conceptsByEnglish(db, TextNorm.normalize(q))
             // Only the best-ranked Chinese word: homophones ("laoshi" = 老师 / 老实 / 老是) must not mix meanings.
-            Lang.ZH -> zhWords(db, q).firstOrNull()?.let { w ->
-                conceptsByTranslation(db, Lang.ZH, w, byWord = true).ifEmpty { conceptsViaCedict(db, w) }
-            } ?: emptyList()
+            Lang.ZH -> zhWords(db, q).firstOrNull()?.let { w -> zhConcepts(db, w) } ?: emptyList()
             else -> conceptsByTranslation(db, lang, TextNorm.normalize(q), byWord = false)
         }
         if (direct.isNotEmpty()) return direct.map { it to null }
@@ -111,10 +115,16 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
      */
     private fun zhWords(db: SQLiteDatabase, q: String, limit: Int = 10): List<String> {
         // Commonness proxy: how many Wiktionary senses use the word as their Mandarin translation.
-        val rank = "ORDER BY (SELECT COUNT(*) FROM translation t WHERE t.lang = 'zh' AND t.norm = zh.simp) DESC, " +
-            "hsk IS NULL, hsk, length(simp), id LIMIT $limit"
-        fun run(where: String, arg: String) = db.rawQuery("SELECT simp FROM zh WHERE $where GROUP BY simp $rank", arrayOf(arg))
-            .use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
+        // Fetch more than needed, then let the bundled HSK level break ties between equally linked words.
+        val wide = "ORDER BY (SELECT COUNT(*) FROM translation t WHERE t.lang = 'zh' AND t.norm = zh.simp) DESC, " +
+            "length(simp), id LIMIT ${maxOf(limit, 30)}"
+        fun run(where: String, arg: String) = db.rawQuery(
+            "SELECT simp, (SELECT COUNT(*) FROM translation t WHERE t.lang = 'zh' AND t.norm = zh.simp) FROM zh WHERE $where GROUP BY simp $wide",
+            arrayOf(arg),
+        ).use { c -> buildList { while (c.moveToNext()) add(c.getString(0) to c.getInt(1)) } }
+            .withIndex()
+            .sortedWith(compareByDescending<IndexedValue<Pair<String, Int>>> { it.value.second }.thenBy { zhLex.hsk(it.value.first) ?: 99 }.thenBy { it.index })
+            .map { it.value.first }.take(limit)
         return when {
             TextNorm.containsHan(q) -> run("simp = ?1 OR trad = ?1", q.trim())
             TextNorm.looksLikeNumberedPinyin(q) -> run("pinyin_num = ?1 OR pinyin_num LIKE ?1 || '_'", TextNorm.pinyinNumKey(q))
@@ -127,6 +137,31 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
             }
             else -> emptyList()
         }
+    }
+
+    /**
+     * Meanings of a Chinese word: Wiktionary's links in the order CC-CEDICT lists the definitions
+     * (放: put, place… rather than "lay" first), plus up to three CC-CEDICT definitions Wiktionary
+     * doesn't link (放: release, let go). Verb definitions ("to …") only match English verbs.
+     */
+    private fun zhConcepts(db: SQLiteDatabase, w: String): List<Concept> {
+        val linked = conceptsByTranslation(db, Lang.ZH, w, byWord = true)
+        if (linked.isEmpty()) return conceptsViaCedict(db, w)
+        val defs = zhReadings(db, w).firstOrNull()?.definitions.orEmpty()
+        if (defs.isEmpty()) return linked
+        val placed = ZhRanking.orderConcepts(linked, defs).mapIndexed { i, c -> (ZhRanking.position(c.enWord, defs) ?: (100_000 + i)) to c }
+        val covered = linked.map { it.enWord.lowercase() }.toMutableSet()
+        val added = ArrayList<Pair<Int, Concept>>()
+        for ((i, phrase, verb) in ZhRanking.candidates(defs)) {
+            if (added.size >= 3) break
+            if (phrase in covered) continue
+            val c = conceptsByEnglish(db, TextNorm.normalize(phrase))
+                .firstOrNull { it.pos == null || (it.pos == "verb") == verb } ?: continue
+            if (placed.any { it.second.id == c.id } || added.any { it.second.id == c.id }) continue
+            covered += phrase
+            added += i to c
+        }
+        return (placed + added).sortedBy { it.first }.map { it.second }
     }
 
     /** Other Chinese words matching the same query (homophones), for the "Other matches" chips. */
@@ -281,10 +316,22 @@ class DictionaryRepository(private val database: DictionaryDatabase) {
         ) else chosen
     }
 
-    private fun zhReadings(db: SQLiteDatabase, word: String): List<ZhReading> =
+    /** Readings of a Chinese word, everyday one first (see [ZhRanking.readings]), with HSK levels. */
+    private fun zhReadings(db: SQLiteDatabase, word: String): List<ZhReading> {
+        val rows = zhRows(db, word)
+        if (rows.isEmpty()) return rows
+        val links = db.rawQuery(
+            "SELECT roman, COUNT(*) FROM translation WHERE lang = 'zh' AND norm = ? AND roman IS NOT NULL GROUP BY roman",
+            arrayOf(word),
+        ).use { c -> buildMap { while (c.moveToNext()) put(c.getString(0), c.getInt(1)) } }
+        return ZhRanking.readings(word, rows, links, zhLex.mainReading(word)).take(6)
+            .map { r -> if (r.hsk != null) r else r.copy(hsk = zhLex.hsk(r.simplified)) }
+    }
+
+    private fun zhRows(db: SQLiteDatabase, word: String): List<ZhReading> =
         db.rawQuery(
             "SELECT simp, trad, pinyin, defs, measure, hsk FROM zh WHERE simp = ?1 OR trad = ?1 " +
-                "ORDER BY (simp = ?1) DESC, id LIMIT 6",
+                "ORDER BY (simp = ?1) DESC, id LIMIT 20",
             arrayOf(word),
         ).use { c ->
             buildList {
