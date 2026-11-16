@@ -79,6 +79,7 @@ import app.diacritica.ui.components.PolySurface
 import app.diacritica.ui.components.ScreenHeader
 import app.diacritica.ui.components.SectionLabel
 import app.diacritica.ui.components.MenuSection
+import app.diacritica.ui.components.ChoiceMenuItem
 import app.diacritica.ui.components.ToggleMenuItem
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
@@ -131,6 +132,7 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
         ) {
             PathPicker(settings.rehearsePath, onPick = vm::setPath)
             if (settings.rehearsePath == RehearsePath.GRAMMAR) FocusPicker(settings, onPick = vm::setGrammarFocus)
+            FromPicker(settings, onPick = vm::setFrom)
             LanguagePicker(settings, onToggle = vm::toggleRehearseLang)
         }
         handsFree?.let { status ->
@@ -215,6 +217,24 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
     }
 }
 
+/** "From DE ▾": the language prompts are written in, or any of your languages in turn. */
+@Composable
+private fun FromPicker(settings: AppSettings, onPick: (Lang?) -> Unit) {
+    val c = Diacritica.colors
+    var open by remember { mutableStateOf(false) }
+    val current = settings.rehearseFrom?.takeIf { it in settings.activeLanguages }
+    Box {
+        DropChip(if (current == null) "From any" else "From ${current.short}") { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            MenuSection("Translate from")
+            ChoiceMenuItem("Any language", current == null, { open = false; if (current != null) onPick(null) }, note = "Rotates through your languages")
+            settings.activeLanguages.forEach { l ->
+                ChoiceMenuItem(l.englishName, l == current, { open = false; if (l != current) onPick(l) })
+            }
+        }
+    }
+}
+
 /** "FR · DE · ZH ▾": the languages to practise in Rehearse (separate from the Dictionary's), toggled in a menu. */
 @Composable
 private fun LanguagePicker(settings: AppSettings, onToggle: (Lang) -> Unit) {
@@ -222,9 +242,9 @@ private fun LanguagePicker(settings: AppSettings, onToggle: (Lang) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val chosen = settings.activeLanguages.filter { it in settings.rehearseLanguages }
     Box {
-        DropChip(if (chosen.isEmpty()) "Languages" else chosen.joinToString(" · ") { it.short }) { open = true }
+        DropChip(if (chosen.isEmpty()) "To…" else "To " + chosen.joinToString(" · ") { it.short }) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
-            MenuSection("Practise in")
+            MenuSection("Answer in")
             settings.activeLanguages.forEach { l ->
                 ToggleMenuItem(l.englishName, l in settings.rehearseLanguages, { onToggle(l) })
             }
