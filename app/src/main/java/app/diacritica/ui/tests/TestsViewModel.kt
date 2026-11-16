@@ -1,5 +1,6 @@
 package app.diacritica.ui.tests
 
+import app.diacritica.undo.deleteTestAttempt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.diacritica.AppContainer
@@ -110,7 +111,7 @@ class TestsViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun delete(id: Long) {
-        viewModelScope.launch { c.tests.delete(id) }
+        viewModelScope.launch { c.deleteTestAttempt(id) }
         _state.update { TestsUiState() }
     }
 

@@ -1,5 +1,7 @@
 package app.diacritica.ui.library
 
+import androidx.compose.foundation.background
+import app.diacritica.ui.components.SwipeToDelete
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -63,7 +65,8 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpenSett
             }
             items(saved, key = { "s-${it.lang}:${it.word}" }) { w ->
                 val lang = Lang.fromCode(w.lang)
-                Column(Modifier.padding(horizontal = 20.dp)) {
+                SwipeToDelete(onDelete = { vm.removeSaved(w) }) {
+                Column(Modifier.background(Diacritica.colors.ground).padding(horizontal = 20.dp)) {
                     Row(
                         Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(w.word, lang) }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -77,12 +80,14 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpenSett
                     }
                     Hairline()
                 }
+                }
             }
         } else {
             if (history.isEmpty()) item { Text("No searches yet.", style = captionStyle(), modifier = Modifier.padding(20.dp)) }
             items(history, key = { "h-${it.id}" }) { h ->
                 val lang = Lang.fromCode(h.lang)
-                Column(Modifier.padding(horizontal = 20.dp)) {
+                SwipeToDelete(onDelete = { vm.deleteHistory(h) }) {
+                Column(Modifier.background(Diacritica.colors.ground).padding(horizontal = 20.dp)) {
                     Row(
                         Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(h.query, lang) }.padding(vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -92,6 +97,7 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpenSett
                         Text(fmt.format(Date(h.at)), style = captionStyle())
                     }
                     Hairline()
+                }
                 }
             }
         }

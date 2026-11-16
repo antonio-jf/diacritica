@@ -1,5 +1,7 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.data.user.HistoryItem
+import app.diacritica.ui.components.SwipeToDelete
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
@@ -143,7 +145,7 @@ fun DictionaryScreen(
         val r = state.result
         state.online?.let { st -> if (state.query.isNotBlank()) item("online") { OnlineBanner(st) } }
         when {
-            state.query.isBlank() -> recentItems(history.take(12).map { it.query to Lang.fromCode(it.lang) }) { q, l -> vm.lookUp(q, l) }
+            state.query.isBlank() -> recentItems(history.take(12), onDelete = vm::deleteHistory) { q, l -> vm.lookUp(q, l) }
             r == null -> {}
             r.isEmpty -> if (state.online != OnlineStatus.FETCHING) item("empty") { EmptyResult(r) { vm.lookUp(it, r.source) } }
             else -> {
@@ -345,7 +347,8 @@ private fun EmptyResult(r: LookupResult, onSuggestion: (String) -> Unit) {
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.recentItems(
-    recent: List<Pair<String, Lang?>>,
+    recent: List<HistoryItem>,
+    onDelete: (HistoryItem) -> Unit,
     onPick: (String, Lang?) -> Unit,
 ) {
     if (recent.isEmpty()) {
@@ -358,8 +361,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recentItems(
         return
     }
     item("recent-label") { SectionLabel("Recent", Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
-    items(recent, key = { "r-" + it.first + it.second?.code }) { (q, l) ->
-        Column(Modifier.padding(horizontal = 20.dp)) {
+    items(recent, key = { "r-${it.id}" }) { h ->
+        val q = h.query
+        val l = Lang.fromCode(h.lang)
+        SwipeToDelete(onDelete = { onDelete(h) }) {
+        Column(Modifier.background(Diacritica.colors.ground).padding(horizontal = 20.dp)) {
             Row(
                 Modifier.fillMaxWidth().clickable(role = Role.Button) { onPick(q, l) }.padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
@@ -368,6 +374,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recentItems(
                 Text(q, style = bodyStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Hairline()
+        }
         }
     }
 }

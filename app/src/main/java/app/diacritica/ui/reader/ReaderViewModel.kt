@@ -1,5 +1,7 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.undo.removeSavedWord
+import app.diacritica.undo.deleteStory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.diacritica.AppContainer
@@ -159,7 +161,10 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun setTapLookup(on: Boolean) { viewModelScope.launch { c.settings.setReaderTapLookup(on) } }
     fun setHideOther(on: Boolean) { viewModelScope.launch { c.settings.setReaderHideOther(on) } }
 
-    fun delete(id: Long) { viewModelScope.launch { c.stories.delete(id) } }
+    fun delete(id: Long) {
+        if (reading.value?.storyId == id) c.readAloud.stop()
+        viewModelScope.launch { c.deleteStory(id) }
+    }
 
     /** False friends for a tapped word, against the other reading language and English. */
     fun falseFriends(p: WordPopup, other: Lang): List<FalseFriendWarning> {
@@ -261,7 +266,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val key = "${w.lang.code}:${w.word}"
             if (key in savedKeys.value) {
-                c.userDb.saved().remove(w.lang.code, w.word); c.review.removeWordCards(w.lang, w.word)
+                c.removeSavedWord(w.lang.code, w.word)
             } else {
                 val s = c.settings.settings.first()
                 val story = _state.value.story

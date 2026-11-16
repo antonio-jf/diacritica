@@ -203,6 +203,16 @@ interface HistoryDao {
 
     @Query("DELETE FROM history")
     suspend fun clear()
+
+    @Query("DELETE FROM history WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM history")
+    suspend fun allNow(): List<HistoryItem>
+
+    /** Puts back deleted entries (Undo), with their original ids and times. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restore(items: List<HistoryItem>)
 }
 
 @Dao
@@ -224,6 +234,9 @@ interface SavedWordDao {
 
     @Query("DELETE FROM saved_word WHERE lang = :lang AND word = :word")
     suspend fun remove(lang: String, word: String)
+
+    @Query("SELECT * FROM saved_word WHERE lang = :lang AND word = :word")
+    suspend fun get(lang: String, word: String): SavedWord?
 }
 
 @Dao
@@ -259,6 +272,13 @@ interface CardDao {
 
     @Query("DELETE FROM card WHERE lang = :lang AND word = :word AND kind != 'SENTENCE'")
     suspend fun deleteWordCards(lang: String, word: String)
+
+    @Query("SELECT * FROM card WHERE lang = :lang AND word = :word AND kind != 'SENTENCE'")
+    suspend fun wordCards(lang: String, word: String): List<Card>
+
+    /** Puts back deleted cards (Undo) with their ids, so their review history reconnects. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restore(cards: List<Card>)
 
     @Insert
     suspend fun log(entry: ReviewLog)

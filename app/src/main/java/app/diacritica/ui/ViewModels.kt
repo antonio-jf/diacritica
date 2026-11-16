@@ -1,5 +1,8 @@
 package app.diacritica.ui
 
+import app.diacritica.undo.deleteHistoryItem
+import app.diacritica.undo.clearHistory
+import app.diacritica.undo.removeSavedWord
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -270,8 +273,7 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val key = "${w.lang.code}:${w.word}"
             if (key in savedKeys.value) {
-                c.userDb.saved().remove(w.lang.code, w.word)
-                c.review.removeWordCards(w.lang, w.word)
+                c.removeSavedWord(w.lang.code, w.word)
             } else {
                 c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = w.gloss ?: w.pinyin))
                 val s = c.settings.settings.first()
@@ -281,12 +283,10 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun removeSaved(w: SavedWord) {
-        viewModelScope.launch {
-            c.userDb.saved().remove(w.lang, w.word)
-            Lang.fromCode(w.lang)?.let { c.review.removeWordCards(it, w.word) }
-        }
+        viewModelScope.launch { c.removeSavedWord(w.lang, w.word) }
     }
-    fun clearHistory() { viewModelScope.launch { c.userDb.history().clear() } }
+    fun clearHistory() { viewModelScope.launch { c.clearHistory() } }
+    fun deleteHistory(item: HistoryItem) { viewModelScope.launch { c.deleteHistoryItem(item) } }
 
     fun speak(w: WordInfo, slow: Boolean = false) {
         viewModelScope.launch {

@@ -1,5 +1,7 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.shareTextFor
+import app.diacritica.ui.components.CopyShareButtons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -99,6 +101,7 @@ fun DetailScreen(
                     PolyIconButton(PolyIcons.Slow, "Play slowly", { vm.speak(info, true) })
                     PolyIconButton(if (saved) PolyIcons.StarFilled else PolyIcons.Star, if (saved) "Remove from saved" else "Save word", { vm.toggleSave(info) },
                         tint = if (saved) Diacritica.colors.savedStar else Diacritica.colors.inkMuted)
+                    CopyShareButtons { shareTextFor(info.copy(gloss = info.gloss ?: first?.senses?.firstOrNull()?.gloss ?: zh?.definitions?.take(3)?.joinToString("; "))) }
                 }
                 PolyButton("Look up from ${lang.englishName}", { onPivot(lang, info.word) }, primary = false)
             }

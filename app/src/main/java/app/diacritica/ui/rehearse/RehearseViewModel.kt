@@ -1,5 +1,6 @@
 package app.diacritica.ui.rehearse
 
+import app.diacritica.undo.deleteRehearseRound
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.diacritica.AppContainer
@@ -462,7 +463,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     suspend fun round(id: Long): RehearseRound? = c.userDb.rehearseRounds().byId(id)
 
-    fun deleteRound(id: Long) { viewModelScope.launch { c.userDb.rehearseRounds().delete(id) } }
+    fun deleteRound(id: Long) { viewModelScope.launch { c.deleteRehearseRound(id) } }
 
     /** "Add to Review" from the archive. */
     fun addToReviewFrom(prompt: String, f: LangFeedback) {

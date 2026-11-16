@@ -1,5 +1,7 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.ui.components.shareTextFor
+import app.diacritica.ui.components.CopyShareButtons
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1020,6 +1022,7 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
                 }
             }
             PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { vm.speakWord(hw) })
+            if (found) CopyShareButtons { shareTextFor(hw, r!!.results.filter { it.lang != p.lang }.mapNotNull { it.words.firstOrNull() }) }
             if (found) {
                 val isSaved = "${hw.lang.code}:${hw.word}" in saved
                 PolyIconButton(
