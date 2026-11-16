@@ -28,9 +28,27 @@ class GeminiClient {
     class GeminiException(message: String) : Exception(message)
 
     companion object {
-        /** Tried in order when the chosen model is unavailable (models get renamed and retired). */
-        val FALLBACK_MODELS = listOf("gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash")
-        const val DEFAULT_MODEL = "gemini-3.5-flash"
+        /**
+         * Tried in order when the chosen model is unavailable (renamed or retired) or has used up its
+         * free daily requests. Flash-Lite models have by far the largest free allowance.
+         */
+        val FALLBACK_MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash")
+        const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
+
+        /** Models offered in Settings: (id, label, note). */
+        val CHOICES = listOf(
+            Triple("gemini-3.5-flash-lite", "3.5 Flash-Lite", "Default. Fast, with the most free requests per day (about 500)."),
+            Triple("gemini-3.6-flash", "3.6 Flash", "Smarter grading; only about 20 free requests per day."),
+            Triple("gemini-3.8-flash", "3.8 Flash", "Newest; also a small free allowance."),
+        )
+
+        /** Retired IDs that Google forwards to another model (and counts there): use the default instead. */
+        val RETIRED = setOf("gemini-3.5-flash", "gemini-3.7-flash", "gemini-2.5-flash", "gemini-2.0-flash")
+
+        /** Models that hit their free daily limit, with the Pacific date it happened (quotas reset at midnight PT). */
+        private val exhausted = java.util.concurrent.ConcurrentHashMap<String, String>()
+        private fun pacificToday(): String =
+            java.time.LocalDate.now(java.time.ZoneId.of("America/Los_Angeles")).toString()
 
         val ERROR_TYPES = listOf(
             "gender", "agreement", "conjugation", "tense", "mood", "case", "word-order", "accents", "tones",
@@ -302,19 +320,30 @@ class GeminiClient {
     /** Calls generateContent; on "model not found" tries the fallback models. */
     private suspend fun call(apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM): JsonObject {
         if (apiKey.isBlank()) throw GeminiException("No Gemini API key set.")
-        val models = (listOf(model) + FALLBACK_MODELS).filter { it.isNotBlank() }.distinct()
+        val today = pacificToday()
+        val chosen = model.takeIf { it.isNotBlank() && it !in RETIRED } ?: DEFAULT_MODEL
+        val models = (listOf(chosen) + FALLBACK_MODELS).distinct().filter { exhausted[it] != today }
+        if (models.isEmpty()) throw GeminiException("Gemini's free daily limit was reached on every model. It resets at 1–2 a.m. (midnight Pacific time).")
         var lastError: GeminiException? = null
         for (m in models) {
             try {
                 return callOnce(apiKey, m, userText, schema, system)
             } catch (e: ModelUnavailable) {
                 lastError = GeminiException("Model $m is not available.")
+            } catch (e: QuotaExceeded) {
+                // Per-minute limits pass in a minute; daily ones until midnight Pacific. Either way, try the next model.
+                if (e.daily) exhausted[m] = today
+                lastError = GeminiException(
+                    if (e.daily) "Gemini's free daily limit was reached. It resets at 1–2 a.m. (midnight Pacific time)."
+                    else "Gemini's free per-minute limit was reached. Try again in a minute.",
+                )
             }
         }
         throw lastError ?: GeminiException("No model available.")
     }
 
     private class ModelUnavailable : Exception()
+    private class QuotaExceeded(val daily: Boolean) : Exception()
 
     private suspend fun callOnce(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
         withContext(Dispatchers.IO) {
@@ -326,10 +355,10 @@ class GeminiClient {
                         putJsonArray("parts") { add(buildJsonObject { put("text", userText) }) }
                     })
                 }
+                // No temperature: Gemini 3.6+ ignores sampling parameters and later models reject them.
                 putJsonObject("generationConfig") {
                     put("responseMimeType", "application/json")
                     put("responseSchema", schema)
-                    put("temperature", 0.2)
                 }
             }
             val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
@@ -347,7 +376,7 @@ class GeminiClient {
                     code == 404 -> throw ModelUnavailable()
                     code == 400 && text.contains("API key", ignoreCase = true) -> throw GeminiException("The Gemini API key was rejected. Check it in Settings.")
                     code == 401 || code == 403 -> throw GeminiException("The Gemini API key was rejected. Check it in Settings.")
-                    code == 429 -> throw GeminiException("Gemini's free-tier limit was reached. Try again in a minute.")
+                    code == 429 -> throw QuotaExceeded(daily = text.contains("PerDay", ignoreCase = true) || text.contains("per day", ignoreCase = true))
                     code !in 200..299 -> throw GeminiException("Gemini error $code.")
                 }
                 val root = json.parseToJsonElement(text).jsonObject

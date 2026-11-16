@@ -76,7 +76,7 @@ data class AppSettings(
     val newCardsPerDay: Int = 20,
     // Rehearse
     val geminiKey: String = "",
-    val geminiModel: String = "gemini-3.5-flash",
+    val geminiModel: String = app.diacritica.rehearse.GeminiClient.DEFAULT_MODEL,
     val strictAccents: Boolean = true,
     val strictTones: Boolean = true,
     val rehearseLayout: RehearseLayout = RehearseLayout.TABS,
@@ -173,7 +173,8 @@ class SettingsRepository(private val context: Context) {
             onlineLookup = p[K.onlineLookup] ?: d.onlineLookup,
             newCardsPerDay = p[K.newPerDay] ?: d.newCardsPerDay,
             geminiKey = p[K.geminiKey] ?: d.geminiKey,
-            geminiModel = p[K.geminiModel]?.ifBlank { null } ?: d.geminiModel,
+            // A retired model saved earlier (gemini-3.5-flash is now forwarded to 3.6 Flash and its small quota) → default.
+            geminiModel = p[K.geminiModel]?.ifBlank { null }?.takeIf { it !in app.diacritica.rehearse.GeminiClient.RETIRED } ?: d.geminiModel,
             strictAccents = p[K.strictAccents] ?: d.strictAccents,
             strictTones = p[K.strictTones] ?: d.strictTones,
             rehearseLayout = enumOr(p[K.rehearseLayout], d.rehearseLayout),

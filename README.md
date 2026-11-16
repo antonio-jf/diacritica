@@ -76,7 +76,7 @@ buttons show when the card will come back. The number of new cards per day is se
 4. **Gemini check, online:** verdict, corrected answer (shown as a diff), every error with a full grammar
    explanation, and more natural alternatives. It needs your own free API key from
    https://aistudio.google.com (Settings › Rehearse). The key stays on the phone. If the chosen model
-   is unavailable, the app falls back to `gemini-3.5-flash`, `gemini-3.1-flash-lite`, then `gemini-2.5-flash`.
+   is unavailable, the app falls back to `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, then `gemini-2.5-flash`.
 5. Languages with no human translation get a reference written by Gemini once, then cached.
 6. **Add to Review** turns a sentence into a Review card.
 
@@ -161,6 +161,10 @@ Wiktionary's translation tables have gaps (*trickster* has none at all). The dic
 - **Everyday reading first** for characters with several readings (看 kàn before kān, 行 xíng before háng, 还 hái before huán): a hand-checked list (`assets/zh/main_readings.tsv`), then ordinary readings before surnames and place names, then the reading Wiktionary's translations use most.
 - **HSK levels** (HSK 3.0; 7 = levels 7–9) from `assets/zh/hsk.tsv` ([complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary), MIT), so no dictionary rebuild is needed.
 - **Meanings in CC-CEDICT's order:** 放 shows *put, place, release, free…* rather than *lay* first. Up to three CC-CEDICT meanings that Wiktionary doesn't link are added (放: *release*, *free*).
+
+## Gemini models and free limits
+
+Settings › Gemini offers 3.5 Flash-Lite (default: the largest free allowance, about 500 requests a day), 3.6 Flash and 3.8 Flash (smarter, about 20 free requests a day), or any model ID. When a model runs out of free requests for the day, the app switches to Flash-Lite until midnight Pacific time. A retired ID saved earlier (`gemini-3.5-flash`, which Google now forwards to 3.6 Flash and its small quota) is replaced by the default.
 
 ## Grammar
 
