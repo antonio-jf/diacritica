@@ -29,11 +29,17 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 `.github/workflows/ci.yml` runs on every push:
 
-- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py`, `pipeline/test_corpora.py` and `pipeline/test_packs.py`.
+- **Data pipeline:** builds the starter dictionary and runs `pipeline/test_build.py`, `test_corpora.py`, `test_books.py` and `test_packs.py`.
 - **Android:** JVM unit tests (`./gradlew testDebugUnitTest`), a debug APK build (downloadable from the run's artifacts) and a check that the Room schema JSON is committed.
 - **Lint:** `./gradlew lintDebug` fails on errors; warnings are listed in the HTML report attached to the run.
 
 The repository ships the ~15-word starter dictionary at `app/src/main/assets/dict/dictionary.db`. The full dictionary (~240 MB, over GitHub's file limit) is built locally with `pipeline/build_dictionary.py`; after building it, run `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` so git leaves it alone.
+
+## Releases
+
+Every push to `main` (a merged pull request) runs `.github/workflows/release.yml`: unit tests, a signed release APK, and a GitHub Release tagged `v0.3.<commit count>` with the APK and its SHA-256. Download the APK from the latest release on the phone and install it; each release updates the previous one. You can also run it by hand from the Actions tab.
+
+Signing: all releases use one key, kept out of the repo. CI reads it from four repository secrets (`DIACRITICA_KEYSTORE_BASE64`, `DIACRITICA_KEYSTORE_PASSWORD`, `DIACRITICA_KEY_ALIAS`, `DIACRITICA_KEY_PASSWORD`). Locally, `keystore.properties` in the project root (gitignored) points at the same key, so builds from Android Studio and from Releases can update each other. Without it, local builds use the debug key. Lose the key and future releases can't update installed copies: keep a backup.
 
 ## Build and install
 
@@ -136,6 +142,26 @@ python3 build_corpora.py --freq data/en_50k.txt --out ../app/src/main/assets/cor
 
 English is the pivot: sentences with the same English text are grouped across the EN–FR/DE/IT/ES/ZH files (Global Voices calls Mandarin `zhs`/`zht`; the script tries these codes). Mandarin rarely shares an English sentence with the others, so English–Mandarin pairs are also kept, up to a quarter of each level. Levels come from the rarest English word, as for Tatoeba (A2 ≤ 2,000 … C1 ≤ 30,000); these texts run harder, so when B2 is on, C1 sentences are included. `--corpora news,encyclopedic` builds only some. Then Run ▶ again so the app bundles the file. Until it exists, these paths show an everyday sentence.
 
+## Tests
+
+Eleven bundled tests of 8 sentences each, from A2 (HSK 2) to B2: everyday basics, past tenses, the subjunctive, if-clauses, object pronouns, prepositions and German cases, word order, comparisons and relative clauses, work emails, Mandarin 了/过/measure words, and travel. Read the sentences in English or Spanish and translate them into any of your languages (by default the ones you're learning).
+
+- Answers are saved as you type; leave and come back to an unfinished test any time.
+- **Send for review:** Gemini (your key) marks every answer out of 100 with corrections and explanations, writes a short summary, and adds 1–4 grammar lessons aimed at your recurring mistakes, each with examples and two practice sentences. *Practise as a mini test* turns those into a follow-up test.
+- Without a key or internet the attempt waits as *Waiting for review*; send it later.
+- Reviewed tests count in Progress (accuracy per language and mistakes by type) and are included in backups.
+- The tests live in `app/src/main/assets/tests/tests.json`; add your own sets there.
+
+## Chinese handwriting
+
+A writing square (with 田字格 guide lines) for Mandarin characters, in the Dictionary search bar, in Translate and in Mandarin test answers. Candidates appear as you write; tap one to insert it. Recognition runs on the phone with ML Kit Digital Ink; the model (about 20 MB) downloads once, the first time you write.
+
+## Word details
+
+- **False friends:** look-alike words that mean something else in another of your languages get a warning, e.g. ES *embarazada* ≠ EN *embarrassed*. It shows on dictionary results, on a word's page and in the Reader's word popup, with what each word means and how to say it instead. The list (about 100 hand-checked pairs across EN, ES, FR, DE and IT) is `app/src/main/assets/falsefriends/false_friends.json`; add pairs there.
+- **Synonyms and etymology** from Wiktionary, on a word's page. Tap a synonym to look it up. Dictionaries built before this have none; the page offers to fetch them for that word from Wiktionary, and rebuilding the dictionary (or the next dictionary pack) adds them for every word.
+- **German separable verbs** are flagged from their conjugation table: *anfangen* → SEPARABLE an|fangen → fängt … an.
+
 ## Layouts
 
 Each section has its own layout (Settings › Layouts, or the layout icon in the section's top bar); the theme stays the same everywhere.
@@ -160,7 +186,7 @@ Home › Progress, for the last 7 days, 30 days or all time:
 
 Settings › Data packs shows everything kept for offline use and downloads bigger data instead of building it on a computer:
 
-- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
+- **Download:** packs listed in `packs.json` on the GitHub release tagged `data-packs` (full dictionary, Everyday sentences, News/Formal/Encyclopedic sentences, Classics). Downloads show progress, can be cancelled, are checked with SHA-256 and only then installed; on mobile data the app asks first for packs over 20 MB. *Remove* goes back to what ships with the app.
 - **On this phone:** the dictionary (built-in, imported file or pack; import a `.db` you built), downloaded words (Wiktionary lookups), sentence counts per Rehearse source, Translate's on-device models per language (download or delete), and a shortcut to the phone's voices.
 
 Publishing packs (on your computer, after building the databases):
@@ -171,7 +197,7 @@ python3 make_packs.py --out dist \
     --dictionary ../app/src/main/assets/dict/dictionary.db \
     --sentences ../app/src/main/assets/sentences/sentences.db \
     --corpora ../app/src/main/assets/corpora/corpora.db
-gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica"
+gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica" --latest=false
 # updates: gh release upload data-packs dist/* --clobber
 ```
 
@@ -187,16 +213,25 @@ Home › Translate turns a sentence or paragraph (up to 5,000 characters) into a
 - Each result can be read aloud, copied, added to Review (your text on the front), used as the new source ("Translate from here"), or, for a single word, opened in the Dictionary. Mandarin results show pinyin.
 - Selecting text in another app and choosing *Look up in Diacritica* opens a word in the Dictionary and longer text in Translate.
 
-## Reader (v2)
+## Reader
 
-Parallel stories, aligned sentence by sentence in all six languages. Bottom tab **Reader**; Settings now lives behind the gear in **Library**.
+The Reader opens on a gallery with three tabs:
 
-- **Shelf:** a starter story ("The Old Fisherman", B1 · HSK 3) is added on first run. *Write a new story* asks Gemini (your key, online) for a story on a topic at your level (A2–C1, HSK 2–5); it is stored on the phone and reads offline afterwards. Trash icon deletes.
-- **Languages:** pick the two languages at the top (⇄ swaps). Any pair of the six works.
-- **Layouts** (top-bar icon, or Settings › Layouts › Reader): Top / bottom (two panes that scroll together), Side by side, Interlinear, Numbered split.
-- **Tap a sentence** to highlight it in both languages; the bar at the bottom steps ↑↓, reads either side aloud and adds the pair to Review. The last highlighted sentence is your reading progress.
-- **Press and hold a word** for the popup: offline lookup (downloads missing words when online lookup is on), translations into the other language and English, pronunciation, ☆ save (creates Review cards), *Open in Dictionary*, and a link to the language's reference dictionary (Oxford Learner's, RAE, Larousse, Duden, Treccani, MOE 國語辭典).
-- **Mandarin:** text is split into words with CC-CEDICT; 拼音 toggles pinyin above the characters. Traditional characters follow Settings › Script.
+- **My shelf:** your stories and books, with reading progress.
+- **Classics:** public-domain novels and stories in two languages, lined up sentence by sentence (OPUS Books: Austen, Verne, Dumas, Kafka, Galdós…; EN, ES, FR, DE, IT, no Mandarin). Search by title or author; show only your Reader pair or all pairs. Opening a book puts it on your shelf. Comes as a data pack, or build it yourself:
+  ```
+  cd pipeline
+  python3 build_books.py --out ../app/src/main/assets/books/books.db
+  ```
+  The script splits each language pair's text back into books using the `.ids` file in the OPUS download (which document each line comes from). The first build gave 104 books (36 titles by 21 authors) across the 10 pairs of EN/ES/FR/DE/IT, about 150 MB, so it isn't committed: publish it as a data pack (`make_packs.py --books`) or leave it in `assets/books/` for your own builds (it's then bundled into the APK).
+- **New story:** one-tap story ideas at a suggested level, or your own topic and level; Gemini writes them in all six languages.
+
+Reading:
+
+- Any two languages; four layouts (Top / bottom, Side by side, Interlinear, Numbered split). In the two-pane layouts, **drag the divider** to give either language more room (double-tap to split evenly); it's remembered.
+- Tap a sentence to highlight it in both languages and save your place. The sentence bar steps through, reads either side aloud, **sends the sentence to Rehearse** (the story's other languages are the references) or adds the pair to Review.
+- Press and hold a word for its dictionary popup (bottom sheet, floating card or tooltip). Its **translation is underlined in the other language's sentence** when the dictionary's translations appear there (offline matching, including inflected forms such as *pêcheur* → *pêcheurs*).
+- Mandarin: words segmented with CC-CEDICT, pinyin above the characters (toggle), traditional characters per Settings.
 
 ## Backup & restore
 

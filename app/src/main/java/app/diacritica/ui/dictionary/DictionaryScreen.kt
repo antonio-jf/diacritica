@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,8 @@ import app.diacritica.ui.components.ScreenHeader
 import app.diacritica.ui.components.SectionLabel
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
+import app.diacritica.ui.components.FalseFriendNote
+import app.diacritica.ui.components.HandwritingPad
 import app.diacritica.ui.theme.Diacritica
 import app.diacritica.ui.theme.SurfaceStyle
 
@@ -83,6 +86,7 @@ fun DictionaryScreen(
     val history by vm.history.collectAsStateWithLifecycle()
     val missingVoice by vm.missingVoice.collectAsStateWithLifecycle()
     val focus = LocalFocusManager.current
+    var pad by rememberSaveable { mutableStateOf(false) }
 
     val actions = WordActions(
         onSpeak = { w, slow -> vm.speak(w, slow) },
@@ -117,6 +121,16 @@ fun DictionaryScreen(
                 onSubmit = { vm.submit(); focus.clearFocus() },
                 onClear = vm::clear,
                 onSourceChange = onSourceChange,
+                onHandwriting = if (Lang.ZH in settings.activeLanguages) ({ pad = !pad }) else null,
+            )
+        }
+        if (pad) item("pad") {
+            HandwritingPad(
+                before = state.query,
+                onInsert = { vm.onQueryChange(state.query + it) },
+                onBackspace = { vm.onQueryChange(state.query.dropLast(1)) },
+                onClose = { pad = false },
+                modifier = Modifier.padding(horizontal = Diacritica.spacing.screen).padding(bottom = 8.dp),
             )
         }
         if (missingVoice != null) item("voice") {
@@ -132,6 +146,12 @@ fun DictionaryScreen(
                 item("head") { Headword(r, actions, onPickLang = { onSourceChange(it); vm.lookUp(r.query, it) }) }
                 if (r.zhAlternatives.isNotEmpty()) item("zh-alt") { ZhAlternatives(r) { vm.lookUp(it, Lang.ZH) } }
                 if (r.concepts.size > 1) item("senses") { SensePicker(r) { vm.selectSense(it) } }
+                val warnings = vm.falseFriends(r, settings.activeLanguages)
+                if (warnings.isNotEmpty()) item("ff") {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        warnings.forEach { FalseFriendNote(it) }
+                    }
+                }
                 item("gap") { Gap(4.dp) }
                 dictionaryResults(settings.dictionaryLayout, r.results, actions)
                 item("foot") { Gap(24.dp) }
@@ -151,6 +171,7 @@ private fun SearchField(
     onSubmit: () -> Unit,
     onClear: () -> Unit,
     onSourceChange: (Lang?) -> Unit,
+    onHandwriting: (() -> Unit)? = null,
 ) {
     val c = Diacritica.colors
     val shapes = Diacritica.shapes
@@ -193,6 +214,7 @@ private fun SearchField(
                 )
             }
             if (query.isNotEmpty()) PolyIconButton(PolyIcons.Close, "Clear", onClear, tint = c.inkMuted)
+            onHandwriting?.let { PolyIconButton(PolyIcons.Handwriting, "Write Chinese characters by hand", it, tint = c.inkMuted) }
             PolyIconButton(PolyIcons.Mic, "Voice input", {
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)

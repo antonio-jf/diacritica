@@ -29,6 +29,9 @@ jobs:
       - name: Corpus pipeline tests
         working-directory: pipeline
         run: python3 test_corpora.py -v
+      - name: Books pipeline tests
+        working-directory: pipeline
+        run: python3 test_books.py -v
       - name: Data pack tests
         working-directory: pipeline
         run: python3 test_packs.py -v
@@ -60,6 +63,15 @@ jobs:
         run: ./gradlew --stacktrace testDebugUnitTest
       - name: Build debug APK
         run: ./gradlew --stacktrace assembleDebug
+      - name: Release signing works (throwaway key)
+        # The Release workflow signs with the real key from secrets; this checks the same Gradle path.
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -storetype PKCS12 -alias ci -keyalg RSA -keysize 2048 \
+            -validity 1 -dname "CN=CI" -storepass cipass1234 -keypass cipass1234
+          DIACRITICA_KEYSTORE="$RUNNER_TEMP/ci.jks" DIACRITICA_KEYSTORE_PASSWORD=cipass1234 DIACRITICA_KEY_ALIAS=ci \
+            DIACRITICA_KEY_PASSWORD=cipass1234 ./gradlew --stacktrace assembleRelease
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep "CN=CI"
       - name: Room schema is committed
         # A schema change without a committed schema JSON breaks auto-migrations for existing installs.
         run: git status --porcelain app/schemas && test -z "$(git status --porcelain app/schemas)"

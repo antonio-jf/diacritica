@@ -56,6 +56,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.draw.drawBehind
 import app.diacritica.settings.PopupLayout
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
@@ -109,18 +113,25 @@ import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.components.headwordStyle
 import app.diacritica.ui.components.titleStyle
+import app.diacritica.ui.components.FalseFriendNote
 import app.diacritica.ui.theme.Diacritica
 
 /** Entry point of the Reader tab: the story shelf, or the open story. */
 @Composable
-fun ReaderScreen(vm: ReaderViewModel, settings: AppSettings, onOpenWord: (Lang, String) -> Unit) {
+fun ReaderScreen(
+    vm: ReaderViewModel,
+    settings: AppSettings,
+    onOpenWord: (Lang, String) -> Unit,
+    onRehearse: (storyId: Long, idx: Int, lang: Lang) -> Unit = { _, _, _ -> },
+    onOpenDataPacks: () -> Unit = {},
+) {
     val st by vm.state.collectAsStateWithLifecycle()
     val story = st.story
     if (story == null) {
-        Shelf(vm, st, settings)
+        Gallery(vm, st, settings, onOpenDataPacks)
     } else {
         BackHandler { vm.close() }
-        StoryView(vm, st, story, settings, onOpenWord)
+        StoryView(vm, st, story, settings, onOpenWord, onRehearse)
     }
 }
 
@@ -130,97 +141,202 @@ private val TOPICS = listOf("Daily life", "Travel", "Food", "Work", "Mystery", "
 private val LEVELS = listOf("A2", "B1", "B2", "C1")
 private val HSK = listOf(2, 3, 4, 5)
 
+/** One-tap story ideas for the New story tab: title, what Gemini should write about, and a suggested level. */
+private data class StoryIdea(val title: String, val topic: String, val level: String)
+
+private val IDEAS = listOf(
+    StoryIdea("The wrong train", "taking the wrong train and making an unexpected friend", "A2"),
+    StoryIdea("Market day", "shopping at a busy outdoor market and asking about prices", "A2"),
+    StoryIdea("A new neighbour", "a new neighbour moves in and needs help settling in", "A2"),
+    StoryIdea("The missing painting", "a small mystery: a painting disappears from a village museum", "B1"),
+    StoryIdea("The job interview", "a nervous job interview that goes surprisingly well", "B1"),
+    StoryIdea("Lost in the old town", "getting lost in an old city at night and asking for directions", "B1"),
+    StoryIdea("The lighthouse keeper", "the last night of a lighthouse keeper before the light becomes automatic", "B2"),
+    StoryIdea("A letter from 1962", "finding an old letter in a second-hand book and tracing who wrote it", "B2"),
+    StoryIdea("The chess match", "a chess match between a grandmother and a teenage champion", "C1"),
+)
+
+/** The Reader's start page: your shelf, the Classics and new stories. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Shelf(vm: ReaderViewModel, st: ReaderUiState, settings: AppSettings) {
+private fun Gallery(vm: ReaderViewModel, st: ReaderUiState, settings: AppSettings, onOpenDataPacks: () -> Unit) {
     val c = Diacritica.colors
     val shelf by vm.shelf.collectAsStateWithLifecycle()
+    val classics by vm.classics.collectAsStateWithLifecycle()
+    var tab by rememberSaveable { mutableStateOf(0) }
     var topic by rememberSaveable { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf<ShelfItem?>(null) }
     val a = settings.readerLangA
     val b = settings.readerLangB
+    val pad = Diacritica.spacing.screen
+    LaunchedEffect(a, b) { vm.loadClassics() }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { ScreenHeader("Reader") }
         item {
-            Column(Modifier.padding(horizontal = Diacritica.spacing.screen)) {
-                Text("Parallel stories, sentence by sentence. Tap a sentence to match it across languages; press and hold a word to look it up.", style = captionStyle())
-                Gap(10.dp)
+            Column(Modifier.padding(horizontal = pad)) {
                 LangPairRow(a, b, Lang.entries, onChange = vm::setLangs)
-                Gap(14.dp)
+                Gap(10.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PolyChip("My shelf (${shelf.size})", tab == 0, { tab = 0 })
+                    PolyChip("Classics", tab == 1, { tab = 1 })
+                    PolyChip("New story", tab == 2, { tab = 2 })
+                }
+                Gap(12.dp)
             }
         }
-        item { SectionLabel("Your stories", Modifier.padding(horizontal = Diacritica.spacing.screen)) }
-        if (shelf.isEmpty()) item {
-            Text("No stories yet.", style = captionStyle(), modifier = Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 12.dp))
-        }
-        items(shelf, key = { it.story.id }) { item ->
-            val s = item.story
-            val read = if (s.sentenceCount == 0) 0 else ((s.lastSentence + 1) * 100 / s.sentenceCount).coerceIn(0, 100)
-            val started = s.lastOpenedAt != null
-            Box(Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 5.dp)) {
-                PolySurface(onClick = { vm.open(s.id) }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(item.titles[a] ?: item.titles[Lang.EN] ?: "Story", style = headwordStyle(19.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            item.titles[b]?.let { Text(it, style = bodyStyle(c.inkMuted, 14.sp).copy(fontStyle = FontStyle.Italic), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                            Gap(6.dp)
-                            val meta = buildList {
-                                add(s.level)
-                                add("${s.sentenceCount} sentences")
-                                s.topic?.let { add(it) }
-                                add(if (started) "$read% read" else "new")
-                            }.joinToString(" · ")
-                            Text(meta, style = captionStyle())
-                            if (started) {
-                                Gap(6.dp)
-                                ProgressBar(read / 100f)
+
+        when (tab) {
+            // ------------------------------------------------ My shelf
+            0 -> {
+                if (shelf.isEmpty()) item {
+                    Text("Nothing here yet. Open a Classic or write a new story.", style = captionStyle(), modifier = Modifier.padding(horizontal = pad))
+                }
+                items(shelf, key = { it.story.id }) { item ->
+                    val s = item.story
+                    val read = if (s.sentenceCount == 0) 0 else ((s.lastSentence + 1) * 100 / s.sentenceCount).coerceIn(0, 100)
+                    val started = s.lastOpenedAt != null
+                    val isBook = s.source.startsWith("book:")
+                    Box(Modifier.padding(horizontal = pad, vertical = 5.dp)) {
+                        PolySurface(onClick = { vm.open(s.id) }) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(item.titles[a] ?: item.titles[Lang.EN] ?: item.titles.values.firstOrNull() ?: "Story",
+                                        style = headwordStyle(19.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    if (!isBook) item.titles[b]?.let {
+                                        Text(it, style = bodyStyle(c.inkMuted, 14.sp).copy(fontStyle = FontStyle.Italic), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    Gap(6.dp)
+                                    val meta = buildList {
+                                        if (isBook) s.topic?.let { add(it) } else add(s.level)
+                                        add("${s.sentenceCount} sentences")
+                                        if (!isBook) s.topic?.let { add(it) }
+                                        add(if (started) "$read% read" else "new")
+                                    }.joinToString(" · ")
+                                    Text(meta, style = captionStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    if (started) { Gap(6.dp); ProgressBar(read / 100f) }
+                                }
+                                PolyIconButton(PolyIcons.Trash, "Remove from shelf", onClick = { confirmDelete = item }, tint = c.inkMuted)
                             }
                         }
-                        PolyIconButton(PolyIcons.Trash, "Delete story", onClick = { confirmDelete = item }, tint = c.inkMuted)
+                    }
+                }
+            }
+
+            // ------------------------------------------------ Classics
+            1 -> {
+                if (!classics.available) item {
+                    Box(Modifier.padding(horizontal = pad)) {
+                        PolySurface {
+                            Text("Classics in two languages", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
+                            Text("Public-domain novels and stories (Austen, Verne, Dumas, Kafka, Galdós…) lined up sentence by sentence. " +
+                                "They come as a data pack.", style = captionStyle())
+                            Gap(10.dp)
+                            PolyButton("Get the Classics pack", onOpenDataPacks)
+                        }
+                    }
+                } else {
+                    item {
+                        Column(Modifier.padding(horizontal = pad)) {
+                            TopicField(classics.query, vm::setClassicsQuery, placeholder = "Search title or author")
+                            Gap(8.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                PolyChip("${a.short} + ${b.short}", classics.onlyPair, { vm.setOnlyPair(true) })
+                                Spacer(Modifier.width(8.dp))
+                                PolyChip("All pairs", !classics.onlyPair, { vm.setOnlyPair(false) })
+                            }
+                            Gap(8.dp)
+                            if (!classics.loading && classics.books.isEmpty()) {
+                                Text(
+                                    if (classics.onlyPair) "No books for ${a.englishName} + ${b.englishName}. Try All pairs, or another language pair (Mandarin isn't in this collection)."
+                                    else "No books match.",
+                                    style = captionStyle(),
+                                )
+                            }
+                        }
+                    }
+                    items(classics.books, key = { "book-${it.id}" }) { bk ->
+                        Box(Modifier.padding(horizontal = pad, vertical = 4.dp)) {
+                            PolySurface(onClick = { vm.openBook(bk) }) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(bk.title, style = headwordStyle(18.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text(bk.author, style = bodyStyle(c.inkMuted, 14.sp), maxLines = 1)
+                                        Gap(4.dp)
+                                        Text("${bk.sentences} sentences · about ${formatMinutes(bk.minutes)}", style = captionStyle())
+                                    }
+                                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        LangBadge(bk.a); LangBadge(bk.b)
+                                    }
+                                }
+                                if (classics.opening == bk.id) { Gap(6.dp); Text("Putting it on your shelf…", style = captionStyle(c.accent)) }
+                            }
+                        }
+                    }
+                    item {
+                        Text("Texts: OPUS Books (public domain; aligned by András Farkas). Older translations can be loose.",
+                            style = captionStyle(), modifier = Modifier.padding(horizontal = pad, vertical = 10.dp))
+                    }
+                }
+            }
+
+            // ------------------------------------------------ New story
+            else -> {
+                item {
+                    Column(Modifier.padding(horizontal = pad)) {
+                        Text("Written by Gemini in all six languages, aligned sentence by sentence. Needs your key and the internet; saved stories work offline.",
+                            style = captionStyle())
+                        Gap(10.dp)
+                        SectionLabel("Ideas")
+                    }
+                }
+                items(IDEAS, key = { it.title }) { idea ->
+                    Box(Modifier.padding(horizontal = pad, vertical = 4.dp)) {
+                        PolySurface(onClick = { if (!st.generating) vm.generate(idea.topic, idea.level) }) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(idea.title, style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
+                                    Text(idea.topic.replaceFirstChar { it.uppercase() }, style = captionStyle(), maxLines = 2)
+                                }
+                                Text(idea.level, style = captionStyle(c.accent))
+                            }
+                        }
+                    }
+                }
+                item {
+                    Column(Modifier.padding(horizontal = pad).padding(top = 14.dp)) {
+                        SectionLabel("Your own")
+                        Gap(6.dp)
+                        TopicField(topic, { topic = it })
+                        Gap(8.dp)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TOPICS.forEach { t -> PolyChip(t, selected = topic == t, onClick = { topic = if (topic == t) "" else t }) }
+                        }
+                        Gap(12.dp)
+                        Text("Level", style = captionStyle(c.ink))
+                        Gap(6.dp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LEVELS.forEach { l -> PolyChip(l, selected = settings.storyLevel == l, onClick = { vm.setStoryLevel(l, settings.storyHsk) }) }
+                        }
+                        Gap(6.dp)
+                        Text("Mandarin (HSK)", style = captionStyle(c.ink))
+                        Gap(6.dp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HSK.forEach { h -> PolyChip("HSK $h", selected = settings.storyHsk == h, onClick = { vm.setStoryLevel(settings.storyLevel, h) }) }
+                        }
+                        Gap(14.dp)
+                        PolyButton(
+                            if (st.generating) "Writing the story…" else "Write this story",
+                            onClick = { vm.generate(topic) }, enabled = !st.generating, modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
         }
         item {
-            Column(Modifier.padding(horizontal = Diacritica.spacing.screen).padding(top = 18.dp)) {
-                Hairline()
-                Gap(14.dp)
-                SectionLabel("New story")
-                Gap(4.dp)
-                Text("Written by Gemini in all six languages, aligned sentence by sentence. Needs your key and the internet; saved stories work offline.", style = captionStyle())
-                Gap(10.dp)
-                TopicField(topic) { topic = it }
-                Gap(8.dp)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TOPICS.forEach { t -> PolyChip(t, selected = topic == t, onClick = { topic = if (topic == t) "" else t }) }
-                }
-                Gap(12.dp)
-                Text("Level", style = captionStyle(c.ink))
-                Gap(6.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LEVELS.forEach { l -> PolyChip(l, selected = settings.storyLevel == l, onClick = { vm.setStoryLevel(l, settings.storyHsk) }) }
-                }
-                Gap(6.dp)
-                Gap(6.dp)
-                Text("Mandarin (HSK)", style = captionStyle(c.ink))
-                Gap(6.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HSK.forEach { h -> PolyChip("HSK $h", selected = settings.storyHsk == h, onClick = { vm.setStoryLevel(settings.storyLevel, h) }) }
-                }
-                Gap(14.dp)
-                PolyButton(
-                    if (st.generating) "Writing the story…" else "Write a new story",
-                    onClick = { vm.generate(topic) }, enabled = !st.generating, modifier = Modifier.fillMaxWidth(),
-                )
-                if (st.generating) {
-                    Gap(6.dp)
-                    Text("This takes about 20–40 seconds.", style = captionStyle())
-                }
-                st.error?.let {
-                    Gap(8.dp)
-                    Text(it, style = captionStyle(c.error))
-                }
+            Column(Modifier.padding(horizontal = pad)) {
+                if (st.generating) { Gap(8.dp); Text("Writing the story… this takes about 20–40 seconds.", style = captionStyle(c.accent)) }
+                st.error?.let { Gap(8.dp); Text(it, style = captionStyle(c.error)) }
             }
         }
     }
@@ -228,17 +344,26 @@ private fun Shelf(vm: ReaderViewModel, st: ReaderUiState, settings: AppSettings)
     confirmDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
-            title = { Text("Delete this story?", style = titleStyle().copy(fontSize = 20.sp)) },
-            text = { Text(item.titles[a] ?: item.titles[Lang.EN] ?: "", style = bodyStyle()) },
-            confirmButton = { TextButton(onClick = { vm.delete(item.story.id); confirmDelete = null }) { Text("Delete", color = c.error) } },
+            title = { Text("Remove from your shelf?", style = titleStyle().copy(fontSize = 20.sp)) },
+            text = {
+                Text((item.titles[a] ?: item.titles[Lang.EN] ?: item.titles.values.firstOrNull() ?: "") +
+                    if (item.story.source.startsWith("book:")) "\n\nYou can add it again from Classics; your progress will start over." else "",
+                    style = bodyStyle())
+            },
+            confirmButton = { TextButton(onClick = { vm.delete(item.story.id); confirmDelete = null }) { Text("Remove", color = c.error) } },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel", color = c.ink) } },
             containerColor = c.ground,
         )
     }
 }
 
+private fun formatMinutes(m: Int): String = when {
+    m < 60 -> "$m min"
+    else -> "${m / 60} h" + if (m % 60 >= 10) " ${m % 60} min" else ""
+}
+
 @Composable
-private fun TopicField(value: String, onChange: (String) -> Unit) {
+private fun TopicField(value: String, onChange: (String) -> Unit, placeholder: String = "Topic: anything you like, or pick one below") {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.field)
     Box(
@@ -246,7 +371,7 @@ private fun TopicField(value: String, onChange: (String) -> Unit) {
             .border(BorderStroke(if (Diacritica.tokens.heavyRules) 2.dp else 1.dp, if (Diacritica.tokens.heavyRules) c.rule else c.line), shape)
             .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
-        if (value.isEmpty()) Text("Topic: anything you like, or pick one below", style = bodyStyle(c.inkMuted))
+        if (value.isEmpty()) Text(placeholder, style = bodyStyle(c.inkMuted))
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true,
             textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent),
@@ -311,6 +436,8 @@ private class SentenceEnv(
     val traditional: Boolean,
     val a: Lang,
     val b: Lang,
+    /** Top/bottom layouts: the top pane's share of the height. */
+    val split: Float = 0.5f,
 ) {
     fun other(l: Lang) = if (l == a) b else a
     fun text(idx: Int, l: Lang): String = story.sentences.getOrNull(idx)?.get(l).orEmpty()
@@ -318,14 +445,17 @@ private class SentenceEnv(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StoryView(vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory, settings: AppSettings, onOpenWord: (Lang, String) -> Unit) {
+private fun StoryView(
+    vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory, settings: AppSettings,
+    onOpenWord: (Lang, String) -> Unit, onRehearse: (Long, Int, Lang) -> Unit,
+) {
     val c = Diacritica.colors
     val langs = story.languages
     // Fall back to the story's own languages when the chosen pair isn't in it.
     val a = settings.readerLangA.takeIf { it in langs } ?: langs.firstOrNull() ?: Lang.EN
     val b = settings.readerLangB.takeIf { it in langs && it != a } ?: langs.firstOrNull { it != a } ?: a
     val traditional = settings.script == ScriptPreference.TRADITIONAL_FIRST || settings.script == ScriptPreference.TRADITIONAL_ONLY
-    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyin, traditional, a, b)
+    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyin, traditional, a, b, settings.readerSplit)
     var layoutMenu by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -392,6 +522,7 @@ private fun StoryView(vm: ReaderViewModel, st: ReaderUiState, story: LoadedStory
                 PolyIconButton(PolyIcons.Down, "Next sentence", onClick = { if (idx < n - 1) vm.highlight(idx + 1) })
                 TextButton(onClick = { vm.speak(a, env.text(idx, a)) }) { Text("▶ ${a.short}", color = c.accent) }
                 TextButton(onClick = { vm.speak(b, env.text(idx, b)) }) { Text("▶ ${b.short}", color = c.accent) }
+                PolyIconButton(PolyIcons.Pencil, "Rehearse this sentence", onClick = { onRehearse(story.story.id, idx, a) })
                 PolyIconButton(PolyIcons.Cards, "Add sentence to Review", onClick = { vm.addSentenceToReview(idx, a, b) })
             }
         }
@@ -443,17 +574,32 @@ private fun SplitPanes(env: SentenceEnv, numbered: Boolean) {
     val bottom = rememberLazyListState(initialFirstVisibleItemIndex = (env.highlighted ?: env.story.story.lastSentence).coerceAtLeast(0))
     SyncScroll(top, bottom)
     FollowHighlight(env.highlighted, top, bottom)
-    Column(Modifier.fillMaxSize()) {
-        Pane(env, env.a, top, numbered, Modifier.weight(1f))
+    // Drag the divider to give either language more room; double-tap it to split evenly again.
+    var frac by remember(env.split) { mutableStateOf(env.split) }
+    var height by remember { mutableStateOf(1f) }
+    val c = Diacritica.colors
+    Column(Modifier.fillMaxSize().onGloballyPositioned { height = it.size.height.toFloat().coerceAtLeast(1f) }) {
+        Pane(env, env.a, top, numbered, Modifier.weight(frac))
         Row(
-            Modifier.fillMaxWidth().background(Diacritica.colors.surface).padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp),
+            Modifier.fillMaxWidth().background(c.surface)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(onDragEnd = { env.vm.setSplit(frac) }) { change, dy ->
+                        change.consume()
+                        frac = (frac + dy / height).coerceIn(0.2f, 0.8f)
+                    }
+                }
+                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { frac = 0.5f; env.vm.setSplit(0.5f) }) }
+                .semantics { contentDescription = "Divider between the two languages. Drag to resize; double-tap to reset." }
+                .padding(horizontal = Diacritica.spacing.screen, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             LangBadge(env.b)
             Spacer(Modifier.width(8.dp))
             Box(Modifier.weight(1f)) { Hairline() }
+            Box(Modifier.padding(horizontal = 10.dp).width(36.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(c.inkMuted.copy(alpha = 0.5f)))
+            Box(Modifier.weight(1f)) { Hairline() }
         }
-        Pane(env, env.b, bottom, numbered, Modifier.weight(1f))
+        Pane(env, env.b, bottom, numbered, Modifier.weight(1f - frac))
     }
 }
 
@@ -579,12 +725,14 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
         fontStyle = if (muted && lang != Lang.ZH) FontStyle.Italic else FontStyle.Normal,
     )
     val mark = env.popup?.takeIf { it.sentenceIdx == idx && it.lang == lang }?.token
+    // The translation of the pressed word, in the other language (underlined).
+    val match = env.popup?.takeIf { it.sentenceIdx == idx && it.matchLang == lang }?.match
     val onTap = { env.vm.highlight(idx) }
     val onWord: (String, WordAnchor?) -> Unit = { w, a -> env.vm.lookUpWord(lang, w, idx, env.other(lang), a) }
     if (lang == Lang.ZH) {
-        ZhSentence(env, text, style, mark, onTap, onWord, modifier)
+        ZhSentence(env, text, style, mark ?: match, onTap, onWord, modifier, matchOnly = mark == null && match != null)
     } else {
-        PlainSentence(text, lang, style, mark, onTap, onWord, modifier)
+        PlainSentence(text, lang, style, mark, onTap, onWord, modifier, match = match)
     }
 }
 
@@ -592,19 +740,28 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
 private fun PlainSentence(
     text: String, lang: Lang, style: TextStyle, mark: String?,
     onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
+    match: String? = null,
 ) {
     var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val markColor = Diacritica.colors.accent.copy(alpha = 0.22f)
+    val matchColor = Diacritica.colors.accent
     val haptics = LocalHapticFeedback.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val tap by rememberUpdatedState(onTap)
     val word by rememberUpdatedState(onWord)
-    val annotated = remember(text, mark, markColor) {
+    val annotated = remember(text, mark, match, markColor) {
         buildAnnotatedString {
             append(text)
             if (!mark.isNullOrEmpty()) {
                 val i = text.indexOf(mark)
                 if (i >= 0) addStyle(SpanStyle(background = markColor), i, i + mark.length)
+            }
+            if (!match.isNullOrEmpty()) {
+                val i = text.indexOf(match)
+                if (i >= 0) addStyle(
+                    SpanStyle(color = matchColor, fontWeight = FontWeight.SemiBold, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
+                    i, i + match.length,
+                )
             }
         }
     }
@@ -656,6 +813,7 @@ internal fun wordAt(text: String, offset: Int, lang: Lang): String? {
 private fun ZhSentence(
     env: SentenceEnv, text: String, style: TextStyle, mark: String?,
     onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
+    matchOnly: Boolean = false,
 ) {
     val c = Diacritica.colors
     val haptics = LocalHapticFeedback.current
@@ -677,7 +835,14 @@ private fun ZhSentence(
                 Modifier
                     .onGloballyPositioned { tc = it }
                     .clip(RoundedCornerShape(3.dp))
-                    .background(if (isWord && mark == t.text) c.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .background(if (isWord && !matchOnly && mark == t.text) c.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .then(
+                        // The translation of a word pressed in the other language: an accent underline.
+                        if (matchOnly && isWord && mark != null && (t.text in mark || mark in t.text)) Modifier.drawBehind {
+                            drawRect(c.accent, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - 2.dp.toPx()),
+                                size = androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx()))
+                        } else Modifier,
+                    )
                     .pointerInput(text, i) {
                         detectTapGestures(
                             onTap = { tap() },
@@ -755,6 +920,9 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
                 }
             }
         }
+        if (!p.loading) vm.falseFriends(p, env.other(p.lang)).firstOrNull()?.let {
+            FalseFriendNote(it, Modifier.padding(top = 6.dp, end = 10.dp), compact = true)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (found) {
                 val isSaved = "${hw.lang.code}:${hw.word}" in saved
@@ -809,6 +977,9 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
             Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
+        if (!p.loading) vm.falseFriends(p, env.other(p.lang)).forEach {
+            FalseFriendNote(it, Modifier.padding(top = 10.dp))
+        }
 
         when {
             p.loading -> { Gap(14.dp); Text("Looking up…", style = captionStyle()) }

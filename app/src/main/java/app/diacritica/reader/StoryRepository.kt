@@ -50,6 +50,13 @@ class StoryRepository(private val db: UserDatabase, private val gemini: GeminiCl
         return id
     }
 
+    /** Puts a Classic on your shelf (once) so it reads, saves progress and feeds Rehearse like any story. */
+    suspend fun importBook(book: BookInfo, sentences: List<Map<Lang, String>>): Long {
+        val source = "book:${book.id}"
+        dao.idBySource(source)?.let { return it }
+        return store(mapOf(book.a to book.title, book.b to book.title), sentences, "Classic", book.author, source)
+    }
+
     /** Adds the hand-written starter story the first time the Reader opens. */
     suspend fun ensureStarter() {
         if (dao.count() > 0) return

@@ -99,6 +99,8 @@ data class AppSettings(
     val readerLangB: Lang = Lang.ES,
     val readerPinyin: Boolean = true,
     val readerPopup: PopupLayout = PopupLayout.SHEET,
+    /** Top/bottom layouts: share of the height for the top pane (dragged with the divider). */
+    val readerSplit: Float = 0.5f,
     val storyLevel: String = "B1",
     val storyHsk: Int = 3,
 ) {
@@ -146,6 +148,7 @@ class SettingsRepository(private val context: Context) {
         val readerLangB = stringPreferencesKey("reader_lang_b")
         val readerPinyin = booleanPreferencesKey("reader_pinyin")
         val readerPopup = stringPreferencesKey("layout_word_popup")
+        val readerSplit = floatPreferencesKey("reader_split")
         val storyLevel = stringPreferencesKey("story_level")
         val storyHsk = intPreferencesKey("story_hsk")
     }
@@ -188,6 +191,7 @@ class SettingsRepository(private val context: Context) {
             readerLangB = p[K.readerLangB]?.let { Lang.fromCode(it) } ?: d.readerLangB,
             readerPinyin = p[K.readerPinyin] ?: d.readerPinyin,
             readerPopup = enumOr(p[K.readerPopup], d.readerPopup),
+            readerSplit = (p[K.readerSplit] ?: d.readerSplit).coerceIn(0.2f, 0.8f),
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
             storyHsk = p[K.storyHsk] ?: d.storyHsk,
         )
@@ -229,6 +233,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }
     suspend fun setReaderPinyin(v: Boolean) = context.dataStore.edit { it[K.readerPinyin] = v }
     suspend fun setReaderPopup(v: PopupLayout) = context.dataStore.edit { it[K.readerPopup] = v.name }
+    suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }

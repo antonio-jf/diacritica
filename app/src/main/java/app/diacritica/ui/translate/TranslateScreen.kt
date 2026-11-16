@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,7 @@ import app.diacritica.settings.TranslateEngine
 import app.diacritica.ui.components.Gap
 import app.diacritica.ui.components.LangBadge
 import app.diacritica.ui.components.PolyButton
+import app.diacritica.ui.components.HandwritingPad
 import app.diacritica.ui.components.PolyChip
 import app.diacritica.ui.components.PolyIconButton
 import app.diacritica.ui.components.PolyIcons
@@ -67,6 +69,7 @@ fun TranslateScreen(
     val st by vm.state.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val pad = Diacritica.spacing.screen
+    var showPad by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -86,6 +89,22 @@ fun TranslateScreen(
                 style = captionStyle(),
             )
             InputBox(st.input, vm::setInput, onClear = vm::clear)
+            if (showPad) {
+                HandwritingPad(
+                    before = st.input,
+                    onInsert = { vm.setInput(st.input + it) },
+                    onBackspace = { vm.setInput(st.input.dropLast(1)) },
+                    onClose = { showPad = false },
+                )
+            } else if (Lang.ZH in settings.activeLanguages && (st.source == null || st.source == Lang.ZH)) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(4.dp)).clickable { showPad = true }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(PolyIcons.Handwriting, null, tint = c.accent, modifier = Modifier.size(18.dp))
+                    Text("  Write Chinese by hand", style = captionStyle(c.accent))
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${st.input.length} / ${TranslateViewModel.MAX_CHARS}", style = captionStyle(), modifier = Modifier.weight(1f))
                 PolyButton(if (st.busy) "Translating…" else "Translate", vm::translate, enabled = st.input.isNotBlank() && !st.busy)

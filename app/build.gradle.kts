@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,9 +8,45 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+/**
+ * Release signing. CI passes the key through environment variables (from GitHub secrets); on the Mac,
+ * keystore.properties next to this project (gitignored) points at the same key, so builds from
+ * Android Studio and from GitHub Releases can update each other. Without either, the debug key is used.
+ */
+val signingProps: Map<String, String>? = run {
+    System.getenv("DIACRITICA_KEYSTORE")?.takeIf { it.isNotBlank() }?.let {
+        return@run mapOf(
+            "storeFile" to it,
+            "storePassword" to System.getenv("DIACRITICA_KEYSTORE_PASSWORD").orEmpty(),
+            "keyAlias" to System.getenv("DIACRITICA_KEY_ALIAS").orEmpty(),
+            "keyPassword" to System.getenv("DIACRITICA_KEY_PASSWORD").orEmpty(),
+        )
+    }
+    val f = rootProject.file("keystore.properties")
+    if (!f.exists()) return@run null
+    val p = Properties().apply { f.inputStream().use { load(it) } }
+    p.stringPropertyNames().associateWith { p.getProperty(it) }
+}
+
+/** Number of commits: grows with every merge, so each release can update the one before. */
+val commitCount: Int = runCatching {
+    providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }.standardOutput.asText.get().trim().toInt()
+}.getOrDefault(1)
+
 android {
     namespace = "app.diacritica"
     compileSdk = 35
+
+    signingConfigs {
+        signingProps?.let { p ->
+            create("release") {
+                storeFile = rootProject.file(p.getValue("storeFile"))
+                storePassword = p["storePassword"]
+                keyAlias = p["keyAlias"]
+                keyPassword = p["keyPassword"]
+            }
+        }
+    }
 
     defaultConfig {
         // One-time data move from the app's earlier ID: set to true and Run (this updates the old app and
@@ -17,16 +55,20 @@ android {
         applicationId = if (legacyId) "com.polyglot." + "dict" else "app.diacritica"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-mvp"
+        versionCode = commitCount
+        versionName = "0.3.$commitCount"
     }
 
     buildTypes {
+        val key = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Personal sideload build: signed with the debug key so `assembleRelease` installs directly.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = key
+        }
+        debug {
+            // Same key as releases when it's set up, so a Run from Android Studio updates a release install.
+            signingConfig = key
         }
     }
     compileOptions {
@@ -69,6 +111,7 @@ dependencies {
     // On-device translation (Translate section); models download per language on first use.
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
+    implementation(libs.mlkit.digital.ink)
     implementation(libs.kotlinx.coroutines.play.services)
     debugImplementation(libs.androidx.compose.ui.tooling)
 

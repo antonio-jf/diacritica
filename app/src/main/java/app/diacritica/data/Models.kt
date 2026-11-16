@@ -63,6 +63,9 @@ data class EntryDetail(
     val plural: String?,
     val senses: List<SenseDetail>,
     val forms: List<FormRow>,
+    /** From Wiktionary; null in dictionaries built before etymologies were included. */
+    val etymology: String? = null,
+    val synonyms: List<String> = emptyList(),
 )
 
 data class ZhReading(

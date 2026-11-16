@@ -133,6 +133,9 @@ interface StoryDao {
     @Query("SELECT * FROM story WHERE id = :id")
     suspend fun byId(id: Long): Story?
 
+    @Query("SELECT id FROM story WHERE source = :source LIMIT 1")
+    suspend fun idBySource(source: String): Long?
+
     @Query("SELECT * FROM story_sentence WHERE storyId = :id ORDER BY idx")
     suspend fun sentences(id: Long): List<StorySentence>
 

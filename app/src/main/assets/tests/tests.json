@@ -1,0 +1,503 @@
+{
+ "format": 1,
+ "tests": [
+  {
+   "id": "basics",
+   "title": "Everyday basics",
+   "level": "A2",
+   "hsk": 2,
+   "focus": "mixed",
+   "description": "Short, everyday sentences: family, time, food, plans. A good warm-up for Mandarin too.",
+   "items": [
+    {
+     "en": "My sister has two cats and a dog.",
+     "es": "Mi hermana tiene dos gatos y un perro.",
+     "hint": "Mandarin: measure words 只 / 条"
+    },
+    {
+     "en": "What time do you get up in the morning?",
+     "es": "¿A qué hora te levantas por la mañana?"
+    },
+    {
+     "en": "I would like a cup of coffee without sugar, please.",
+     "es": "Quisiera una taza de café sin azúcar, por favor."
+    },
+    {
+     "en": "We are going to the cinema tomorrow evening.",
+     "es": "Mañana por la noche vamos al cine."
+    },
+    {
+     "en": "This book is more interesting than that one.",
+     "es": "Este libro es más interesante que ese."
+    },
+    {
+     "en": "Where is the nearest train station?",
+     "es": "¿Dónde está la estación de tren más cercana?"
+    },
+    {
+     "en": "I don't eat meat, but I eat fish.",
+     "es": "No como carne, pero sí como pescado."
+    },
+    {
+     "en": "It is very cold today, so I am staying at home.",
+     "es": "Hoy hace mucho frío, así que me quedo en casa."
+    }
+   ]
+  },
+  {
+   "id": "past",
+   "title": "What happened",
+   "level": "B1",
+   "hsk": 3,
+   "focus": "past",
+   "description": "Telling a story in the past: background versus events, finished actions versus habits.",
+   "items": [
+    {
+     "en": "When I was a child, we spent every summer at my grandparents' house.",
+     "es": "Cuando era niño, pasábamos todos los veranos en casa de mis abuelos.",
+     "hint": "Habit in the past"
+    },
+    {
+     "en": "I was reading when the phone rang.",
+     "es": "Estaba leyendo cuando sonó el teléfono.",
+     "hint": "Background vs. event"
+    },
+    {
+     "en": "Yesterday we went to the market and bought vegetables.",
+     "es": "Ayer fuimos al mercado y compramos verduras."
+    },
+    {
+     "en": "She had already left when I arrived.",
+     "es": "Ella ya se había ido cuando llegué.",
+     "hint": "Pluperfect"
+    },
+    {
+     "en": "It was raining, so we didn't go out.",
+     "es": "Llovía, así que no salimos."
+    },
+    {
+     "en": "Have you ever been to China?",
+     "es": "¿Has estado alguna vez en China?",
+     "hint": "Mandarin: 过"
+    },
+    {
+     "en": "Last year I lived in Berlin for three months.",
+     "es": "El año pasado viví en Berlín durante tres meses."
+    },
+    {
+     "en": "He used to play the piano, but he stopped.",
+     "es": "Antes tocaba el piano, pero lo dejó."
+    }
+   ]
+  },
+  {
+   "id": "subjunctive",
+   "title": "Wishes, doubts and feelings",
+   "level": "B2",
+   "hsk": 4,
+   "focus": "subjunctive",
+   "description": "Sentences that need the subjunctive in French, Italian and Spanish (and Konjunktiv or a modal in German).",
+   "items": [
+    {
+     "en": "I want you to come with us.",
+     "es": "Quiero que vengas con nosotros."
+    },
+    {
+     "en": "It's a pity that you can't stay longer.",
+     "es": "Es una pena que no puedas quedarte más tiempo."
+    },
+    {
+     "en": "Although it is late, I'm going to finish this chapter.",
+     "es": "Aunque es tarde, voy a terminar este capítulo.",
+     "hint": "bien que / benché + subjunctive"
+    },
+    {
+     "en": "I doubt that he knows the answer.",
+     "es": "Dudo que sepa la respuesta."
+    },
+    {
+     "en": "We'll leave before it gets dark.",
+     "es": "Nos iremos antes de que oscurezca."
+    },
+    {
+     "en": "I'm glad that you liked the film.",
+     "es": "Me alegro de que te haya gustado la película."
+    },
+    {
+     "en": "Is there anyone who speaks Japanese?",
+     "es": "¿Hay alguien que hable japonés?"
+    },
+    {
+     "en": "Call me as soon as you arrive.",
+     "es": "Llámame en cuanto llegues.",
+     "hint": "Future idea: subjunctive in Spanish"
+    }
+   ]
+  },
+  {
+   "id": "conditional",
+   "title": "If only…",
+   "level": "B2",
+   "hsk": 4,
+   "focus": "conditional",
+   "description": "Real and hypothetical if-clauses, past regrets and polite requests.",
+   "items": [
+    {
+     "en": "If I had more time, I would learn to cook.",
+     "es": "Si tuviera más tiempo, aprendería a cocinar."
+    },
+    {
+     "en": "If it rains tomorrow, we will stay at home.",
+     "es": "Si llueve mañana, nos quedaremos en casa."
+    },
+    {
+     "en": "If you had told me, I would have helped you.",
+     "es": "Si me lo hubieras dicho, te habría ayudado."
+    },
+    {
+     "en": "Could you open the window, please?",
+     "es": "¿Podrías abrir la ventana, por favor?"
+    },
+    {
+     "en": "I wish I lived closer to the sea.",
+     "es": "Ojalá viviera más cerca del mar."
+    },
+    {
+     "en": "What would you do if you won the lottery?",
+     "es": "¿Qué harías si te tocara la lotería?"
+    },
+    {
+     "en": "If I were you, I would accept the offer.",
+     "es": "Yo que tú, aceptaría la oferta."
+    },
+    {
+     "en": "We would have arrived on time if the train hadn't been late.",
+     "es": "Habríamos llegado a tiempo si el tren no hubiera llegado tarde."
+    }
+   ]
+  },
+  {
+   "id": "pronouns",
+   "title": "Pronouns in action",
+   "level": "B1",
+   "hsk": 3,
+   "focus": "pronouns",
+   "description": "Object pronouns, their order and where they attach: le lo / glielo / se lo, y and en, ci and ne.",
+   "items": [
+    {
+     "en": "I gave it to her yesterday.",
+     "es": "Se lo di ayer.",
+     "hint": "it = the book"
+    },
+    {
+     "en": "Do you want some? — No, thanks, I already have some.",
+     "es": "¿Quieres? — No, gracias, ya tengo.",
+     "hint": "en / ne"
+    },
+    {
+     "en": "We went there last summer.",
+     "es": "Fuimos allí el verano pasado.",
+     "hint": "y / ci"
+    },
+    {
+     "en": "Tell me the truth!",
+     "es": "¡Dime la verdad!",
+     "hint": "Imperative + pronoun"
+    },
+    {
+     "en": "I can't find my keys. Have you seen them?",
+     "es": "No encuentro mis llaves. ¿Las has visto?",
+     "hint": "Agreement of the participle in French and Italian"
+    },
+    {
+     "en": "She wants to buy it for her brother.",
+     "es": "Quiere comprárselo a su hermano."
+    },
+    {
+     "en": "Don't worry about it.",
+     "es": "No te preocupes por eso."
+    },
+    {
+     "en": "They are talking about you.",
+     "es": "Están hablando de ti."
+    }
+   ]
+  },
+  {
+   "id": "cases",
+   "title": "Where, with whom, for whom",
+   "level": "B1",
+   "hsk": 3,
+   "focus": "cases",
+   "description": "Prepositions and the words that follow them; in German, which case each one takes.",
+   "items": [
+    {
+     "en": "I put the book on the table.",
+     "es": "Puse el libro sobre la mesa.",
+     "hint": "German: movement → accusative"
+    },
+    {
+     "en": "The book is on the table.",
+     "es": "El libro está sobre la mesa.",
+     "hint": "German: position → dative"
+    },
+    {
+     "en": "I'm going to the doctor with my mother.",
+     "es": "Voy al médico con mi madre."
+    },
+    {
+     "en": "This present is for my best friend.",
+     "es": "Este regalo es para mi mejor amigo."
+    },
+    {
+     "en": "Despite the bad weather, we went for a walk.",
+     "es": "A pesar del mal tiempo, fuimos a dar un paseo.",
+     "hint": "German: trotz + genitive"
+    },
+    {
+     "en": "Can you help me with my homework?",
+     "es": "¿Me puedes ayudar con los deberes?",
+     "hint": "German: helfen + dative"
+    },
+    {
+     "en": "We have been waiting for the bus for twenty minutes.",
+     "es": "Llevamos veinte minutos esperando el autobús."
+    },
+    {
+     "en": "The keys are in the drawer under the window.",
+     "es": "Las llaves están en el cajón debajo de la ventana."
+    }
+   ]
+  },
+  {
+   "id": "wordorder",
+   "title": "Word order",
+   "level": "B1",
+   "hsk": 3,
+   "focus": "separable",
+   "description": "Main and subordinate clauses, separable verbs and where the verb goes.",
+   "items": [
+    {
+     "en": "The film starts at eight.",
+     "es": "La película empieza a las ocho.",
+     "hint": "German: anfangen"
+    },
+    {
+     "en": "I don't know if he is coming tonight.",
+     "es": "No sé si viene esta noche.",
+     "hint": "German: verb at the end after ob"
+    },
+    {
+     "en": "Yesterday I called my mother.",
+     "es": "Ayer llamé a mi madre.",
+     "hint": "German: verb second, anrufen"
+    },
+    {
+     "en": "When I get home, I'll make dinner.",
+     "es": "Cuando llegue a casa, prepararé la cena."
+    },
+    {
+     "en": "She says that she has no time.",
+     "es": "Dice que no tiene tiempo."
+    },
+    {
+     "en": "Please turn off the light when you leave.",
+     "es": "Por favor, apaga la luz cuando salgas.",
+     "hint": "German: ausmachen"
+    },
+    {
+     "en": "I'm learning German because I want to work in Vienna.",
+     "es": "Estoy aprendiendo alemán porque quiero trabajar en Viena."
+    },
+    {
+     "en": "We got up early to see the sunrise.",
+     "es": "Nos levantamos temprano para ver el amanecer.",
+     "hint": "German: aufstehen, um … zu"
+    }
+   ]
+  },
+  {
+   "id": "compare",
+   "title": "Comparisons and relative clauses",
+   "level": "B1",
+   "hsk": 3,
+   "focus": "comparison",
+   "description": "Comparing things, superlatives, and joining sentences with who, which and whose.",
+   "items": [
+    {
+     "en": "My brother is taller than me, but I am older.",
+     "es": "Mi hermano es más alto que yo, pero yo soy mayor.",
+     "hint": "Mandarin: 比"
+    },
+    {
+     "en": "This is the best restaurant in the city.",
+     "es": "Este es el mejor restaurante de la ciudad."
+    },
+    {
+     "en": "Train travel is not as fast as flying.",
+     "es": "Viajar en tren no es tan rápido como volar.",
+     "hint": "Mandarin: 没有…那么"
+    },
+    {
+     "en": "The woman who lives next door is a doctor.",
+     "es": "La mujer que vive al lado es médica.",
+     "hint": "Mandarin: relative clause with 的"
+    },
+    {
+     "en": "The book that you lent me was fantastic.",
+     "es": "El libro que me prestaste era fantástico."
+    },
+    {
+     "en": "That's the man whose car was stolen.",
+     "es": "Ese es el hombre cuyo coche fue robado.",
+     "hint": "dont / il cui / dessen"
+    },
+    {
+     "en": "The more I read, the more I understand.",
+     "es": "Cuanto más leo, más entiendo."
+    },
+    {
+     "en": "The town where I grew up is very small.",
+     "es": "El pueblo donde crecí es muy pequeño."
+    }
+   ]
+  },
+  {
+   "id": "work",
+   "title": "At work",
+   "level": "B2",
+   "hsk": 4,
+   "focus": "mixed",
+   "description": "Formal emails and meetings: polite register, the passive, reported speech.",
+   "items": [
+    {
+     "en": "I am writing to ask for more information about the position.",
+     "es": "Le escribo para pedir más información sobre el puesto.",
+     "hint": "Formal register"
+    },
+    {
+     "en": "The meeting has been moved to Thursday.",
+     "es": "La reunión se ha trasladado al jueves.",
+     "hint": "Passive"
+    },
+    {
+     "en": "Could we discuss this next week?",
+     "es": "¿Podríamos hablar de esto la semana que viene?"
+    },
+    {
+     "en": "She told me that the report would be ready by Friday.",
+     "es": "Me dijo que el informe estaría listo para el viernes.",
+     "hint": "Reported speech"
+    },
+    {
+     "en": "Please find attached the documents you requested.",
+     "es": "Le adjunto los documentos que solicitó."
+    },
+    {
+     "en": "We need someone who has experience with clients.",
+     "es": "Necesitamos a alguien que tenga experiencia con clientes."
+    },
+    {
+     "en": "I apologize for the delay in my reply.",
+     "es": "Le pido disculpas por el retraso en mi respuesta."
+    },
+    {
+     "en": "The project must be finished before the end of the month.",
+     "es": "El proyecto tiene que estar terminado antes de fin de mes."
+    }
+   ]
+  },
+  {
+   "id": "aspect",
+   "title": "Mandarin focus: 了, 过 and measure words",
+   "level": "A2",
+   "hsk": 2,
+   "focus": "le",
+   "description": "Built around Mandarin aspect and measure words, but works for every language.",
+   "items": [
+    {
+     "en": "I bought three books yesterday.",
+     "es": "Ayer compré tres libros.",
+     "hint": "本"
+    },
+    {
+     "en": "He has been to Beijing twice.",
+     "es": "Ha estado en Pekín dos veces.",
+     "hint": "过 + 次"
+    },
+    {
+     "en": "I have already eaten.",
+     "es": "Ya he comido.",
+     "hint": "已经…了"
+    },
+    {
+     "en": "It's getting colder.",
+     "es": "Hace cada vez más frío.",
+     "hint": "change of state 了"
+    },
+    {
+     "en": "There is a cat sitting on the chair.",
+     "es": "Hay un gato sentado en la silla.",
+     "hint": "着"
+    },
+    {
+     "en": "Please give me a glass of water.",
+     "es": "Por favor, dame un vaso de agua.",
+     "hint": "杯"
+    },
+    {
+     "en": "I haven't seen that film.",
+     "es": "No he visto esa película.",
+     "hint": "没…过"
+    },
+    {
+     "en": "She studied Chinese for two years.",
+     "es": "Estudió chino durante dos años.",
+     "hint": "duration after the verb"
+    }
+   ]
+  },
+  {
+   "id": "travel",
+   "title": "On the road",
+   "level": "A2",
+   "hsk": 2,
+   "focus": "mixed",
+   "description": "Things you say while travelling: tickets, directions, hotels, problems.",
+   "items": [
+    {
+     "en": "Two return tickets to Lyon, please.",
+     "es": "Dos billetes de ida y vuelta a Lyon, por favor."
+    },
+    {
+     "en": "Excuse me, how do I get to the museum?",
+     "es": "Perdone, ¿cómo llego al museo?"
+    },
+    {
+     "en": "I have a reservation under the name García.",
+     "es": "Tengo una reserva a nombre de García."
+    },
+    {
+     "en": "The air conditioning in my room doesn't work.",
+     "es": "El aire acondicionado de mi habitación no funciona."
+    },
+    {
+     "en": "Is breakfast included in the price?",
+     "es": "¿El desayuno está incluido en el precio?"
+    },
+    {
+     "en": "Our flight was cancelled because of the storm.",
+     "es": "Cancelaron nuestro vuelo por la tormenta."
+    },
+    {
+     "en": "Can you recommend a restaurant near here?",
+     "es": "¿Puede recomendarme un restaurante cerca de aquí?"
+    },
+    {
+     "en": "I lost my passport. What should I do?",
+     "es": "He perdido el pasaporte. ¿Qué debo hacer?"
+    }
+   ]
+  }
+ ]
+}

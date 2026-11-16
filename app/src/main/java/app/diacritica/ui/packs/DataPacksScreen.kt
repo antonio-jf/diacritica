@@ -190,12 +190,15 @@ fun DataPacksScreen(vm: DataPacksViewModel, settings: AppSettings, onBack: () ->
             }
 
             PolySurface {
-                Text("Rehearse sentences", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
+                Text("Rehearse", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
                 Gap(4.dp)
                 DataRow("Everyday (Tatoeba)", if (st.tatoeba > 0) "${st.tatoeba} sentences" + if (st.tatoebaFromPack) " · pack" else "" else "missing")
                 listOf("news" to "News", "formal" to "Formal", "encyclopedic" to "Encyclopedic").forEach { (k, label) ->
                     DataRow(label, st.corpora[k]?.let { "$it sentences" + if (st.corporaFromPack) " · pack" else "" } ?: "not installed")
                 }
+                Gap(6.dp)
+                Text("Reader", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
+                DataRow("Classics in two languages", if (st.books > 0) "${st.books} books" + if (st.booksFromPack) " · pack" else "" else "not installed")
             }
 
             PolySurface {

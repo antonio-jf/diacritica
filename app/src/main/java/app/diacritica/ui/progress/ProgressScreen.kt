@@ -76,10 +76,13 @@ fun ProgressScreen(vm: ProgressViewModel, onBack: () -> Unit) {
             Gap(4.dp)
             // ------------------------------------------------ Rehearse accuracy
             PolySurface {
-                SectionLabel("Rehearse · ${nf.format(st.rounds)} " + if (st.rounds == 1) "round" else "rounds")
+                SectionLabel(
+                    "Rehearse · ${nf.format(st.rounds)} " + (if (st.rounds == 1) "round" else "rounds") +
+                        (if (st.tests > 0) " · ${nf.format(st.tests)} " + (if (st.tests == 1) "test" else "tests") else ""),
+                )
                 Gap(8.dp)
                 if (st.accuracy.isEmpty()) {
-                    Text("No rounds in this period yet.", style = captionStyle())
+                    Text("No rounds or tests in this period yet.", style = captionStyle())
                 } else {
                     st.accuracy.forEach { a ->
                         LangBar(
