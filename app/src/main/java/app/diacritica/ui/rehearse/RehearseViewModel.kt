@@ -514,6 +514,42 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     suspend fun round(id: Long): RehearseRound? = c.userDb.rehearseRounds().byId(id)
 
+    /** True when some answer only got the offline check (Gemini failed, was offline, or had no key then). */
+    fun needsAiCheck(feedback: List<LangFeedback>): Boolean = feedback.any { !it.byAi && it.verdict != Verdict.CORRECT }
+
+    /**
+     * Runs the Gemini check on an archived round's answers (the ones the offline check couldn't confirm) and
+     * saves the result. Returns the updated round; throws with a readable message if it can't run.
+     */
+    suspend fun recheckRound(id: Long): RehearseRound {
+        val r = c.userDb.rehearseRounds().byId(id) ?: throw IllegalStateException("This round no longer exists.")
+        val s = c.settings.settings.first()
+        if (s.geminiKey.isBlank()) throw IllegalStateException("Add a Gemini API key in Settings › Rehearse to check answers.")
+        if (!c.online.isOnline()) throw IllegalStateException("You're offline. Connect to the internet and try again.")
+        val feedback = decode(r)
+        val toAsk = feedback.filter { !it.byAi && it.verdict != Verdict.CORRECT }
+        if (toAsk.isEmpty()) return r
+        // References: the sentence's own translations if it can still be loaded, else the one saved with the round.
+        val group = runCatching { loadGroup(r.groupId)?.first }.getOrNull()
+        val refs = toAsk.associate { f ->
+            val t = group?.texts?.get(f.lang).orEmpty()
+            f.lang to (if (f.lang == Lang.ZH && t.isNotEmpty()) zhRefs(t, s.script) else t).ifEmpty { listOfNotNull(f.reference) }
+        }
+        val promptLang = Lang.fromCode(r.promptLang) ?: Lang.EN
+        val ai = c.gemini.grade(
+            s.geminiKey, s.geminiModel, promptLang, r.prompt,
+            toAsk.map { GeminiClient.AnswerInput(it.lang, it.answer, refs[it.lang].orEmpty()) },
+            s.strictAccents, s.strictTones,
+        )
+        val merged = feedback.map { f ->
+            ai[f.lang]?.copy(reference = f.reference ?: refs[f.lang]?.firstOrNull(), referenceGenerated = f.referenceGenerated) ?: f
+        }
+        val list = json.encodeToString(ListSerializer(LangFeedback.serializer()), merged)
+        val correct = countCorrect(merged)
+        c.userDb.rehearseRounds().updateFeedback(r.id, list, correct)
+        return r.copy(feedbackJson = list, correct = correct)
+    }
+
     fun deleteRound(id: Long) { viewModelScope.launch { c.deleteRehearseRound(id) } }
 
     /** "Add to Review" from the archive. */

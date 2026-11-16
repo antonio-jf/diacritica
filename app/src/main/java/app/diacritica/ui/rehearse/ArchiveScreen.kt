@@ -1,5 +1,7 @@
 package app.diacritica.ui.rehearse
 
+import app.diacritica.ui.components.PolyButton
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -78,7 +80,7 @@ fun ArchiveScreen(vm: RehearseViewModel, onBack: () -> Unit, onOpen: (Long) -> U
                 style = captionStyle(), modifier = Modifier.padding(20.dp),
             )
         }
-        items(rounds, key = { it.id }) { r -> RoundRow(r, vm.decode(r), fmt) { onOpen(r.id) } }
+        items(rounds, key = { it.id }) { r -> val f = vm.decode(r); RoundRow(r, f, vm.needsAiCheck(f), fmt) { onOpen(r.id) } }
         item { Gap(24.dp) }
     }
 }
@@ -101,7 +103,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, fmt: DateFormat, onClick: () -> Unit) {
+private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, unchecked: Boolean, fmt: DateFormat, onClick: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
         Column(
             Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp),
@@ -120,6 +122,7 @@ private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, fmt: DateFo
                     }
                 }
             }
+            if (unchecked) Text("Not checked by Gemini yet", style = captionStyle(Diacritica.colors.accent))
         }
         Hairline()
     }
@@ -130,6 +133,9 @@ private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, fmt: DateFo
 fun ArchiveDetailScreen(vm: RehearseViewModel, id: Long, onBack: () -> Unit) {
     var round by remember { mutableStateOf<RehearseRound?>(null) }
     var added by remember { mutableStateOf(setOf<Lang>()) }
+    var checking by remember { mutableStateOf(false) }
+    var checkError by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(id) { round = vm.round(id) }
     val fmt = remember { DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT) }
     val r = round
@@ -156,7 +162,31 @@ fun ArchiveDetailScreen(vm: RehearseViewModel, id: Long, onBack: () -> Unit) {
                 Text("Score ${r.correct} / ${r.total}", style = captionStyle())
             }
         }
-        items(vm.decode(r), key = { it.lang.code }) { f ->
+        val feedback = vm.decode(r)
+        if (vm.needsAiCheck(feedback) || checking) item {
+            // The Gemini check didn't run (busy, offline, a limit): run it now on the saved answers.
+            PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), padding = PaddingValues(14.dp)) {
+                Text(
+                    if (checking) "Checking with Gemini…" else "Only the quick offline check ran for this round.",
+                    style = bodyStyle(),
+                )
+                checkError?.let { Gap(4.dp); Text(it, style = captionStyle(Diacritica.colors.warning)) }
+                Gap(10.dp)
+                PolyButton(
+                    if (checkError == null) "Check with Gemini" else "Try again",
+                    {
+                        checking = true; checkError = null
+                        scope.launch {
+                            try { round = vm.recheckRound(r.id) }
+                            catch (e: Exception) { checkError = e.message ?: "The check failed." }
+                            finally { checking = false }
+                        }
+                    },
+                    enabled = !checking,
+                )
+            }
+        }
+        items(feedback, key = { it.lang.code }) { f ->
             PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), padding = PaddingValues(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     LangBadge(f.lang, boxed = true)
