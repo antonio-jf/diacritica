@@ -93,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.diacritica.data.Lang
+import app.diacritica.data.TextNorm
 import app.diacritica.data.ZhRanking
 import app.diacritica.data.ScriptPreference
 import app.diacritica.data.WordInfo
@@ -830,7 +831,8 @@ private fun ZhSentence(
     FlowRow(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         tokens.forEachIndexed { i, t -> key(text, i) {
             val shown = if (env.traditional) t.traditional ?: t.text else t.text
-            val isWord = t.pinyin != null
+            // A dictionary word, or any Chinese character the dictionary couldn't place (looked up on its own).
+            val isWord = t.pinyin != null || TextNorm.containsHan(t.text)
             var tc by remember { mutableStateOf<LayoutCoordinates?>(null) }
             Column(
                 Modifier
@@ -844,7 +846,7 @@ private fun ZhSentence(
                                 size = androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx()))
                         } else Modifier,
                     )
-                    .pointerInput(text, i) {
+                    .pointerInput(text, i, t.text, isWord) {
                         detectTapGestures(
                             onTap = { tap() },
                             onLongPress = {
@@ -910,7 +912,8 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
             p.fetching -> Text("Downloading…", style = captionStyle(), modifier = Modifier.padding(vertical = 4.dp))
             !found -> Text("Not in the offline dictionary.", style = captionStyle(), modifier = Modifier.padding(vertical = 4.dp))
             else -> {
-                val order = listOf(env.other(p.lang), Lang.EN).distinct().filter { it != p.lang }
+                // The other Reader language and English first, then your other languages.
+                val order = (listOf(env.other(p.lang), Lang.EN) + r!!.results.map { it.lang }).distinct().filter { it != p.lang }
                 order.forEach { l ->
                     val w = r!!.results.firstOrNull { it.lang == l }?.words?.firstOrNull() ?: return@forEach
                     val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
