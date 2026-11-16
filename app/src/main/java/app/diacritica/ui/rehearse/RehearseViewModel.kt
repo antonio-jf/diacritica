@@ -1,5 +1,6 @@
 package app.diacritica.ui.rehearse
 
+import app.diacritica.data.ScriptPreference
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -262,6 +263,12 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     private fun storyGroupId(storyId: Long, idx: Int) = -(storyId * STORY_STRIDE + idx + 1)
 
+    private suspend fun zhRefs(zh: List<String>, script: ScriptPreference): List<String> {
+        val simp = zh.map { runCatching { c.dictionary.toSimplified(it) }.getOrDefault(it) }
+        val preferred = zh.map { c.dictionary.toScript(it, script) }
+        return (preferred + simp + zh).distinct()
+    }
+
     /** Chooses the prompt language and targets, fills in references and shows the round. */
     private suspend fun show(p: Pick, s: AppSettings) {
         val group = p.group
@@ -275,15 +282,15 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val ordered = if (p.targets == null && practiceLangs.size == 1) available.sortedBy { it !in setOf(Lang.EN, Lang.ES) } else available
         val promptLang = (if (p.targets == null && practiceLangs.size == 1) ordered.firstOrNull() else ordered.getOrNull(rotation++ % ordered.size.coerceAtLeast(1)))
             ?: group.texts.keys.firstOrNull() ?: Lang.EN
-        val prompt = group.texts[promptLang]?.firstOrNull() ?: group.texts.values.first().first()
+        val rawPrompt = group.texts[promptLang]?.firstOrNull() ?: group.texts.values.first().first()
+        // Tatoeba mixes simplified and traditional Mandarin: show the prompt in the script chosen in Settings.
+        val prompt = if (promptLang == Lang.ZH) c.dictionary.toScript(rawPrompt, s.script) else rawPrompt
         val targets = (p.targets ?: practiceLangs).filter { it != promptLang }
         val refs = HashMap<Lang, List<String>>()
         targets.forEach { l -> group.texts[l]?.let { refs[l] = it } }
-        // Tatoeba mixes traditional and simplified Mandarin: add simplified versions so either script matches.
-        refs[Lang.ZH]?.let { zh ->
-            val simp = zh.map { runCatching { c.dictionary.toSimplified(it) }.getOrDefault(it) }
-            refs[Lang.ZH] = (simp + zh).distinct()
-        }
+        // Tatoeba mixes traditional and simplified Mandarin: references in your script come first (that's the one
+        // shown), and both scripts are kept so either matches.
+        refs[Lang.ZH]?.let { zh -> refs[Lang.ZH] = zhRefs(zh, s.script) }
         val generated = HashSet<Lang>()
         if (p.aiWritten) generated += targets
         if (group.id > 0) c.userDb.generatedRefs().forGroup(group.id).forEach { g ->
@@ -363,7 +370,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val generated = st.generated.filter { it in targets }.toMutableSet()
         targets.filter { it !in refs }.forEach { l ->
             group.texts[l]?.let { t ->
-                refs[l] = if (l == Lang.ZH) (t.map { runCatching { c.dictionary.toSimplified(it) }.getOrDefault(it) } + t).distinct() else t
+                refs[l] = if (l == Lang.ZH) zhRefs(t, c.settings.settings.first().script) else t
             }
         }
         if (group.id > 0) c.userDb.generatedRefs().forGroup(group.id).forEach { g ->

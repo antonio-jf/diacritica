@@ -78,11 +78,14 @@ import app.diacritica.ui.components.PolyIcons
 import app.diacritica.ui.components.PolySurface
 import app.diacritica.ui.components.ScreenHeader
 import app.diacritica.ui.components.SectionLabel
+import app.diacritica.ui.components.MenuSection
+import app.diacritica.ui.components.ToggleMenuItem
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
 import app.diacritica.ui.theme.Diacritica
 import app.diacritica.ui.theme.SurfaceStyle
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings: () -> Unit, onOpenArchive: () -> Unit) {
     LaunchedEffect(Unit) { vm.ensureStarted() }
@@ -121,22 +124,14 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
             )
             PolyIconButton(PolyIcons.Archive, "Rehearse archive", onOpenArchive, tint = Diacritica.colors.inkMuted)
         }
-        Row(
+        // One tidy row: practice path, grammar focus (Grammar path only) and the languages you answer in.
+        FlowRow(
             Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PathPicker(settings.rehearsePath, onPick = vm::setPath)
             if (settings.rehearsePath == RehearsePath.GRAMMAR) FocusPicker(settings, onPick = vm::setGrammarFocus)
-        }
-        // Languages to practise in Rehearse (separate from the Dictionary's languages).
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Diacritica.spacing.screen, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SectionLabel("Practise")
-            settings.activeLanguages.forEach { l ->
-                PolyChip(l.short, l in settings.rehearseLanguages, { vm.toggleRehearseLang(l) })
-            }
+            LanguagePicker(settings, onToggle = vm::toggleRehearseLang)
         }
         handsFree?.let { status ->
             Row(
@@ -203,7 +198,7 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
     val c = Diacritica.colors
     var open by remember { mutableStateOf(false) }
     Box {
-        DropChip("Path: ${current.label}") { open = true }
+        DropChip(current.label) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
             RehearsePath.entries.forEach { p ->
                 DropdownMenuItem(
@@ -215,6 +210,23 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
                     },
                     onClick = { open = false; if (p != current) onPick(p) },
                 )
+            }
+        }
+    }
+}
+
+/** "FR · DE · ZH ▾": the languages to practise in Rehearse (separate from the Dictionary's), toggled in a menu. */
+@Composable
+private fun LanguagePicker(settings: AppSettings, onToggle: (Lang) -> Unit) {
+    val c = Diacritica.colors
+    var open by remember { mutableStateOf(false) }
+    val chosen = settings.activeLanguages.filter { it in settings.rehearseLanguages }
+    Box {
+        DropChip(if (chosen.isEmpty()) "Languages" else chosen.joinToString(" · ") { it.short }) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            MenuSection("Practise in")
+            settings.activeLanguages.forEach { l ->
+                ToggleMenuItem(l.englishName, l in settings.rehearseLanguages, { onToggle(l) })
             }
         }
     }

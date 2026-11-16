@@ -472,6 +472,32 @@ class DictionaryRepository(
         }
     }
 
+    /**
+     * Character-by-character simplified → traditional conversion. Characters that are already traditional are kept;
+     * where one simplified character has several traditional forms (发 → 發/髮) the most common entry wins.
+     */
+    suspend fun toTraditional(text: String): String = withContext(Dispatchers.IO) {
+        val db = database.get()
+        buildString {
+            for (ch in text) {
+                val s = ch.toString()
+                if (!TextNorm.containsHan(s)) { append(ch); continue }
+                val isTrad = db.rawQuery("SELECT 1 FROM zh WHERE trad = ? AND simp = trad LIMIT 1", arrayOf(s)).use { it.moveToFirst() }
+                val trad = if (isTrad) null else db.rawQuery("SELECT trad FROM zh WHERE simp = ? AND length(trad) = 1 LIMIT 1", arrayOf(s))
+                    .use { if (it.moveToFirst()) it.getString(0) else null }
+                append(trad ?: s)
+            }
+        }
+    }
+
+    /** Mandarin text in the script chosen in Settings (Tatoeba and Gemini mix both). */
+    suspend fun toScript(text: String, script: ScriptPreference): String = runCatching {
+        when (script) {
+            ScriptPreference.SIMPLIFIED_FIRST, ScriptPreference.SIMPLIFIED_ONLY -> toSimplified(text)
+            ScriptPreference.TRADITIONAL_FIRST, ScriptPreference.TRADITIONAL_ONLY -> toTraditional(text)
+        }
+    }.getOrDefault(text)
+
     // ------------------------------------------------------------------ detail view
 
     suspend fun detail(lang: Lang, word: String): DetailResult = withContext(Dispatchers.IO) {
