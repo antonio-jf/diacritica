@@ -43,8 +43,8 @@ object TestGenerator {
         else appendLine("Mix grammar points that learners at this level often get wrong (tenses, pronouns, agreement, prepositions, word order…).")
         if (r.topic.isNotBlank()) appendLine("Theme: ${r.topic.trim()}.")
         appendLine("Natural, everyday sentences with varied situations; no two alike.")
-        appendLine("For each: \\"en\\" (English), \\"es\\" (the same sentence in natural Spanish), and \\"hint\\" (optional, a few words naming the trap, e.g. \\"German: dative after mit\\"; empty if none).")
-        append("Also a short \\"title\\" (2–5 words) and a one-sentence \\"description\\".")
+        appendLine("For each: \"en\" (English), \"es\" (the same sentence in natural Spanish), and \"hint\" (optional, a few words naming the trap, e.g. \"German: dative after mit\"; empty if none).")
+        append("Also a short \"title\" (2–5 words) and a one-sentence \"description\".")
     }
 
     private fun schema() = buildJsonObject {
