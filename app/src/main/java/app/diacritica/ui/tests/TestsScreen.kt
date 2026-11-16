@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -300,7 +301,7 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, o
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(12.dp))
     Row(verticalAlignment = Alignment.Top) {
-        Box(Modifier.width(40.dp).padding(top = 12.dp)) { LangBadge(lang) }
+        Box(Modifier.widthIn(min = 40.dp).padding(top = 12.dp, end = 10.dp)) { LangBadge(lang) }
         Box(
             Modifier.weight(1f).clip(shape).background(c.surface).border(1.dp, c.line, shape)
                 .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
@@ -401,7 +402,7 @@ private fun ResultView(vm: TestsViewModel, a: TestAttempt, t: TestSet, reviewing
 private fun LangScore(lang: Lang, score: Int) {
     val c = Diacritica.colors
     Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(40.dp)) { LangBadge(lang) }
+        Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(lang) }
         Box(Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(c.surfaceAlt)) {
             Box(Modifier.fillMaxWidth(score / 100f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(scoreColor(score)))
         }
@@ -453,7 +454,7 @@ private fun AnswerReviewView(r: AnswerReview) {
     val c = Diacritica.colors
     Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(40.dp)) { LangBadge(r.lang) }
+            Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(r.lang) }
             Text(
                 when (r.verdict) { Verdict.CORRECT -> "Correct"; Verdict.ACCEPTABLE -> "Acceptable"; Verdict.INCORRECT -> "Incorrect"; Verdict.UNGRADED -> "Not marked" } + " · ${r.score}",
                 style = captionStyle(scoreColor(r.score)),
@@ -496,7 +497,7 @@ private fun AnswersOnly(a: TestAttempt, t: TestSet) {
             Text("${i + 1}. ${item.prompt(a.source)}", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
             a.langs.forEach { l ->
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.width(40.dp)) { LangBadge(l) }
+                    Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(l) }
                     Text(a.answer(i, l).ifBlank { "—" }, style = bodyStyle(size = 15.sp))
                 }
             }

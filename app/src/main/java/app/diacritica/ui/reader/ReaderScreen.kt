@@ -915,7 +915,7 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
                     val w = r!!.results.firstOrNull { it.lang == l }?.words?.firstOrNull() ?: return@forEach
                     val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
                     Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(34.dp)) { LangBadge(l) }
+                        Box(Modifier.widthIn(min = 34.dp).padding(end = 10.dp)) { LangBadge(l) }
                         Text(base + (w.pinyin?.let { "  $it" } ?: ""), style = bodyStyle(size = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -995,7 +995,7 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
                 val rows = r.results.filter { it.lang != p.lang }.sortedBy { lr -> order.indexOf(lr.lang).let { if (it < 0) 99 else it } }
                 rows.forEach { lr ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
-                        Box(Modifier.widthIn(min = 40.dp)) { LangBadge(lr.lang) }
+                        Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(lr.lang) }
                         val words = lr.words.take(3).joinToString(", ") { w ->
                             val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
                             val shown = if (w.lang == Lang.ZH && env.traditional) w.traditional ?: base else base
