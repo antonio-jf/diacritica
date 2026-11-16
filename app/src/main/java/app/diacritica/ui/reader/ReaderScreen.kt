@@ -2,7 +2,6 @@ package app.diacritica.ui.reader
 
 import app.diacritica.ui.components.MenuSection
 import app.diacritica.ui.components.ToggleMenuItem
-import app.diacritica.ui.components.ChoiceMenuItem
 import androidx.compose.ui.unit.Dp
 import app.diacritica.reader.TextImport
 import app.diacritica.ui.components.shareTextFor
@@ -507,32 +506,10 @@ private fun StoryView(
             ReadAloudButton(playing = reading?.storyId == story.story.id, a = a, b = b, onPlay = vm::readAloud, onStop = vm::stopReading)
             Box {
                 PolyIconButton(PolyIcons.Settings, "Reader settings", onClick = { layoutMenu = true }, tint = c.ink)
-                DropdownMenu(expanded = layoutMenu, onDismissRequest = { layoutMenu = false }, containerColor = c.ground) {
-                    MenuSection("Layout")
-                    ReaderLayout.entries.forEach { l ->
-                        ChoiceMenuItem(l.label, l == settings.readerLayout, { layoutMenu = false; vm.setLayout(l) })
-                    }
-                    MenuSection("Reading")
-                    ToggleMenuItem("Tap a word to look it up", settings.readerTapLookup, { vm.setTapLookup(!settings.readerTapLookup) },
-                        note = "Long-press then highlights the sentence")
-                    ToggleMenuItem("Show my words", settings.readerShowMyWords, { vm.setShowMyWords(!settings.readerShowMyWords) },
-                        note = "Yellow: learning · green: known")
-                    if (Lang.ZH == a || Lang.ZH == b) {
-                        MenuSection("Pinyin")
-                        ChoiceMenuItem("On every word", settings.readerPinyinMode == PinyinMode.ALL, { vm.setPinyinMode(PinyinMode.ALL, null) })
-                        listOf(500, 1000, 2000, 3000).forEach { n ->
-                            ChoiceMenuItem(
-                                "Uncommon characters only", settings.readerPinyinMode == PinyinMode.RARE && settings.readerPinyinTop == n,
-                                { vm.setPinyinMode(PinyinMode.RARE, n) }, note = "outside the ${"%,d".format(n)} most common",
-                            )
-                        }
-                        ChoiceMenuItem("Off", settings.readerPinyinMode == PinyinMode.OFF, { vm.setPinyinMode(PinyinMode.OFF, null) })
-                    }
-                    MenuSection("Word popup")
-                    PopupLayout.entries.forEach { l ->
-                        ChoiceMenuItem(l.label, l == settings.readerPopup, { layoutMenu = false; vm.setPopupLayout(l) })
-                    }
-                }
+                ReaderSettingsMenu(
+                    expanded = layoutMenu, onDismiss = { layoutMenu = false },
+                    settings = settings, vm = vm, showPinyin = Lang.ZH == a || Lang.ZH == b,
+                )
             }
         }
         Row(
@@ -1217,4 +1194,71 @@ private fun FromYourText(vm: ReaderViewModel, st: ReaderUiState, settings: AppSe
             style = captionStyle(), modifier = Modifier.padding(top = 4.dp),
         )
     }
+}
+
+
+/** Short chip labels so each group of choices fits on one row of the menu. */
+private val ReaderLayout.short get() = when (this) {
+    ReaderLayout.TOP_BOTTOM -> "Stacked"; ReaderLayout.SIDE_BY_SIDE -> "Side by side"
+    ReaderLayout.INTERLINEAR -> "Interlinear"; ReaderLayout.NUMBERED -> "Numbered"
+}
+private val PopupLayout.short get() = when (this) {
+    PopupLayout.SHEET -> "Sheet"; PopupLayout.FLOATING -> "Card"; PopupLayout.TOOLTIP -> "Tooltip"
+}
+
+/**
+ * Reader settings as a compact dropdown: each group of choices is one row of chips rather than a
+ * list of entries, and the menu is capped in height (scrolling if needed) so it never runs under
+ * the system navigation bar.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReaderSettingsMenu(
+    expanded: Boolean, onDismiss: () -> Unit,
+    settings: AppSettings, vm: ReaderViewModel, showPinyin: Boolean,
+) {
+    val c = Diacritica.colors
+    val maxH = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.72f).dp
+    DropdownMenu(
+        expanded = expanded, onDismissRequest = onDismiss, containerColor = c.ground,
+        modifier = Modifier.heightIn(max = maxH).widthIn(max = 320.dp),
+    ) {
+        MenuSection("Layout")
+        MenuChips {
+            ReaderLayout.entries.forEach { l -> PolyChip(l.short, l == settings.readerLayout, { vm.setLayout(l) }) }
+        }
+        MenuSection("Word popup")
+        MenuChips {
+            PopupLayout.entries.forEach { l -> PolyChip(l.short, l == settings.readerPopup, { vm.setPopupLayout(l) }) }
+        }
+        if (showPinyin) {
+            MenuSection("Pinyin")
+            MenuChips {
+                PolyChip("All", settings.readerPinyinMode == PinyinMode.ALL, { vm.setPinyinMode(PinyinMode.ALL, null) })
+                PolyChip("Uncommon", settings.readerPinyinMode == PinyinMode.RARE, { vm.setPinyinMode(PinyinMode.RARE, null) })
+                PolyChip("Off", settings.readerPinyinMode == PinyinMode.OFF, { vm.setPinyinMode(PinyinMode.OFF, null) })
+            }
+            if (settings.readerPinyinMode == PinyinMode.RARE) {
+                Text("Outside the most common…", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 2.dp))
+                MenuChips {
+                    listOf(500, 1000, 2000, 3000).forEach { n ->
+                        PolyChip(if (n < 1000) "$n" else "${n / 1000}k", settings.readerPinyinTop == n, { vm.setPinyinMode(PinyinMode.RARE, n) })
+                    }
+                }
+            }
+        }
+        MenuSection("Reading")
+        ToggleMenuItem("Tap a word to look it up", settings.readerTapLookup, { vm.setTapLookup(!settings.readerTapLookup) })
+        ToggleMenuItem("Show my words", settings.readerShowMyWords, { vm.setShowMyWords(!settings.readerShowMyWords) },
+            note = "Yellow: learning · green: known")
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MenuChips(content: @Composable () -> Unit) {
+    FlowRow(
+        Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) { content() }
 }
