@@ -38,6 +38,7 @@ def en_entry(word, pos, ipa, plural, senses, translations):
 
 
 S_LOCK = "device used to open a lock"
+S_GERMANY = "country in Central Europe"
 S_CRUCIAL = "crucial; of the greatest importance"
 S_MUSIC = "musical tonality"
 S_KEYBOARD = "button on a keyboard"
@@ -67,6 +68,9 @@ ENGLISH = [
              [("Indispensable, supremely important.", "She played a key role.")],
              [fr("clé", S_CRUCIAL), it("chiave", S_CRUCIAL), es("clave", S_CRUCIAL),
               de("entscheidend", S_CRUCIAL), zh("关键", S_CRUCIAL, "guānjiàn")]),
+    en_entry("Germany", "name", "/ˈdʒɜːmə.ni/", None, [("A country in Central Europe.", None)],
+             [fr("Allemagne", S_GERMANY, "feminine"), de("Deutschland", S_GERMANY, "neuter"), it("Germania", S_GERMANY, "feminine"),
+              es("Alemania", S_GERMANY, "feminine"), zh("德國 /德国", S_GERMANY, "Déguó")]),
     en_entry("house", "noun", "/haʊs/", "houses", [("A structure serving as an abode of human beings.", None)],
              [fr("maison", S_HOUSE, "feminine"), de("Haus", S_HOUSE, "neuter"), it("casa", S_HOUSE, "feminine"),
               es("casa", S_HOUSE, "feminine"), zh("房子", S_HOUSE, "fángzi")]),

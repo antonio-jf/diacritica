@@ -41,7 +41,8 @@ from typing import Iterable, Iterator
 SCHEMA_VERSION = 1
 TARGET_LANGS = ("en", "fr", "de", "it", "es", "zh")
 WIKT_CODES = {"fr": "fr", "de": "de", "it": "it", "es": "es", "cmn": "zh"}
-SKIP_POS = {"name", "character", "symbol", "suffix", "prefix", "infix", "affix",
+# Proper nouns ("name": Germany, Paris, Shakespeare) are kept: countries and cities have translation tables.
+SKIP_POS = {"character", "symbol", "suffix", "prefix", "infix", "affix",
             "interfix", "circumfix", "punct", "romanization", "abbrev", "soft-redirect"}
 JUNK_FORM_TAGS = {"table-tags", "inflection-template", "class", "romanization"}
 MAX_SENSES = 8

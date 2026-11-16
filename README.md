@@ -152,6 +152,16 @@ Eleven bundled tests of 8 sentences each, from A2 (HSK 2) to B2: everyday basics
 - Reviewed tests count in Progress (accuracy per language and mistakes by type) and are included in backups.
 - The tests live in `app/src/main/assets/tests/tests.json`; add your own sets there.
 
+## When a language has no word for a meaning
+
+Wiktionary's translation tables have gaps (*trickster* has none at all). The dictionary then looks for words in that language whose own English definition is the word: French *filou* "trickster", German *Tagtraum* "daydream". Exact definitions rank first, then lists, then phrases; matching part of speech is preferred. These show as "Matched by definition (Wiktionary)". If nothing matches, **Suggest a translation** asks the Translate engine: Gemini (knows the meaning, adds articles) when selected and a key is set, otherwise ML Kit on the phone. Suggestions are labelled as machine translations.
+
+## Mandarin lookups
+
+- **Everyday reading first** for characters with several readings (看 kàn before kān, 行 xíng before háng, 还 hái before huán): a hand-checked list (`assets/zh/main_readings.tsv`), then ordinary readings before surnames and place names, then the reading Wiktionary's translations use most.
+- **HSK levels** (HSK 3.0; 7 = levels 7–9) from `assets/zh/hsk.tsv` ([complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary), MIT), so no dictionary rebuild is needed.
+- **Meanings in CC-CEDICT's order:** 放 shows *put, place, release, free…* rather than *lay* first. Up to three CC-CEDICT meanings that Wiktionary doesn't link are added (放: *release*, *free*).
+
 ## Chinese handwriting
 
 A writing square (with 田字格 guide lines) for Mandarin characters, in the Dictionary search bar, in Translate and in Mandarin test answers. Candidates appear as you write; tap one to insert it. Recognition runs on the phone with ML Kit Digital Ink; the model (about 20 MB) downloads once, the first time you write.

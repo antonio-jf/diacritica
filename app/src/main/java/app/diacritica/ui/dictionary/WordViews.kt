@@ -1,5 +1,8 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.bodyStyle
+import app.diacritica.ui.WordSuggestion
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.diacritica.data.ZhRanking
 import app.diacritica.data.Articles
 import app.diacritica.data.Lang
 import app.diacritica.data.WordInfo
@@ -35,6 +39,9 @@ data class WordActions(
     val onToggleSave: (WordInfo) -> Unit,
     val onOpen: (WordInfo) -> Unit,
     val isSaved: (WordInfo) -> Boolean,
+    /** Machine translation for a language with no dictionary word (null hides the option). */
+    val onSuggest: ((Lang) -> Unit)? = null,
+    val suggestion: (Lang) -> WordSuggestion? = { null },
 )
 
 /** "la clé", with the article muted; Mandarin shows simplified + traditional. */
@@ -97,7 +104,7 @@ fun HskBadge(level: Int) {
         Modifier.clip(RoundedCornerShape(Diacritica.shapes.chip.coerceAtMost(6.dp))).background(c.accentSoft)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
-        Text("HSK $level", style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 11.sp, color = c.onAccentSoft, fontWeight = FontWeight.SemiBold))
+        Text(ZhRanking.hskLabel(level), style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 11.sp, color = c.onAccentSoft, fontWeight = FontWeight.SemiBold))
     }
 }
 
@@ -124,8 +131,30 @@ fun WordActionButtons(w: WordInfo, actions: WordActions) {
 }
 
 @Composable
-fun NoTranslation(lang: Lang) {
-    Text("No ${lang.englishName} translation for this meaning in the dictionary yet.", style = captionStyle())
+fun NoTranslation(lang: Lang, actions: WordActions? = null) {
+    val c = Diacritica.colors
+    val s = actions?.suggestion?.invoke(lang)
+    val onSuggest = actions?.onSuggest
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        when {
+            s?.text != null -> {
+                Text(s.text, style = bodyStyle())
+                Text("Machine translation (${s.by}), not from the dictionary", style = captionStyle())
+            }
+            else -> {
+                Text("No ${lang.englishName} word for this meaning in the dictionary.", style = captionStyle())
+                when {
+                    s?.loading == true -> Text("Translating…", style = captionStyle(c.accent))
+                    onSuggest != null -> Text(
+                        "Suggest a translation",
+                        style = captionStyle(c.accent),
+                        modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onSuggest(lang) }.padding(vertical = 4.dp),
+                    )
+                }
+                s?.error?.let { Text(it, style = captionStyle(c.error)) }
+            }
+        }
+    }
 }
 
 /** Body of one word: title, grammar, pinyin, gloss and example. Used by every layout. */

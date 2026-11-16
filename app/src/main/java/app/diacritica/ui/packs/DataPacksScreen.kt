@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -207,7 +208,7 @@ fun DataPacksScreen(vm: DataPacksViewModel, settings: AppSettings, onBack: () ->
                 Gap(6.dp)
                 settings.activeLanguages.forEach { l ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(40.dp)) { LangBadge(l) }
+                        Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(l) }
                         Text(l.nativeName, style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
                         val have = l in st.models
                         when {
