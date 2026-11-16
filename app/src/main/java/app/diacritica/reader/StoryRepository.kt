@@ -50,6 +50,10 @@ class StoryRepository(private val db: UserDatabase, private val gemini: GeminiCl
         return id
     }
 
+    /** A story from your own pasted text, already split and translated. */
+    suspend fun importText(title: String, langs: List<Lang>, sentences: List<Map<Lang, String>>): Long =
+        store(langs.associateWith { title }, sentences, "Your text", null, "text:${System.currentTimeMillis()}")
+
     /** Puts a Classic on your shelf (once) so it reads, saves progress and feeds Rehearse like any story. */
     suspend fun importBook(book: BookInfo, sentences: List<Map<Lang, String>>): Long {
         val source = "book:${book.id}"

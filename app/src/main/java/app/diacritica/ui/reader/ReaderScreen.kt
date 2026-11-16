@@ -1,5 +1,7 @@
 package app.diacritica.ui.reader
 
+import androidx.compose.ui.unit.Dp
+import app.diacritica.reader.TextImport
 import app.diacritica.ui.components.shareTextFor
 import app.diacritica.ui.components.CopyShareButtons
 import androidx.compose.ui.platform.LocalContext
@@ -295,6 +297,7 @@ private fun Gallery(vm: ReaderViewModel, st: ReaderUiState, settings: AppSetting
 
             // ------------------------------------------------ New story
             else -> {
+                item { FromYourText(vm, st, settings, pad) }
                 item {
                     Column(Modifier.padding(horizontal = pad)) {
                         Text("Written by Gemini in all six languages, aligned sentence by sentence. Needs your key and the internet; saved stories work offline.",
@@ -1194,3 +1197,79 @@ private fun ReadAloudButton(playing: Boolean, a: Lang, b: Lang, onPlay: (List<La
 
 /** Words for "Show my words": letters, with inner apostrophes and hyphens. */
 private val myWordPattern = Regex("[\\p{L}\\p{M}][\\p{L}\\p{M}'’-]*")
+
+/** "From your own text": paste an article or chapter and get it as a two-language story. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FromYourText(vm: ReaderViewModel, st: ReaderUiState, settings: AppSettings, pad: Dp) {
+    val c = Diacritica.colors
+    var open by rememberSaveable { mutableStateOf(false) }
+    var title by rememberSaveable { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf("") }
+    var from by rememberSaveable { mutableStateOf<String?>(null) }
+    var into by rememberSaveable { mutableStateOf(listOf(settings.readerLangB.code)) }
+    val langs = settings.activeLanguages
+    Column(Modifier.padding(horizontal = pad).padding(bottom = 12.dp)) {
+        PolySurface(onClick = { open = !open }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("From your own text", style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
+                    Text("Paste an article, a chapter or a message; it becomes a two-language story you can read, listen to and look words up in.", style = captionStyle(), maxLines = 3)
+                }
+                Icon(PolyIcons.ChevronDown, null, tint = c.inkMuted, modifier = Modifier.size(18.dp))
+            }
+        }
+        if (!open) return@Column
+        Gap(10.dp)
+        val shape = RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(12.dp))
+        androidx.compose.foundation.text.BasicTextField(
+            value = title, onValueChange = { title = it.take(80) }, singleLine = true,
+            textStyle = bodyStyle(), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(12.dp)) {
+                    if (title.isEmpty()) Text("Title (optional)", style = bodyStyle(c.inkMuted))
+                    inner()
+                }
+            },
+        )
+        Gap(8.dp)
+        androidx.compose.foundation.text.BasicTextField(
+            value = text, onValueChange = { text = it.take(TextImport.MAX_CHARS) },
+            textStyle = bodyStyle(size = 15.sp), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth().heightIn(min = 140.dp).clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(12.dp)) {
+                    if (text.isEmpty()) Text("Paste the text here…", style = bodyStyle(c.inkMuted, 15.sp))
+                    inner()
+                }
+            },
+        )
+        Text("${text.length} / ${TextImport.MAX_CHARS}", style = captionStyle(), modifier = Modifier.padding(top = 4.dp))
+        Gap(6.dp)
+        Text("Written in", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            PolyChip("Detect", from == null, { from = null })
+            langs.forEach { l -> PolyChip(l.nativeName, from == l.code, { from = l.code; into = into - l.code }) }
+        }
+        Gap(6.dp)
+        Text("Translate into", style = captionStyle())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            langs.filter { it.code != from }.forEach { l ->
+                val on = l.code in into
+                PolyChip(l.nativeName, on, { into = if (on) into - l.code else into + l.code })
+            }
+        }
+        Gap(10.dp)
+        val busy = st.importing
+        PolyButton(
+            if (busy != null) "Translating ${busy.first} of ${busy.second}…" else "Make a story",
+            {
+                vm.importText(title, text, from?.let { Lang.fromCode(it) }, into.mapNotNull { Lang.fromCode(it) })
+            },
+            enabled = busy == null && text.isNotBlank() && into.isNotEmpty(),
+        )
+        Text(
+            if (settings.translateEngine == app.diacritica.settings.TranslateEngine.GEMINI) "Translated by Gemini in one request (falls back to on-device)." else "Translated on the phone; each language downloads once (about 30 MB).",
+            style = captionStyle(), modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}

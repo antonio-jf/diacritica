@@ -1,5 +1,7 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.settings.TranslateEngine
+import app.diacritica.reader.TextImport
 import app.diacritica.data.TextNorm
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +60,8 @@ data class ReaderUiState(
     val highlighted: Int? = null,
     val popup: WordPopup? = null,
     val generating: Boolean = false,
+    /** Making a story from pasted text: (sentences translated, total), or null. */
+    val importing: Pair<Int, Int>? = null,
     val error: String? = null,
     val message: String? = null,
 )
@@ -325,6 +329,50 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun clearMessage() = _state.update { it.copy(message = null, error = null) }
 
     /** Writes a new story with Gemini and opens it. */
+    /**
+     * Makes a story from your own text: detects its language (unless [from] is given), splits it into
+     * sentences, translates them into [targets] (Gemini in one request when that's the Translate engine,
+     * otherwise on the phone; on-device fills any gaps), saves it on the shelf and opens it.
+     */
+    fun importText(title: String, text: String, from: Lang?, targets: List<Lang>) {
+        if (text.isBlank() || _state.value.importing != null) return
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val src = from ?: c.translator.detect(text) ?: s.readerLangA
+            val into = targets.filter { it != src }.ifEmpty { listOf(if (src == Lang.EN) Lang.ES else Lang.EN) }
+            val sentences = TextImport.sentences(text.take(TextImport.MAX_CHARS), src)
+            if (sentences.isEmpty()) { _state.update { it.copy(error = "No sentences found in that text.") }; return@launch }
+            val total = sentences.size * into.size
+            _state.update { it.copy(importing = 0 to total, error = null) }
+            try {
+                var rows: List<Map<Lang, String>> = sentences.map { mapOf(src to it) }
+                if (s.translateEngine == TranslateEngine.GEMINI && s.geminiKey.isNotBlank() && c.online.isOnline()) {
+                    rows = runCatching { TextImport.translateWithGemini(c.gemini, s.geminiKey, s.geminiModel, src, sentences, into) }.getOrDefault(rows)
+                }
+                var done = rows.sumOf { r -> into.count { it in r } }
+                _state.update { it.copy(importing = done to total) }
+                val filled = rows.mapIndexed { i, r ->
+                    val m = r.toMutableMap()
+                    for (l in into) if (l !in m) {
+                        m[l] = c.translator.translate(sentences[i], src, l)
+                        done++
+                        _state.update { it.copy(importing = done to total) }
+                    }
+                    m.toMap()
+                }
+                val id = c.stories.importText(title.trim().ifEmpty { TextImport.titleFrom(sentences) }, listOf(src) + into, filled)
+                c.settings.setReaderLangs(src, into.first())
+                _state.update { it.copy(importing = null) }
+                open(id)
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(importing = null, error = if (!c.online.isOnline()) "The translation model for one of these languages isn't on the phone yet and you're offline. Connect once to download it (about 30 MB)."
+                        else "Couldn't translate the text: ${e.message ?: "unknown error"}")
+                }
+            }
+        }
+    }
+
     fun generate(topic: String, level: String? = null) {
         viewModelScope.launch {
             val s = c.settings.settings.first()
