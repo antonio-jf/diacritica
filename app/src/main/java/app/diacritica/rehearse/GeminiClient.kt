@@ -178,6 +178,24 @@ class GeminiClient {
         }?.toMap() ?: emptyMap()
     }
 
+    /**
+     * Dictionary-style translations of one English word in one meaning, for languages the dictionary
+     * has nothing for: nouns with their article, verbs in the infinitive, Mandarin in simplified characters.
+     */
+    suspend fun suggestWord(apiKey: String, model: String, en: String, pos: String?, meaning: String, targets: List<Lang>): Map<Lang, String> {
+        val user = buildString {
+            appendLine("English word: \"$en\"" + (pos?.let { " ($it)" } ?: "") + (if (meaning.isNotBlank()) ", meaning: $meaning" else "") + ".")
+            appendLine("Give the usual dictionary equivalent in each language: one word or a short fixed expression, as a bilingual dictionary would list it.")
+            appendLine("Nouns with their definite article (der/die/das, le/la/l', il/lo/la/l', el/la); verbs in the infinitive; Mandarin in simplified characters.")
+            append("Target lang codes: " + targets.joinToString(", ") { "${it.code} (${it.englishName})" })
+        }
+        val out = call(apiKey, model, user, schemaTranslate(), system = "You are a lexicographer writing a bilingual dictionary. Return only the words.")
+        return (out["translations"] as? JsonArray)?.map { it.jsonObject }?.mapNotNull { o ->
+            val l = Lang.fromCode(o.str("lang")?.lowercase()?.take(2) ?: "") ?: return@mapNotNull null
+            o.str("text")?.trim()?.takeIf { it.isNotEmpty() }?.let { l to it }
+        }?.toMap() ?: emptyMap()
+    }
+
     /** A generated parallel story: titles and sentences, aligned 1:1 across languages. */
     data class StoryDraft(val titles: Map<Lang, String>, val sentences: List<Map<Lang, String>>)
 

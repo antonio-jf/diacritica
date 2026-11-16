@@ -152,6 +152,10 @@ Eleven bundled tests of 8 sentences each, from A2 (HSK 2) to B2: everyday basics
 - Reviewed tests count in Progress (accuracy per language and mistakes by type) and are included in backups.
 - The tests live in `app/src/main/assets/tests/tests.json`; add your own sets there.
 
+## When a language has no word for a meaning
+
+Wiktionary's translation tables have gaps (*trickster* has none at all). The dictionary then looks for words in that language whose own English definition is the word: French *filou* "trickster", German *Tagtraum* "daydream". Exact definitions rank first, then lists, then phrases; matching part of speech is preferred. These show as "Matched by definition (Wiktionary)". If nothing matches, **Suggest a translation** asks the Translate engine: Gemini (knows the meaning, adds articles) when selected and a key is set, otherwise ML Kit on the phone. Suggestions are labelled as machine translations.
+
 ## Mandarin lookups
 
 - **Everyday reading first** for characters with several readings (看 kàn before kān, 行 xíng before háng, 还 hái before huán): a hand-checked list (`assets/zh/main_readings.tsv`), then ordinary readings before surnames and place names, then the reading Wiktionary's translations use most.

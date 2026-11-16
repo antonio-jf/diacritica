@@ -225,7 +225,27 @@ class DictionaryRepository(
         if (rows.isEmpty() && lang == Lang.ZH) {
             return zhByEnglish(db, c.enWord).map { enrich(db, lang, it, null, c, script).copy(source = "CC-CEDICT") }
         }
+        if (rows.isEmpty()) {
+            // No translation linked to this meaning: words whose own definition is this English word.
+            return wordsByDefinition(db, lang, c.enWord, c.pos).map { m ->
+                enrich(db, lang, m.word, m.gender, c, script).copy(gloss = m.gloss, source = "Wiktionary")
+            }
+        }
         return rows.map { (word, gender, roman) -> enrich(db, lang, word, gender, c, script, roman) }
+    }
+
+    /** Entries in [lang] whose English definition is (or lists) [en], best first. See [GlossMatch]. */
+    private fun wordsByDefinition(db: SQLiteDatabase, lang: Lang, en: String, pos: String?): List<GlossMatch.Candidate> {
+        val w = en.trim().lowercase()
+        if (w.length < 3 || w.any { it == '%' || it == '_' }) return emptyList()
+        val rows = db.rawQuery(
+            "SELECT e.word, e.pos, e.gender, s.gloss FROM entry e JOIN sense s ON s.entry_id = e.id " +
+                "WHERE e.lang = ? AND s.form_of IS NULL AND lower(s.gloss) LIKE ? LIMIT 300",
+            arrayOf(lang.code, "%$w%"),
+        ).use { cur ->
+            buildList { while (cur.moveToNext()) add(GlossMatch.Candidate(cur.getString(0), cur.getStringOrNull(1), cur.getStringOrNull(2), cur.getString(3))) }
+        }
+        return GlossMatch.rank(rows, w, pos)
     }
 
     private fun headwordInfo(db: SQLiteDatabase, lang: Lang, q: String, c: Concept?, script: ScriptPreference): WordInfo? {
