@@ -38,7 +38,11 @@ class DictionaryRepository(
         // Find every language where the query matches; the first in the user's order wins.
         val matches = candidates.map { it to findConcepts(db, it, q) }.filter { it.second.isNotEmpty() }
         val (lang, hit) = matches.firstOrNull() ?: (candidates.first() to emptyList<Pair<Concept, String?>>())
-        val concepts = hit.map { it.first }.distinctBy { it.id }
+        val concepts = hit.map { it.first }.distinctBy { it.id }.ifEmpty {
+            // A Mandarin word with no link to the other languages yet: still show it, with its CEDICT English as the
+            // meaning, so each language offers "Suggest a translation" instead of an empty page.
+            if (lang == Lang.ZH) listOfNotNull(cedictConcept(db, q)) else emptyList()
+        }
         val lemma = hit.firstOrNull()?.second
         val headwordText = lemma ?: q
         val headword = headwordInfo(db, lang, headwordText, concepts.firstOrNull(), script)
@@ -212,15 +216,44 @@ class DictionaryRepository(
      * For Chinese words without a Wiktionary translation link: use CC-CEDICT's English definitions
      * ("teacher; instructor") to find the matching English senses.
      */
-    private fun conceptsViaCedict(db: SQLiteDatabase, simp: String): List<Concept> {
+    private fun conceptsViaCedict(db: SQLiteDatabase, simp: String): List<Concept> =
+        cedictEnglish(db, simp).flatMap { conceptsByEnglish(db, TextNorm.normalize(it)).take(2) }.distinctBy { it.id }.take(6)
+
+    /**
+     * The English words and short phrases in CC-CEDICT's definition of [simp]: 起床 → "get out of bed", "get up".
+     * Phrases of up to four words are kept, since many everyday verbs are phrasal ("get up", "wake up").
+     */
+    private fun cedictEnglish(db: SQLiteDatabase, simp: String): List<String> {
         val defs = zhReadings(db, simp).firstOrNull()?.definitions ?: return emptyList()
         val parens = Regex("\\([^)]*\\)")
-        val candidates = defs.asSequence()
+        return defs.asSequence()
             .flatMap { it.split(';', ',').asSequence() }
             .map { parens.replace(it, "").trim().removePrefix("to ").removePrefix("a ").removePrefix("an ").removePrefix("the ").trim() }
-            .filter { it.isNotEmpty() && it.length <= 25 && it.count { ch -> ch == ' ' } <= 2 && !it.startsWith("variant of") && !it.startsWith("surname") }
-            .distinct().take(3).toList()
-        return candidates.flatMap { conceptsByEnglish(db, TextNorm.normalize(it)).take(2) }.distinctBy { it.id }.take(6)
+            .filter { it.isNotEmpty() && it.length <= 30 && it.count { ch -> ch == ' ' } <= 3 && !it.startsWith("variant of") && !it.startsWith("surname") && !it.startsWith("CL:") }
+            .distinct().take(4).toList()
+    }
+
+    /** Stand-in meaning for a Mandarin word without Wiktionary links (negative id: no translations stored). */
+    private fun cedictConcept(db: SQLiteDatabase, q: String): Concept? {
+        val w = zhWords(db, q).firstOrNull() ?: return null
+        val reading = zhReadings(db, w).firstOrNull() ?: return null
+        val en = cedictEnglish(db, w).firstOrNull() ?: return null
+        return Concept(id = -(w.hashCode().toLong() and 0x7fffffffL) - 1, enWord = en, pos = null,
+            label = reading.definitions.take(3).joinToString("; "))
+    }
+
+    /** True for [cedictConcept]'s stand-in meanings. */
+    fun isCedictOnly(c: Concept) = c.id < 0
+
+    /**
+     * English headwords to download for a Mandarin word that has no translations offline (the dictionary pack only
+     * holds frequent English words, so phrasal verbs like "get up" can be missing). Fetching them from Wiktionary
+     * brings their translation tables, which link 起床 to se lever / aufstehen / alzarsi / levantarse.
+     */
+    suspend fun englishForChinese(query: String): List<String> = withContext(Dispatchers.IO) {
+        val db = database.get()
+        val w = zhWords(db, query.trim()).firstOrNull() ?: return@withContext emptyList()
+        cedictEnglish(db, w).filter { conceptsByEnglish(db, TextNorm.normalize(it)).isEmpty() }.take(3)
     }
 
     /** Chinese words whose CC-CEDICT definition is exactly this English word (fallback when Wiktionary has none). */

@@ -21,6 +21,9 @@ class OnlineLookup(
 ) {
     enum class Outcome { FOUND, NOT_FOUND, OFFLINE, FAILED }
 
+    /** Set by the app: English phrases from CC-CEDICT to download for a Mandarin word (see DictionaryRepository.englishForChinese). */
+    var englishForChinese: (suspend (String) -> List<String>)? = null
+
     /** Words already tried for enrichment in this session, so a lookup never re-downloads in a loop. */
     private val tried = HashSet<String>()
 
@@ -33,8 +36,8 @@ class OnlineLookup(
     /** Downloads [query] in [source] (or in each language when auto-detecting) and stores it. */
     suspend fun fetchWord(query: String, source: Lang?, active: List<Lang>): Pair<Outcome, Lang?> {
         val q = query.trim()
-        // Mandarin is fully covered offline by CC-CEDICT.
-        if (q.isEmpty() || TextNorm.containsHan(q) || source == Lang.ZH) return Outcome.NOT_FOUND to null
+        if (q.isEmpty()) return Outcome.NOT_FOUND to null
+        if (TextNorm.containsHan(q) || source == Lang.ZH) return fetchForChinese(q)
         if (!isOnline()) return Outcome.OFFLINE to null
         val candidates = (source?.let { listOf(it) } ?: (listOf(Lang.EN) + active)).filter { it != Lang.ZH }.distinct()
         var failed = false
@@ -55,6 +58,32 @@ class OnlineLookup(
             }
         }
         return (if (failed) Outcome.FAILED else Outcome.NOT_FOUND) to null
+    }
+
+    /**
+     * Mandarin words are all in CC-CEDICT, but their links to the other languages go through English headwords.
+     * When those are missing offline, download the English headwords from the word's CEDICT definition.
+     */
+    private suspend fun fetchForChinese(q: String): Pair<Outcome, Lang?> {
+        // Each English phrase once per session: an entry without translation tables mustn't re-download on every search.
+        val phrases = runCatching { englishForChinese?.invoke(q) }.getOrNull().orEmpty().filter { "en:$it" !in tried }
+        if (phrases.isEmpty()) return Outcome.NOT_FOUND to null
+        if (!isOnline()) return Outcome.OFFLINE to null
+        var found = false
+        var failed = false
+        for (en in phrases) {
+            tried += "en:$en"
+            when (val r = client.fetch(Lang.EN, en)) {
+                is KaikkiClient.Result.Found -> { database.storeFetched(Lang.EN, en, r.lines, r.raw); found = true }
+                is KaikkiClient.Result.Failed -> failed = true
+                KaikkiClient.Result.NotFound -> {}
+            }
+        }
+        return when {
+            found -> Outcome.FOUND to Lang.ZH
+            failed -> Outcome.FAILED to null
+            else -> Outcome.NOT_FOUND to null
+        }
     }
 
     /**

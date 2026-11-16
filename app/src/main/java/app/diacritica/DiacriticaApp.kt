@@ -35,7 +35,7 @@ class AppContainer(app: Application) {
     val readAloud = ReadAloud(app, speaker)
     val undo = UndoManager()
     val updater = Updater(app)
-    val online = OnlineLookup(app, dictionaryDb)
+    val online = OnlineLookup(app, dictionaryDb).also { it.englishForChinese = { q -> dictionary.englishForChinese(q) } }
     val review = ReviewRepository(userDb, dictionary)
     val sentences = SentenceRepository(app)
     val corpora = SentenceRepository(app, "corpora/corpora.db")

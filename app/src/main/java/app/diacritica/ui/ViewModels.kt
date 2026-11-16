@@ -237,7 +237,9 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
             var r = lookupNow()
             _state.update { it.copy(result = r, loading = false) }
 
-            if (r != null && r.concepts.isEmpty() && s.onlineLookup) {
+            // A Mandarin word shown only from CC-CEDICT also goes online, for its English headwords' translations.
+            val cedictOnly = r != null && r.concepts.isNotEmpty() && r.concepts.all { c.dictionary.isCedictOnly(it) }
+            if (r != null && (r.concepts.isEmpty() || cedictOnly) && s.onlineLookup) {
                 // Missing offline. While typing, wait for a pause before going online.
                 if (!record) delay(900)
                 _state.update { it.copy(online = OnlineStatus.FETCHING) }
@@ -247,12 +249,15 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
                         r = lookupNow()
                         _state.update { it.copy(result = r, online = OnlineStatus.DOWNLOADED) }
                     }
-                    OnlineLookup.Outcome.OFFLINE -> {
-                        c.settings.addPending("${s.sourceLang?.code ?: "auto"}:$q")
-                        _state.update { it.copy(online = OnlineStatus.OFFLINE_QUEUED) }
+                    // The word is already on screen from CC-CEDICT: no "not found" or queue message for it.
+                    else -> if (cedictOnly) _state.update { it.copy(online = null) } else when (outcome) {
+                        OnlineLookup.Outcome.OFFLINE -> {
+                            c.settings.addPending("${s.sourceLang?.code ?: "auto"}:$q")
+                            _state.update { it.copy(online = OnlineStatus.OFFLINE_QUEUED) }
+                        }
+                        OnlineLookup.Outcome.NOT_FOUND -> _state.update { it.copy(online = OnlineStatus.NOT_FOUND) }
+                        else -> _state.update { it.copy(online = OnlineStatus.FAILED) }
                     }
-                    OnlineLookup.Outcome.NOT_FOUND -> _state.update { it.copy(online = OnlineStatus.NOT_FOUND) }
-                    OnlineLookup.Outcome.FAILED -> _state.update { it.copy(online = OnlineStatus.FAILED) }
                 }
             }
 
@@ -332,7 +337,12 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
                 runCatching { c.gemini.suggestWord(s.geminiKey, s.geminiModel, concept.enWord, concept.pos, concept.label, listOf(lang))[lang] }.getOrNull()
             } else null
             if (gemini != null) { put(WordSuggestion(text = gemini, by = "Gemini")); return@launch }
-            runCatching { c.translator.translate(concept.enWord, Lang.EN, lang) }
+            // A Mandarin word known only from CC-CEDICT: translate the Chinese itself (more precise than "get up").
+            val fromZh = c.dictionary.isCedictOnly(concept) && r.source == Lang.ZH
+            runCatching {
+                if (fromZh) c.translator.translate(r.headword?.word ?: r.query, Lang.ZH, lang)
+                else c.translator.translate(concept.enWord, Lang.EN, lang)
+            }
                 .onSuccess { put(WordSuggestion(text = it, by = "on-device translation")) }
                 .onFailure {
                     put(WordSuggestion(error = if (c.online.isOnline()) "Couldn't translate it. Try again." else
