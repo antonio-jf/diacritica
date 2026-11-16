@@ -93,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.diacritica.data.Lang
+import app.diacritica.data.ZhRanking
 import app.diacritica.data.ScriptPreference
 import app.diacritica.data.WordInfo
 import app.diacritica.reader.LoadedStory
@@ -958,7 +959,7 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
                 val shownHead = if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head
                 Text(shownHead, style = headwordStyle(Diacritica.type.headwordLarge))
                 if (p.lang == Lang.ZH) {
-                    val extra = listOfNotNull(hw.pinyin, hw.traditional?.takeIf { it != hw.word && !env.traditional }, hw.hsk?.let { "HSK $it" })
+                    val extra = listOfNotNull(hw.pinyin, hw.traditional?.takeIf { it != hw.word && !env.traditional }, hw.hsk?.let { ZhRanking.hskLabel(it) })
                     if (extra.isNotEmpty()) Text(extra.joinToString("  ·  "), style = captionStyle(c.accent))
                 }
             }

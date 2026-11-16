@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.diacritica.data.ZhRanking
 import app.diacritica.data.Articles
 import app.diacritica.data.Lang
 import app.diacritica.data.WordInfo
@@ -97,7 +98,7 @@ fun HskBadge(level: Int) {
         Modifier.clip(RoundedCornerShape(Diacritica.shapes.chip.coerceAtMost(6.dp))).background(c.accentSoft)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
-        Text("HSK $level", style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 11.sp, color = c.onAccentSoft, fontWeight = FontWeight.SemiBold))
+        Text(ZhRanking.hskLabel(level), style = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = 11.sp, color = c.onAccentSoft, fontWeight = FontWeight.SemiBold))
     }
 }
 

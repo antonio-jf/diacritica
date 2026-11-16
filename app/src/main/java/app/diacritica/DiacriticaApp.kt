@@ -7,6 +7,7 @@ import android.app.Application
 import app.diacritica.data.DictionaryDatabase
 import app.diacritica.data.DictionaryRepository
 import app.diacritica.data.FalseFriendIndex
+import app.diacritica.data.ZhLexicon
 import app.diacritica.tests.TestStore
 import app.diacritica.data.online.OnlineLookup
 import app.diacritica.rehearse.GeminiClient
@@ -21,7 +22,7 @@ import app.diacritica.tts.Speaker
 /** Manual dependency container; small enough that a DI framework isn't worth it yet. */
 class AppContainer(app: Application) {
     val dictionaryDb = DictionaryDatabase(app)
-    val dictionary = DictionaryRepository(dictionaryDb)
+    val dictionary = DictionaryRepository(dictionaryDb, lazy { ZhLexicon.fromAssets(app) })
     val userDb = UserDatabase.create(app)
     val settings = SettingsRepository(app)
     val speaker = Speaker(app)
