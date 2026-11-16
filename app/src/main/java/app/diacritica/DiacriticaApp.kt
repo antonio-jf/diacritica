@@ -14,6 +14,7 @@ import app.diacritica.rehearse.GeminiClient
 import app.diacritica.rehearse.SentenceRepository
 import app.diacritica.reader.StoryRepository
 import app.diacritica.reader.BooksRepository
+import app.diacritica.reader.ReadAloud
 import app.diacritica.review.ReviewRepository
 import app.diacritica.data.user.UserDatabase
 import app.diacritica.settings.SettingsRepository
@@ -28,6 +29,7 @@ class AppContainer(app: Application) {
     val userDb = UserDatabase.create(app)
     val settings = SettingsRepository(app)
     val speaker = Speaker(app)
+    val readAloud = ReadAloud(app, speaker)
     val online = OnlineLookup(app, dictionaryDb)
     val review = ReviewRepository(userDb, dictionary)
     val sentences = SentenceRepository(app)

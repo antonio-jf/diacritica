@@ -54,6 +54,8 @@ object PolyIcons {
     val Handwriting = stroke("handwriting", "M4 17l2.5-.6 8.8-8.8-1.9-1.9-8.8 8.8z", "M12.2 7.9l1.9 1.9", "M10 20c2-1.8 3.3-1.8 4.5-.4 1.1 1.3 2.5 1.3 5.5-1.6")
     val Undo = stroke("undo", "M9 7L5 11l4 4", "M5 11h9a5 5 0 0 1 0 10h-3")
     val Backspace = stroke("backspace", "M9 5h11v14H9l-6-7z", "M12 9l5 6", "M17 9l-5 6")
+    val Play = stroke("play", "M8 5.5v13l10-6.5z", filled = true)
+    val Stop = stroke("stop", "M7 7h10v10H7z", filled = true)
     val Check = stroke("check", "M5 12l5 5 9-10")
     val Archive = stroke("archive", "M4 5h16v4H4z", "M5 9v10h14V9", "M10 13h4")
     val Trash = stroke("trash", "M5 7h14", "M9 7V4h6v3", "M7 7l1 13h8l1-13")

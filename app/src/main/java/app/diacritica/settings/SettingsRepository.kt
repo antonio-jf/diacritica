@@ -107,6 +107,10 @@ data class AppSettings(
     val readerPopup: PopupLayout = PopupLayout.SHEET,
     /** Top/bottom layouts: share of the height for the top pane (dragged with the divider). */
     val readerSplit: Float = 0.5f,
+    /** Reader: a tap looks up the word (long-press highlights the sentence) instead of the reverse. */
+    val readerTapLookup: Boolean = false,
+    /** Reader: the second language stays hidden until you tap a sentence's translation. */
+    val readerHideOther: Boolean = false,
     val storyLevel: String = "B1",
     val storyHsk: Int = 3,
 ) {
@@ -157,6 +161,8 @@ class SettingsRepository(private val context: Context) {
         val readerPinyinTop = intPreferencesKey("reader_pinyin_top")
         val readerPopup = stringPreferencesKey("layout_word_popup")
         val readerSplit = floatPreferencesKey("reader_split")
+        val readerTapLookup = booleanPreferencesKey("reader_tap_lookup")
+        val readerHideOther = booleanPreferencesKey("reader_hide_other")
         val storyLevel = stringPreferencesKey("story_level")
         val storyHsk = intPreferencesKey("story_hsk")
     }
@@ -205,6 +211,8 @@ class SettingsRepository(private val context: Context) {
             readerPinyinTop = p[K.readerPinyinTop] ?: d.readerPinyinTop,
             readerPopup = enumOr(p[K.readerPopup], d.readerPopup),
             readerSplit = (p[K.readerSplit] ?: d.readerSplit).coerceIn(0.2f, 0.8f),
+            readerTapLookup = p[K.readerTapLookup] ?: d.readerTapLookup,
+            readerHideOther = p[K.readerHideOther] ?: d.readerHideOther,
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
             storyHsk = p[K.storyHsk] ?: d.storyHsk,
         )
@@ -251,6 +259,8 @@ class SettingsRepository(private val context: Context) {
         if (top != null) it[K.readerPinyinTop] = top
     }
     suspend fun setReaderPopup(v: PopupLayout) = context.dataStore.edit { it[K.readerPopup] = v.name }
+    suspend fun setReaderTapLookup(v: Boolean) = context.dataStore.edit { it[K.readerTapLookup] = v }
+    suspend fun setReaderHideOther(v: Boolean) = context.dataStore.edit { it[K.readerHideOther] = v }
     suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }

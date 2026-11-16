@@ -1,5 +1,12 @@
 package app.diacritica.ui.reader
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.os.Build
+import android.content.pm.PackageManager
+import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -444,6 +451,11 @@ private class SentenceEnv(
     val b: Lang,
     /** Top/bottom layouts: the top pane's share of the height. */
     val split: Float = 0.5f,
+    /** A tap looks up the word; long-press highlights the sentence. */
+    val tapLookup: Boolean = false,
+    /** The second language is hidden until revealed sentence by sentence. */
+    val hideOther: Boolean = false,
+    val revealed: Set<Int> = emptySet(),
 ) {
     fun other(l: Lang) = if (l == a) b else a
 
@@ -468,7 +480,11 @@ private fun StoryView(
     val a = settings.readerLangA.takeIf { it in langs } ?: langs.firstOrNull() ?: Lang.EN
     val b = settings.readerLangB.takeIf { it in langs && it != a } ?: langs.firstOrNull { it != a } ?: a
     val traditional = settings.script == ScriptPreference.TRADITIONAL_FIRST || settings.script == ScriptPreference.TRADITIONAL_ONLY
-    val env = SentenceEnv(vm, story, st.highlighted, st.popup, settings.readerPinyinMode, settings.readerPinyinTop, traditional, a, b, settings.readerSplit)
+    val env = SentenceEnv(
+        vm, story, st.highlighted, st.popup, settings.readerPinyinMode, settings.readerPinyinTop, traditional, a, b, settings.readerSplit,
+        tapLookup = settings.readerTapLookup, hideOther = settings.readerHideOther, revealed = st.revealed,
+    )
+    val reading by vm.reading.collectAsStateWithLifecycle()
     var layoutMenu by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -479,6 +495,7 @@ private fun StoryView(
                 Text(story.title(a), style = headwordStyle(18.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(story.title(b), style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            ReadAloudButton(playing = reading?.storyId == story.story.id, a = a, b = b, onPlay = vm::readAloud, onStop = vm::stopReading)
             if (Lang.ZH == a || Lang.ZH == b) {
                 PinyinMenu(settings.readerPinyinMode, settings.readerPinyinTop, vm::setPinyinMode)
                 Spacer(Modifier.width(4.dp))
@@ -492,6 +509,15 @@ private fun StoryView(
                             onClick = { layoutMenu = false; vm.setLayout(l) },
                         )
                     }
+                    Text("Reading", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
+                    DropdownMenuItem(
+                        text = { Text((if (settings.readerTapLookup) "✓ " else "") + "Tap a word to look it up", style = bodyStyle(if (settings.readerTapLookup) c.accent else c.ink)) },
+                        onClick = { layoutMenu = false; vm.setTapLookup(!settings.readerTapLookup) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text((if (settings.readerHideOther) "✓ " else "") + "Hide the translation until tapped", style = bodyStyle(if (settings.readerHideOther) c.accent else c.ink)) },
+                        onClick = { layoutMenu = false; vm.setHideOther(!settings.readerHideOther) },
+                    )
                     Text("Word popup", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
                     PopupLayout.entries.forEach { l ->
                         DropdownMenuItem(
@@ -742,10 +768,20 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
     val match = env.popup?.takeIf { it.sentenceIdx == idx && it.matchLang == lang }?.match
     val onTap = { env.vm.highlight(idx) }
     val onWord: (String, WordAnchor?) -> Unit = { w, a -> env.vm.lookUpWord(lang, w, idx, env.other(lang), a) }
+    if (env.hideOther && lang == env.b && idx !in env.revealed) {
+        Text(
+            "Tap to show the translation",
+            style = style.copy(color = c.inkMuted, fontStyle = FontStyle.Italic, fontSize = (size.value * 0.85f).sp),
+            modifier = modifier.clip(RoundedCornerShape(4.dp)).background(c.surfaceAlt)
+                .clickable { env.vm.reveal(idx) }.padding(horizontal = 8.dp, vertical = 4.dp)
+                .semantics { contentDescription = "Translation hidden. Tap to show it." },
+        )
+        return
+    }
     if (lang == Lang.ZH) {
         ZhSentence(env, text, style, mark ?: match, onTap, onWord, modifier, matchOnly = mark == null && match != null)
     } else {
-        PlainSentence(text, lang, style, mark, onTap, onWord, modifier, match = match)
+        PlainSentence(text, lang, style, mark, onTap, onWord, modifier, match = match, tapLookup = env.tapLookup)
     }
 }
 
@@ -754,6 +790,7 @@ private fun PlainSentence(
     text: String, lang: Lang, style: TextStyle, mark: String?,
     onTap: () -> Unit, onWord: (String, WordAnchor?) -> Unit, modifier: Modifier,
     match: String? = null,
+    tapLookup: Boolean = false,
 ) {
     var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val markColor = Diacritica.colors.accent.copy(alpha = 0.22f)
@@ -780,22 +817,24 @@ private fun PlainSentence(
     }
     Text(
         annotated, style = style, onTextLayout = { layout = it },
-        modifier = modifier.onGloballyPositioned { coords = it }.pointerInput(text, lang) {
+        modifier = modifier.onGloballyPositioned { coords = it }.pointerInput(text, lang, tapLookup) {
+            fun lookAt(pos: Offset, haptic: Boolean) {
+                val l = layout ?: return
+                val off = l.getOffsetForPosition(pos)
+                val w = wordAt(text, off, lang) ?: return
+                if (haptic) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                val line = l.getLineForOffset(off)
+                val anchor = coords?.let { c ->
+                    val top = c.localToWindow(Offset(pos.x, l.getLineTop(line)))
+                    val bottom = c.localToWindow(Offset(pos.x, l.getLineBottom(line)))
+                    WordAnchor(top.x, top.y, bottom.y)
+                }
+                word(w, anchor)
+            }
             detectTapGestures(
-                onTap = { tap() },
-                onLongPress = { pos ->
-                    val l = layout ?: return@detectTapGestures
-                    val off = l.getOffsetForPosition(pos)
-                    val w = wordAt(text, off, lang) ?: return@detectTapGestures
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val line = l.getLineForOffset(off)
-                    val anchor = coords?.let { c ->
-                        val top = c.localToWindow(Offset(pos.x, l.getLineTop(line)))
-                        val bottom = c.localToWindow(Offset(pos.x, l.getLineBottom(line)))
-                        WordAnchor(top.x, top.y, bottom.y)
-                    }
-                    word(w, anchor)
-                },
+                // Default: tap highlights the sentence, long-press looks up the word. "Tap a word" swaps them.
+                onTap = { pos -> if (tapLookup) lookAt(pos, haptic = false) else tap() },
+                onLongPress = { pos -> if (tapLookup) { haptics.performHapticFeedback(HapticFeedbackType.LongPress); tap() } else lookAt(pos, haptic = true) },
             )
         },
     )
@@ -859,19 +898,19 @@ private fun ZhSentence(
                                 size = androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx()))
                         } else Modifier,
                     )
-                    .pointerInput(text, i, t.text, isWord) {
+                    .pointerInput(text, i, t.text, isWord, env.tapLookup) {
+                        fun lookUp(haptic: Boolean) {
+                            if (!isWord) return
+                            if (haptic) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val anchor = tc?.let { lc ->
+                                val topLeft = lc.localToWindow(Offset.Zero)
+                                WordAnchor(topLeft.x + lc.size.width / 2f, topLeft.y, topLeft.y + lc.size.height)
+                            }
+                            word(t.text, anchor)
+                        }
                         detectTapGestures(
-                            onTap = { tap() },
-                            onLongPress = {
-                                if (isWord) {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val anchor = tc?.let { lc ->
-                                        val topLeft = lc.localToWindow(Offset.Zero)
-                                        WordAnchor(topLeft.x + lc.size.width / 2f, topLeft.y, topLeft.y + lc.size.height)
-                                    }
-                                    word(t.text, anchor)
-                                }
-                            },
+                            onTap = { if (env.tapLookup && isWord) lookUp(haptic = false) else tap() },
+                            onLongPress = { if (env.tapLookup) { haptics.performHapticFeedback(HapticFeedbackType.LongPress); tap() } else lookUp(haptic = true) },
                         )
                     }
                     .padding(horizontal = if (isWord) 1.dp else 0.dp),
@@ -1081,6 +1120,38 @@ private fun PinyinMenu(mode: PinyinMode, top: Int, onPick: (PinyinMode, Int?) ->
                 text = { Text("No pinyin", style = bodyStyle(if (mode == PinyinMode.OFF) c.accent else c.ink)) },
                 onClick = { open = false; onPick(PinyinMode.OFF, null) },
             )
+        }
+    }
+}
+
+/** Play: read the story aloud from the highlighted sentence (one language or both); Stop while playing. */
+@Composable
+private fun ReadAloudButton(playing: Boolean, a: Lang, b: Lang, onPlay: (List<Lang>) -> Unit, onStop: () -> Unit) {
+    val c = Diacritica.colors
+    val context = LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    // Android 13+: ask once to show the playback notification (it has the Stop button when the screen is off).
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    fun start(langs: List<Lang>) {
+        open = false
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) runCatching { askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        onPlay(langs)
+    }
+    Box {
+        if (playing) {
+            PolyIconButton(PolyIcons.Stop, "Stop reading aloud", onStop, tint = c.accent)
+        } else {
+            PolyIconButton(PolyIcons.Play, "Read the story aloud", { open = true }, tint = c.ink)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
+            Text("Read aloud from the highlighted sentence", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 2.dp))
+            DropdownMenuItem(text = { Text(a.englishName, style = bodyStyle()) }, onClick = { start(listOf(a)) })
+            if (b != a) {
+                DropdownMenuItem(text = { Text(b.englishName, style = bodyStyle()) }, onClick = { start(listOf(b)) })
+                DropdownMenuItem(text = { Text("${a.englishName}, then ${b.englishName}", style = bodyStyle()) }, onClick = { start(listOf(a, b)) })
+            }
         }
     }
 }

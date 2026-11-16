@@ -44,6 +44,8 @@ data class WordPopup(
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
 
 data class ReaderUiState(
+    /** Sentences whose hidden translation you've revealed ("Hide the translation until tapped"). */
+    val revealed: Set<Int> = emptySet(),
     val story: LoadedStory? = null,
     val highlighted: Int? = null,
     val popup: WordPopup? = null,
@@ -123,7 +125,39 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun close() = _state.update { it.copy(story = null, highlighted = null, popup = null) }
+    fun close() {
+        if (reading.value?.storyId == _state.value.story?.story?.id) c.readAloud.stop()
+        _state.update { it.copy(story = null, highlighted = null, popup = null, revealed = emptySet()) }
+    }
+
+    /** What read-aloud is playing (any story), for the play/stop button. */
+    val reading: StateFlow<app.diacritica.reader.ReadAloudState?> = c.readAloud.state
+
+    /**
+     * Reads the open story aloud from the highlighted (or last read) sentence to the end, in [langs]
+     * order for each sentence, highlighting and scrolling along.
+     */
+    fun readAloud(langs: List<Lang>) {
+        val story = _state.value.story ?: return
+        val from = _state.value.highlighted ?: story.story.lastSentence.coerceAtLeast(0)
+        viewModelScope.launch {
+            val rate = c.settings.settings.first().speechRate
+            c.readAloud.play(story.story.id, story.title(langs.first()), story.sentences, from, langs, rate) { i ->
+                _state.update { st -> if (st.story?.story?.id == story.story.id) st.copy(highlighted = i) else st }
+                viewModelScope.launch { c.stories.saveProgress(story.story.id, i) }
+            }
+        }
+        lastReadLangs = langs
+    }
+
+    private var lastReadLangs: List<Lang> = emptyList()
+
+    fun stopReading() = c.readAloud.stop()
+
+    fun reveal(idx: Int) = _state.update { it.copy(revealed = it.revealed + idx) }
+
+    fun setTapLookup(on: Boolean) { viewModelScope.launch { c.settings.setReaderTapLookup(on) } }
+    fun setHideOther(on: Boolean) { viewModelScope.launch { c.settings.setReaderHideOther(on) } }
 
     fun delete(id: Long) { viewModelScope.launch { c.stories.delete(id) } }
 
@@ -157,6 +191,12 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     /** Tap on a sentence: highlight it in both languages and remember the position. */
     fun highlight(idx: Int) {
         val s = _state.value.story ?: return
+        // While reading aloud, tapping a sentence jumps there.
+        if (reading.value?.storyId == s.story.id && lastReadLangs.isNotEmpty()) {
+            _state.update { it.copy(highlighted = idx) }
+            readAloud(lastReadLangs)
+            return
+        }
         val next = if (_state.value.highlighted == idx) null else idx
         _state.update { it.copy(highlighted = next) }
         if (next != null) viewModelScope.launch { c.stories.saveProgress(s.story.id, next) }
