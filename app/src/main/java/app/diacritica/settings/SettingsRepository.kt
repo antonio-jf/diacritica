@@ -100,6 +100,8 @@ data class AppSettings(
     val translateEngine: TranslateEngine = TranslateEngine.ON_DEVICE,
     /** Languages to translate into in Rehearse (empty = all active languages). */
     val rehearseLangs: Set<Lang> = emptySet(),
+    /** Rehearse prompts only in this language (null = rotate through your languages). */
+    val rehearseFrom: Lang? = null,
     // Reader
     val readerLayout: ReaderLayout = ReaderLayout.TOP_BOTTOM,
     val readerLangA: Lang = Lang.FR,
@@ -159,6 +161,7 @@ class SettingsRepository(private val context: Context) {
         val translateEngine = stringPreferencesKey("translate_engine")
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
+        val rehearseFrom = stringPreferencesKey("rehearse_from")
         val readerLayout = stringPreferencesKey("layout_reader")
         val readerLangA = stringPreferencesKey("reader_lang_a")
         val readerLangB = stringPreferencesKey("reader_lang_b")
@@ -208,6 +211,7 @@ class SettingsRepository(private val context: Context) {
             grammarFocus = p[K.grammarFocus] ?: d.grammarFocus,
             translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
+            rehearseFrom = p[K.rehearseFrom]?.let { Lang.fromCode(it) },
             readerLayout = enumOr(p[K.readerLayout], d.readerLayout),
             readerLangA = p[K.readerLangA]?.let { Lang.fromCode(it) } ?: d.readerLangA,
             readerLangB = p[K.readerLangB]?.let { Lang.fromCode(it) } ?: d.readerLangB,
@@ -274,6 +278,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
     suspend fun setRehearseLangs(v: Set<Lang>) = context.dataStore.edit { it[K.rehearseLangs] = v.map { l -> l.code }.toSet() }
     suspend fun setRehearseMyWords(v: Boolean) = context.dataStore.edit { it[K.rehearseMyWords] = v }
+    suspend fun setRehearseFrom(v: Lang?) = context.dataStore.edit { if (v == null) it.remove(K.rehearseFrom) else it[K.rehearseFrom] = v.code }
     suspend fun setRehearsePath(v: RehearsePath) = context.dataStore.edit { it[K.rehearsePath] = v.name }
     suspend fun setGrammarFocus(v: String) = context.dataStore.edit { it[K.grammarFocus] = v }
     suspend fun setTranslateEngine(v: TranslateEngine) = context.dataStore.edit { it[K.translateEngine] = v.name }

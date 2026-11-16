@@ -124,7 +124,12 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             _state.update { RehearseUiState(loading = true, roundsDone = it.roundsDone) }
             val s = c.settings.settings.first()
             val pick = try {
-                pick(s)
+                // "Translate from" fixed: keep picking until the sentence exists in that language (a few tries).
+                var p = pick(s)
+                val from = fromLang(s)
+                var tries = 0
+                while (from != null && p != null && from !in p.group.texts.keys && s.rehearsePath != RehearsePath.WEAK_SPOTS && tries++ < 12) p = pick(s)
+                p
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, empty = true, error = e.message ?: "Couldn't get a sentence.") }
                 return@launch
@@ -202,7 +207,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /** A round you got partly wrong: same sentence, same prompt language. */
     private suspend fun weakSpot(): Pick? {
-        val rounds = c.userDb.rehearseRounds().weak().filter { it.groupId !in recentIds }
+        val from = fromLang(c.settings.settings.first())
+        val rounds = c.userDb.rehearseRounds().weak().filter { it.groupId !in recentIds && (from == null || it.promptLang == from.code) }
         if (rounds.isEmpty()) return null
         // Favour recent mistakes, but mix in older ones.
         val r = (rounds.take(15) + rounds.shuffled().take(5)).random()
@@ -221,7 +227,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         if (!c.online.isOnline()) throw IllegalStateException("This path writes new sentences online. You're offline: try Everyday, From my reading or Weak spots.")
         val active = s.activeLanguages
         val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
-        val langs = active.filter { it in s.rehearseLanguages || it in natives }
+        val from = fromLang(s)
+        val langs = active.filter { it in s.rehearseLanguages || it in natives || it == from }
         val level = s.levels.ifEmpty { setOf("B1") }.random()
         val kind = when (s.rehearsePath) {
             RehearsePath.GRAMMAR -> GeminiClient.ExerciseKind.GRAMMAR
@@ -269,6 +276,13 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         return (preferred + simp + zh).distinct()
     }
 
+    /** The fixed "Translate from" language, if it's still one of your languages. */
+    private fun fromLang(s: AppSettings): Lang? = s.rehearseFrom?.takeIf { it in s.activeLanguages }
+
+    fun setFrom(l: Lang?) {
+        viewModelScope.launch { c.settings.setRehearseFrom(l); next() }
+    }
+
     /** Chooses the prompt language and targets, fills in references and shows the round. */
     private suspend fun show(p: Pick, s: AppSettings) {
         val group = p.group
@@ -280,12 +294,17 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val allowed = (p.promptLangs ?: active).filter { it in group.texts.keys && it != p.practice?.first }
         val available = allowed.filter { pl -> (p.targets ?: practiceLangs).any { it != pl } }
         val ordered = if (p.targets == null && practiceLangs.size == 1) available.sortedBy { it !in setOf(Lang.EN, Lang.ES) } else available
-        val promptLang = (if (p.targets == null && practiceLangs.size == 1) ordered.firstOrNull() else ordered.getOrNull(rotation++ % ordered.size.coerceAtLeast(1)))
+        // "Translate from" fixed in the toolbar wins over the path's own choice when the sentence has that language.
+        val from = fromLang(s)?.takeIf { it in group.texts.keys && it != p.practice?.first }
+        val promptLang = from
+            ?: (if (p.targets == null && practiceLangs.size == 1) ordered.firstOrNull() else ordered.getOrNull(rotation++ % ordered.size.coerceAtLeast(1)))
             ?: group.texts.keys.firstOrNull() ?: Lang.EN
         val rawPrompt = group.texts[promptLang]?.firstOrNull() ?: group.texts.values.first().first()
         // Tatoeba mixes simplified and traditional Mandarin: show the prompt in the script chosen in Settings.
         val prompt = if (promptLang == Lang.ZH) c.dictionary.toScript(rawPrompt, s.script) else rawPrompt
         val targets = (p.targets ?: practiceLangs).filter { it != promptLang }
+            .ifEmpty { active.filter { it != promptLang && (it == Lang.EN || it == Lang.ES) } }
+            .ifEmpty { active.filter { it != promptLang } }
         val refs = HashMap<Lang, List<String>>()
         targets.forEach { l -> group.texts[l]?.let { refs[l] = it } }
         // Tatoeba mixes traditional and simplified Mandarin: references in your script come first (that's the one
