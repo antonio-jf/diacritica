@@ -149,6 +149,7 @@ fun AppRoot(
                     composable(Tab.REHEARSE.route) {
                         app.diacritica.ui.rehearse.RehearseScreen(
                             rehearseVm, s, onOpenSettings = { nav.navigate("settings") }, onOpenArchive = { nav.navigate("archive") },
+                            onOpenRehearseSettings = { nav.navigate("rehearse-settings") },
                         )
                     }
                     composable(Tab.READER.route) {
@@ -157,6 +158,9 @@ fun AppRoot(
                             onRehearse = { id, idx, l -> rehearseVm.rehearseStorySentence(id, idx, l); nav.goTo(Tab.REHEARSE) },
                             onOpenDataPacks = { nav.navigate("packs") },
                         )
+                    }
+                    composable("rehearse-settings") {
+                        app.diacritica.ui.rehearse.RehearseSettingsScreen(rehearseVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") })
                     }
                     composable("archive") {
                         app.diacritica.ui.rehearse.ArchiveScreen(rehearseVm, onBack = { nav.popBackStack() }, onOpen = { nav.navigate("archive/$it") })
@@ -171,7 +175,7 @@ fun AppRoot(
                             nav.goTo(Tab.DICTIONARY)
                         }
                     }
-                    composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }) }
+                    composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }, onOpenRehearseSettings = { nav.navigate("rehearse-settings") }) }
                     composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
                     composable("tests") {
                         app.diacritica.ui.tests.TestsScreen(
@@ -214,7 +218,7 @@ fun AppRoot(
             val bar = barTabs
             val current = Tab.byRoute(route)?.takeIf { it in bar } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY.takeIf { it in bar } ?: Tab.HOME
-                route?.startsWith("archive") == true -> Tab.REHEARSE.takeIf { it in bar } ?: Tab.HOME
+                route?.startsWith("archive") == true || route == "rehearse-settings" -> Tab.REHEARSE.takeIf { it in bar } ?: Tab.HOME
                 route != null -> Tab.HOME
                 else -> null
             }

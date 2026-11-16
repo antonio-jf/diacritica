@@ -1,5 +1,6 @@
 package app.diacritica.ui.rehearse
 
+import app.diacritica.rehearse.Difficulty
 import app.diacritica.data.ScriptPreference
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
@@ -143,13 +144,13 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         if (s.rehearseLength > 1) passagePick(s)?.let { return it }
         val active = s.activeLanguages
         val everyday: suspend (String?) -> Pick? = { notice ->
-            runCatching { c.sentences.next(s.levels, active) }.getOrNull()?.let { Pick(it, "Tatoeba", notice = notice) }
+            runCatching { c.sentences.next(band(s), active) }.getOrNull()?.let { Pick(it, "Tatoeba", notice = notice) }
         }
         return when (s.rehearsePath) {
             RehearsePath.EVERYDAY -> everyday(null)
 
             RehearsePath.MY_WORDS -> {
-                val hit = runCatching { c.sentences.nextWithWord(myWords(active).filter { it.first in s.rehearseLanguages }, s.levels) }.getOrNull()
+                val hit = runCatching { c.sentences.nextWithWord(myWords(active).filter { it.first in s.rehearseLanguages }, band(s)) }.getOrNull()
                 if (hit == null) everyday("No sentence uses your saved or looked-up words yet, so here's an everyday one.")
                 else Pick(hit.first, "Tatoeba", practice = hit.second, promptLangs = active.filter { it != hit.second.first })
             }
@@ -161,7 +162,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             RehearsePath.REVERSE -> {
                 val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
                 val learning = s.rehearseLanguages.filter { it !in natives }.ifEmpty { active.filter { it !in natives } }
-                val g = runCatching { c.sentences.next(s.levels, active) }.getOrNull() ?: return null
+                val g = runCatching { c.sentences.next(band(s), active) }.getOrNull() ?: return null
                 Pick(g, "Tatoeba", promptLangs = learning.filter { it in g.texts.keys }, targets = natives)
             }
 
@@ -175,16 +176,15 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /**
      * News, Formal and Encyclopedic: human-translated sentences from OPUS, built by pipeline/build_corpora.py.
-     * These run harder than Tatoeba, so B2 also includes C1. Not bundled: they come as a data pack; Everyday is used until it's installed.
+     * They only carry CEFR tags, so the difficulty step maps to those. Not bundled: they come as a data pack; Everyday is used until it's installed.
      */
     private suspend fun corpus(s: AppSettings, source: String, label: String): Pick? {
         val active = s.activeLanguages
-        val levels = s.levels.ifEmpty { setOf("B1") } + (if ("B2" in s.levels) setOf("C1") else emptySet())
-        val g = if (c.corpora.available()) runCatching { c.corpora.next(levels, active, minLangs = 1, source = source) }.getOrNull() else null
+        val g = if (c.corpora.available()) runCatching { c.corpora.next(band(s), active, minLangs = 1, source = source) }.getOrNull() else null
         if (g != null) return Pick(g.copy(id = CORPUS_BASE + g.id), label)
         val notice = if (c.corpora.available()) "No $source sentences at your levels yet. Here's an everyday sentence."
         else "News, Formal and Encyclopedic sentences come as a data pack (about 2 MB): Settings › Data packs. Here's an everyday sentence meanwhile."
-        return c.sentences.next(s.levels, active)?.let { Pick(it, "Tatoeba", notice = notice) }
+        return c.sentences.next(band(s), active)?.let { Pick(it, "Tatoeba", notice = notice) }
     }
 
     /** A sentence you've already read in a Reader story (or any story, if none is opened yet). */
@@ -266,7 +266,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
                 val why = if (s.geminiKey.isBlank()) "Passages for this path are written by Gemini (add a key in Settings › Rehearse)"
                     else "Gemini couldn't write a passage right now"
                 readingPassage(n)?.copy(notice = "$why, so here's a passage from your reading.")
-                    ?: c.sentences.next(s.levels, active)?.let { Pick(it, "Tatoeba", notice = "$why, so here's a single sentence.") }
+                    ?: c.sentences.next(band(s), active)?.let { Pick(it, "Tatoeba", notice = "$why, so here's a single sentence.") }
             }
         }
     }
@@ -303,11 +303,11 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
         val from = fromLang(s)
         val langs = active.filter { it in s.rehearseLanguages || it in natives || it == from }
-        val level = s.levels.ifEmpty { setOf("B1") }.random()
-        val ex = c.gemini.generateExercise(s.geminiKey, s.geminiModel, GeminiClient.ExerciseKind.PASSAGE, focus, level, s.storyHsk, langs, recentPrompts.toList(), sentences = n)
+        val level = Difficulty.band(s.rehearseLevel).cefrLabel
+        val ex = c.gemini.generateExercise(s.geminiKey, s.geminiModel, GeminiClient.ExerciseKind.PASSAGE, focus, level, Difficulty.band(s.rehearseZhLevel).hsk, langs, recentPrompts.toList(), sentences = n)
         val id = -(System.currentTimeMillis())
         ex.texts.forEach { (l, t) -> c.userDb.generatedRefs().save(GeneratedRef(id, l.code, t)) }
-        return SentenceGroup(id, level, ex.texts.mapValues { (_, t) -> listOf(t) })
+        return SentenceGroup(id, Difficulty.tag(s.rehearseLevel), ex.texts.mapValues { (_, t) -> listOf(t) })
     }
 
     /** Grammar focus, Conversation and Idioms: Gemini writes the sentence in all your languages. */
@@ -318,7 +318,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val natives = active.filter { it == Lang.EN || it == Lang.ES }.ifEmpty { listOf(Lang.EN) }
         val from = fromLang(s)
         val langs = active.filter { it in s.rehearseLanguages || it in natives || it == from }
-        val level = s.levels.ifEmpty { setOf("B1") }.random()
+        val level = Difficulty.band(s.rehearseLevel).cefrLabel
         val kind = when (s.rehearsePath) {
             RehearsePath.GRAMMAR -> GeminiClient.ExerciseKind.GRAMMAR
             RehearsePath.CONVERSATION -> GeminiClient.ExerciseKind.CONVERSATION
@@ -327,13 +327,13 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val topic = GrammarTopics.byKey(s.grammarFocus)
         val ex = c.gemini.generateExercise(
             s.geminiKey, s.geminiModel, kind, topic.instruction.takeIf { kind == GeminiClient.ExerciseKind.GRAMMAR },
-            level, s.storyHsk, langs, recentPrompts.toList(), sentences = s.rehearseLength,
+            level, Difficulty.band(s.rehearseZhLevel).hsk, langs, recentPrompts.toList(), sentences = s.rehearseLength,
         )
         // Stored like AI references, so Weak spots can bring the sentence back later.
         val id = -(System.currentTimeMillis())
         ex.texts.forEach { (l, t) -> c.userDb.generatedRefs().save(GeneratedRef(id, l.code, t)) }
         ex.note?.let { c.userDb.generatedRefs().save(GeneratedRef(id, NOTE, it)) }
-        val group = SentenceGroup(id, level, ex.texts.mapValues { (_, t) -> listOf(t) })
+        val group = SentenceGroup(id, Difficulty.tag(s.rehearseLevel), ex.texts.mapValues { (_, t) -> listOf(t) })
         // Grammar focus: you write the structure, so the prompt is in English/Spanish and you answer in the others.
         val promptLangs = if (kind == GeminiClient.ExerciseKind.GRAMMAR) natives else null
         val note = if (kind == GeminiClient.ExerciseKind.GRAMMAR) "Focus: ${topic.label}" + (ex.note?.let { " · $it" } ?: "") else ex.note
@@ -367,6 +367,21 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val preferred = zh.map { c.dictionary.toScript(it, script) }
         return (preferred + simp + zh).distinct()
     }
+
+    /**
+     * Sentence-bank difficulty: the Mandarin step when Mandarin is all you're practising, else the main one.
+     * (The banks are levelled on the English anchor sentence, so one step has to pick them.)
+     */
+    private fun band(s: AppSettings): Difficulty.Band {
+        val zhOnly = s.rehearseLanguages.isNotEmpty() && s.rehearseLanguages.all { it == Lang.ZH }
+        return Difficulty.band(if (zhOnly) s.rehearseZhLevel else s.rehearseLevel)
+    }
+
+    fun setLevel(v: Int) { viewModelScope.launch { c.settings.setRehearseLevel(v) } }
+    fun setZhLevel(v: Int) { viewModelScope.launch { c.settings.setRehearseZhLevel(v) } }
+    fun setStrictAccents(v: Boolean) { viewModelScope.launch { c.settings.setStrictAccents(v) } }
+    fun setStrictTones(v: Boolean) { viewModelScope.launch { c.settings.setStrictTones(v) } }
+    fun setPinyinHint(v: Boolean) { viewModelScope.launch { c.settings.setPinyinHint(v) } }
 
     /** The fixed "Translate from" language, if it's still one of your languages. */
     private fun fromLang(s: AppSettings): Lang? = s.rehearseFrom?.takeIf { it in s.activeLanguages }

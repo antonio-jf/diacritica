@@ -90,7 +90,10 @@ import app.diacritica.ui.theme.SurfaceStyle
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings: () -> Unit, onOpenArchive: () -> Unit) {
+fun RehearseScreen(
+    vm: RehearseViewModel, settings: AppSettings, onOpenSettings: () -> Unit, onOpenArchive: () -> Unit,
+    onOpenRehearseSettings: () -> Unit = onOpenSettings,
+) {
     LaunchedEffect(Unit) { vm.ensureStarted() }
     val st by vm.state.collectAsStateWithLifecycle()
     val handsFree by vm.handsFree.collectAsStateWithLifecycle()
@@ -126,6 +129,7 @@ fun RehearseScreen(vm: RehearseViewModel, settings: AppSettings, onOpenSettings:
                 tint = if (handsFree != null) Diacritica.colors.accent else Diacritica.colors.inkMuted,
             )
             PolyIconButton(PolyIcons.Archive, "Rehearse archive", onOpenArchive, tint = Diacritica.colors.inkMuted)
+            PolyIconButton(PolyIcons.Settings, "Rehearse settings", onOpenRehearseSettings, tint = Diacritica.colors.inkMuted)
         }
         // One tidy row: practice path, grammar focus (Grammar path only) and the languages you answer in.
         FlowRow(
@@ -332,7 +336,7 @@ private fun KeyBanner(onOpenSettings: () -> Unit) {
 private fun PromptCard(st: RehearseUiState, onSpeak: () -> Unit) {
     PolySurface(Modifier.padding(horizontal = 16.dp), padding = PaddingValues(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Translate from ${st.promptLang?.englishName ?: ""}" + (st.group?.level?.let { " · $it" } ?: ""), Modifier.weight(1f))
+            SectionLabel("Translate from ${st.promptLang?.englishName ?: ""}" + (st.group?.level?.let { " · " + app.diacritica.rehearse.Difficulty.label(it) } ?: ""), Modifier.weight(1f))
             PolyIconButton(PolyIcons.Speaker, "Play sentence", onSpeak)
         }
         st.note?.let {
