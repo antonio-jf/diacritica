@@ -18,8 +18,9 @@ import kotlinx.serialization.json.contentOrNull
  * keep the two in step.
  */
 object WiktextractImporter {
+    // Proper nouns ("name": Germany, Paris) are kept, as in the pipeline.
     private val skipPos = setOf(
-        "name", "character", "symbol", "suffix", "prefix", "infix", "affix",
+        "character", "symbol", "suffix", "prefix", "infix", "affix",
         "interfix", "circumfix", "punct", "romanization", "abbrev", "soft-redirect",
     )
     private val junkFormTags = setOf("table-tags", "inflection-template", "class", "romanization")

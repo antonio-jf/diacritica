@@ -93,6 +93,12 @@ class SampleDb(unittest.TestCase):
         forms = [f for (f,) in self.q("SELECT f.form FROM form f JOIN entry e ON e.id=f.entry_id WHERE e.word='anfangen'")]
         self.assertIn("fängt an", forms)
 
+    def test_proper_nouns(self):
+        # Countries are proper nouns ("name"); they must be kept, with their translations.
+        rows = dict(self.q("SELECT t.lang, t.word FROM translation t JOIN concept c ON c.id = t.concept_id WHERE c.en_norm = 'germany'"))
+        self.assertEqual(rows.get("de"), "Deutschland")
+        self.assertEqual(rows.get("zh"), "德国")
+
     def test_form_of(self):
         r = self.q("SELECT s.form_of FROM sense s JOIN entry e ON e.id=s.entry_id WHERE e.lang='it' AND e.word='chiavi'")
         self.assertEqual(r, [("chiave",)])
