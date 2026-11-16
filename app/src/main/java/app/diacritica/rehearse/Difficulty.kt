@@ -34,8 +34,9 @@ object Difficulty {
         Band(6, 2_000, 5_000, 6, 13, setOf("B1"), "B1–B2", 3, "Wider vocabulary, some nuance"),
         Band(7, 3_000, 8_000, 7, 15, setOf("B2"), "B2", 4, "Varied topics, longer sentences"),
         Band(8, 5_000, 12_000, 8, 18, setOf("B2"), "B2+", 5, "Less common words, complex sentences"),
-        Band(9, 8_000, Int.MAX_VALUE, 9, 25, setOf("B2", "C1"), "B2–C1", 5, "Advanced and abstract topics"),
-        Band(10, 12_000, Int.MAX_VALUE, 10, 40, setOf("C1"), "C1", 6, "Near-native, rich vocabulary"),
+        // The Tatoeba bank tops out around rank 12,000 and 14 words, so the top steps lean on rarer words, not length.
+        Band(9, 7_000, Int.MAX_VALUE, 8, 40, setOf("B2", "C1"), "B2–C1", 5, "Advanced and abstract topics"),
+        Band(10, 9_000, Int.MAX_VALUE, 8, 40, setOf("B2", "C1"), "C1", 6, "Near-native, rich vocabulary"),
     )
 
     fun band(step: Int): Band = bands[step.coerceIn(MIN, MAX) - 1]
