@@ -65,7 +65,7 @@ private fun ListRow(r: LangResult, actions: WordActions) {
     Row(Modifier.fillMaxWidth().padding(vertical = Diacritica.spacing.row), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LangBadge(r.lang, Modifier.padding(top = 6.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (r.words.isEmpty()) NoTranslation(r.lang)
+            if (r.words.isEmpty()) NoTranslation(r.lang, actions)
             r.words.forEach { w ->
                 Row(verticalAlignment = Alignment.Top) {
                     WordBody(
@@ -89,7 +89,7 @@ private fun LazyListScope.cardsLayout(results: List<LangResult>, actions: WordAc
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LangBadge(r.lang, boxed = true)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (r.words.isEmpty()) NoTranslation(r.lang)
+                    if (r.words.isEmpty()) NoTranslation(r.lang, actions)
                     r.words.forEachIndexed { i, w ->
                         if (i > 0) Hairline()
                         Row(verticalAlignment = Alignment.Top) {
@@ -130,7 +130,7 @@ private fun GridTile(r: LangResult, actions: WordActions, modifier: Modifier) {
         }
         Gap(4.dp)
         if (w == null) {
-            Text("—", style = captionStyle())
+            NoTranslation(r.lang, actions)
         } else {
             WordTitle(w)
             if (w.lang == Lang.ZH) PinyinLine(w)
@@ -162,9 +162,9 @@ private fun LazyListScope.tableLayout(results: List<LangResult>, actions: WordAc
     items(results, key = { "table-" + it.lang.code }) { r ->
         Column(Modifier.padding(horizontal = 16.dp)) {
             if (r.words.isEmpty()) {
-                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
                     Box(Modifier.width(48.dp)) { LangBadge(r.lang) }
-                    Text("—", style = captionStyle())
+                    NoTranslation(r.lang, actions)
                 }
             }
             r.words.forEachIndexed { i, w ->

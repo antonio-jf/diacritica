@@ -93,6 +93,8 @@ fun DictionaryScreen(
         onToggleSave = vm::toggleSave,
         onOpen = { w -> onOpenDetail(w.lang, w.word) },
         isSaved = { w -> "${w.lang.code}:${w.word}" in savedKeys },
+        onSuggest = vm::suggest,
+        suggestion = { l -> state.suggestions[state.result?.concepts?.getOrNull(state.result?.selected ?: 0)?.let { "${it.id}:${l.code}" } ?: ""] },
     )
 
     LazyColumn(Modifier.fillMaxSize()) {

@@ -15,6 +15,7 @@ import app.diacritica.data.LookupResult
 import app.diacritica.data.ScriptPreference
 import app.diacritica.data.WordInfo
 import app.diacritica.data.online.OnlineLookup
+import app.diacritica.settings.TranslateEngine
 import app.diacritica.data.user.HistoryItem
 import app.diacritica.data.user.SavedWord
 import app.diacritica.settings.AccentChoice
@@ -147,7 +148,12 @@ data class DictionaryUiState(
     val result: LookupResult? = null,
     val selectedSense: Int = 0,
     val online: OnlineStatus? = null,
+    /** Machine-translated stand-ins for languages with nothing in the dictionary, by "conceptId:lang". */
+    val suggestions: Map<String, WordSuggestion> = emptyMap(),
 )
+
+/** A machine translation offered when a language has no dictionary word for a meaning. */
+data class WordSuggestion(val loading: Boolean = false, val text: String? = null, val by: String? = null, val error: String? = null)
 
 @OptIn(FlowPreview::class)
 class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
@@ -298,6 +304,39 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
     fun openVoiceSettings() = c.speaker.openVoiceSettings()
 
     suspend fun detail(lang: Lang, word: String): DetailResult = c.dictionary.detail(lang, word)
+
+    private fun suggestionKey(lang: Lang): String? {
+        val r = _state.value.result ?: return null
+        val concept = r.concepts.getOrNull(r.selected) ?: return null
+        return "${concept.id}:${lang.code}"
+    }
+
+    fun suggestion(lang: Lang): WordSuggestion? = suggestionKey(lang)?.let { _state.value.suggestions[it] }
+
+    /**
+     * Machine translation of the selected meaning's English word into [lang]: Gemini (aware of the
+     * meaning, gives articles) when it's the Translate engine and a key is set, else ML Kit on the phone.
+     */
+    fun suggest(lang: Lang) {
+        val r = _state.value.result ?: return
+        val concept = r.concepts.getOrNull(r.selected) ?: return
+        val key = suggestionKey(lang) ?: return
+        fun put(s: WordSuggestion) = _state.update { it.copy(suggestions = it.suggestions + (key to s)) }
+        put(WordSuggestion(loading = true))
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val gemini = if (s.translateEngine == TranslateEngine.GEMINI && s.geminiKey.isNotBlank() && c.online.isOnline()) {
+                runCatching { c.gemini.suggestWord(s.geminiKey, s.geminiModel, concept.enWord, concept.pos, concept.label, listOf(lang))[lang] }.getOrNull()
+            } else null
+            if (gemini != null) { put(WordSuggestion(text = gemini, by = "Gemini")); return@launch }
+            runCatching { c.translator.translate(concept.enWord, Lang.EN, lang) }
+                .onSuccess { put(WordSuggestion(text = it, by = "on-device translation")) }
+                .onFailure {
+                    put(WordSuggestion(error = if (c.online.isOnline()) "Couldn't translate it. Try again." else
+                        "The ${lang.englishName} translation model downloads once (about 30 MB); connect to the internet."))
+                }
+        }
+    }
 
     /** Languages switched on in Settings: false-friend warnings only mention these. */
     val activeLanguages: StateFlow<List<Lang>> = c.settings.settings.map { it.activeLanguages }.distinctUntilChanged()
