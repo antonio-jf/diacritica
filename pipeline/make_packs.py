@@ -12,7 +12,7 @@ output folder to the GitHub release with the tag "data-packs"; the app reads
       --sentences ../app/src/main/assets/sentences/sentences.db \\
       --corpora ../app/src/main/assets/corpora/corpora.db \\
       --books ../app/src/main/assets/books/books.db
-  gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica"
+  gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica" --latest=false
   # later updates: gh release upload data-packs dist/* --clobber
 
 Only the databases you pass are packed. Versions default to each file's built_at date.

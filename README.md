@@ -35,6 +35,12 @@ Phase 1 (MVP) and v1 (Review, Rehearse) of the plan in the 语言 project:
 
 The repository ships the ~15-word starter dictionary at `app/src/main/assets/dict/dictionary.db`. The full dictionary (~240 MB, over GitHub's file limit) is built locally with `pipeline/build_dictionary.py`; after building it, run `git update-index --skip-worktree app/src/main/assets/dict/dictionary.db` so git leaves it alone.
 
+## Releases
+
+Every push to `main` (a merged pull request) runs `.github/workflows/release.yml`: unit tests, a signed release APK, and a GitHub Release tagged `v0.3.<commit count>` with the APK and its SHA-256. Download the APK from the latest release on the phone and install it; each release updates the previous one. You can also run it by hand from the Actions tab.
+
+Signing: all releases use one key, kept out of the repo. CI reads it from four repository secrets (`DIACRITICA_KEYSTORE_BASE64`, `DIACRITICA_KEYSTORE_PASSWORD`, `DIACRITICA_KEY_ALIAS`, `DIACRITICA_KEY_PASSWORD`). Locally, `keystore.properties` in the project root (gitignored) points at the same key, so builds from Android Studio and from Releases can update each other. Without it, local builds use the debug key. Lose the key and future releases can't update installed copies: keep a backup.
+
 ## Build and install
 
 1. Open this folder in **Android Studio** (Ladybug 2024.2 or newer). Let Gradle sync; it downloads the
@@ -191,7 +197,7 @@ python3 make_packs.py --out dist \
     --dictionary ../app/src/main/assets/dict/dictionary.db \
     --sentences ../app/src/main/assets/sentences/sentences.db \
     --corpora ../app/src/main/assets/corpora/corpora.db
-gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica"
+gh release create data-packs dist/* --title "Data packs" --notes "Offline data for Diacritica" --latest=false
 # updates: gh release upload data-packs dist/* --clobber
 ```
 
