@@ -16,8 +16,8 @@ data class SentenceGroup(val id: Long, val level: String, val texts: Map<Lang, L
  * Aligned Rehearse sentences bundled as an asset database (copied to app storage, re-copied when the
  * bundled file changes):
  *  - assets/sentences/sentences.db: Tatoeba, built by pipeline/build_sentences.py (always present)
- *  - assets/corpora/corpora.db: News, Formal and Encyclopedic from OPUS, built by pipeline/build_corpora.py
- *    (optional until built; groups carry a `source` column)
+ *  - corpora.db: News, Formal and Encyclopedic from OPUS (pipeline/build_corpora.py). Not bundled in the APK:
+ *    it comes as the "corpora" data pack (files/packs/corpora.db); groups carry a `source` column
  */
 class SentenceRepository(private val context: Context, private val asset: String = ASSET) {
     private val dir = File(context.filesDir, asset.substringBefore('/')).apply { mkdirs() }

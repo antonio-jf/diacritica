@@ -163,7 +163,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /**
      * News, Formal and Encyclopedic: human-translated sentences from OPUS, built by pipeline/build_corpora.py.
-     * These run harder than Tatoeba, so B2 also includes C1. Falls back to Everyday until the data is built.
+     * These run harder than Tatoeba, so B2 also includes C1. Not bundled: they come as a data pack; Everyday is used until it's installed.
      */
     private suspend fun corpus(s: AppSettings, source: String, label: String): Pick? {
         val active = s.activeLanguages
@@ -171,7 +171,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val g = if (c.corpora.available()) runCatching { c.corpora.next(levels, active, minLangs = 1, source = source) }.getOrNull() else null
         if (g != null) return Pick(g.copy(id = CORPUS_BASE + g.id), label)
         val notice = if (c.corpora.available()) "No $source sentences at your levels yet. Here's an everyday sentence."
-        else "News, Formal and Encyclopedic sentences aren't built yet: run pipeline/build_corpora.py on your computer (see README). Here's an everyday sentence."
+        else "News, Formal and Encyclopedic sentences come as a data pack (about 2 MB): Settings › Data packs. Here's an everyday sentence meanwhile."
         return c.sentences.next(s.levels, active)?.let { Pick(it, "Tatoeba", notice = notice) }
     }
 
