@@ -1,5 +1,6 @@
 package app.diacritica.ui.packs
 
+import androidx.compose.foundation.layout.size
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -215,7 +216,8 @@ fun DataPacksScreen(vm: DataPacksViewModel, settings: AppSettings, onBack: () ->
                             l in st.modelBusy -> Text("Working…", style = captionStyle())
                             l == Lang.EN -> Text("Built in", style = captionStyle(c.success))
                             have -> {
-                                Text("✓ On the phone", style = captionStyle(c.success))
+                                androidx.compose.material3.Icon(PolyIcons.Check, null, tint = c.success, modifier = Modifier.size(14.dp))
+                                Text(" On the phone", style = captionStyle(c.success))
                                 Spacer(Modifier.width(10.dp))
                                 Text("Delete", style = captionStyle(c.accent), modifier = Modifier.textLink { vm.deleteModel(l) }.padding(horizontal = 6.dp, vertical = 10.dp))
                             }

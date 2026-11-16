@@ -123,6 +123,12 @@ fun SettingsScreen(
             }
         }
 
+        // ------------------------------------------------ Bottom bar
+        val barSummary = (listOf("Home") + s.navTabs.mapNotNull { app.diacritica.ui.Tab.byRoute(it)?.label }).joinToString(" · ")
+        if (section("bottombar", "Bottom bar", barSummary, open, toggle)) {
+            item { BottomBarEditor(s.navTabs, vm::setNavTabs) }
+        }
+
         // ------------------------------------------------ Languages
         val langSummary = s.activeLanguages.joinToString(" ") { it.short } + " · search " + (s.sourceLang?.short ?: "auto")
         if (section("languages", "Languages", langSummary, open, toggle)) {
@@ -450,3 +456,46 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
     }
 }
 
+
+/** Choose and order the sections in the bottom bar (Home is always first). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BottomBarEditor(current: List<String>, onChange: (List<String>) -> Unit) {
+    val c = Diacritica.colors
+    val chosen = current.mapNotNull { app.diacritica.ui.Tab.byRoute(it) }.filter { it != app.diacritica.ui.Tab.HOME }
+    Column(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Home is always first. Pick up to ${app.diacritica.settings.MAX_NAV_TABS} more and set their order; the rest stay on Home.", style = captionStyle())
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Icon(app.diacritica.ui.Tab.HOME.icon, null, tint = c.inkMuted, modifier = Modifier.size(20.dp))
+            Text("   Home", style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+        }
+        chosen.forEachIndexed { i, t ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Icon(t.icon, null, tint = c.ink, modifier = Modifier.size(20.dp))
+                Text("   ${t.label}", style = bodyStyle(), modifier = Modifier.weight(1f))
+                val routes = chosen.map { it.route }
+                if (i > 0) PolyIconButton(PolyIcons.Up, "Move ${t.label} left", {
+                    onChange(routes.toMutableList().apply { add(i - 1, removeAt(i)) })
+                }, tint = c.inkMuted)
+                if (i < chosen.lastIndex) PolyIconButton(PolyIcons.Down, "Move ${t.label} right", {
+                    onChange(routes.toMutableList().apply { add(i + 1, removeAt(i)) })
+                }, tint = c.inkMuted)
+                PolyIconButton(PolyIcons.Close, "Remove ${t.label} from the bar", { onChange(routes - t.route) }, tint = c.inkMuted)
+            }
+        }
+        val others = app.diacritica.ui.Tab.entries.filter { it != app.diacritica.ui.Tab.HOME && it !in chosen }
+        if (others.isNotEmpty()) {
+            val full = chosen.size >= app.diacritica.settings.MAX_NAV_TABS
+            Text(if (full) "The bar is full: remove one to add another." else "Add to the bar", style = captionStyle(), modifier = Modifier.padding(top = 6.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                others.forEach { t ->
+                    PolyChip(t.label, selected = false, { if (!full) onChange(chosen.map { it.route } + t.route) }, icon = t.icon)
+                }
+            }
+        }
+        if (current != app.diacritica.settings.DEFAULT_NAV_TABS) {
+            Text("Reset to Dictionary · Reader · Rehearse · Review", style = captionStyle(c.accent),
+                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).clickable { onChange(app.diacritica.settings.DEFAULT_NAV_TABS) }.padding(vertical = 8.dp))
+        }
+    }
+}

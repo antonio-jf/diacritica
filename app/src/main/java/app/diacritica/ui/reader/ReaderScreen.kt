@@ -1,5 +1,8 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.ui.components.MenuSection
+import app.diacritica.ui.components.ToggleMenuItem
+import app.diacritica.ui.components.ChoiceMenuItem
 import androidx.compose.ui.unit.Dp
 import app.diacritica.reader.TextImport
 import app.diacritica.ui.components.shareTextFor
@@ -458,9 +461,6 @@ private class SentenceEnv(
     val split: Float = 0.5f,
     /** A tap looks up the word; long-press highlights the sentence. */
     val tapLookup: Boolean = false,
-    /** The second language is hidden until revealed sentence by sentence. */
-    val hideOther: Boolean = false,
-    val revealed: Set<Int> = emptySet(),
     /** Your words per language (normalized form → 1 learning, 2 known); empty when shading is off. */
     val marks: Map<Lang, Map<String, Int>> = emptyMap(),
 ) {
@@ -491,7 +491,7 @@ private fun StoryView(
     val wordMarks by vm.wordMarks.collectAsStateWithLifecycle()
     val env = SentenceEnv(
         vm, story, st.highlighted, st.popup, settings.readerPinyinMode, settings.readerPinyinTop, traditional, a, b, settings.readerSplit,
-        tapLookup = settings.readerTapLookup, hideOther = settings.readerHideOther, revealed = st.revealed,
+        tapLookup = settings.readerTapLookup,
         marks = if (settings.readerShowMyWords) wordMarks else emptyMap(),
     )
     var layoutMenu by remember { mutableStateOf(false) }
@@ -505,43 +505,32 @@ private fun StoryView(
                 Text(story.title(b), style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             ReadAloudButton(playing = reading?.storyId == story.story.id, a = a, b = b, onPlay = vm::readAloud, onStop = vm::stopReading)
-            if (Lang.ZH == a || Lang.ZH == b) {
-                PinyinMenu(settings.readerPinyinMode, settings.readerPinyinTop, vm::setPinyinMode)
-                Spacer(Modifier.width(4.dp))
-            }
             Box {
-                PolyIconButton(PolyIcons.Layout, "Reader layout", onClick = { layoutMenu = true })
+                PolyIconButton(PolyIcons.Settings, "Reader settings", onClick = { layoutMenu = true }, tint = c.ink)
                 DropdownMenu(expanded = layoutMenu, onDismissRequest = { layoutMenu = false }, containerColor = c.ground) {
+                    MenuSection("Layout")
                     ReaderLayout.entries.forEach { l ->
-                        DropdownMenuItem(
-                            text = { Text(l.label, style = bodyStyle(if (l == settings.readerLayout) c.accent else c.ink)) },
-                            onClick = { layoutMenu = false; vm.setLayout(l) },
-                        )
+                        ChoiceMenuItem(l.label, l == settings.readerLayout, { layoutMenu = false; vm.setLayout(l) })
                     }
-                    Text("Reading", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
-                    DropdownMenuItem(
-                        text = { Text((if (settings.readerTapLookup) "✓ " else "") + "Tap a word to look it up", style = bodyStyle(if (settings.readerTapLookup) c.accent else c.ink)) },
-                        onClick = { layoutMenu = false; vm.setTapLookup(!settings.readerTapLookup) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text((if (settings.readerHideOther) "✓ " else "") + "Hide the translation until tapped", style = bodyStyle(if (settings.readerHideOther) c.accent else c.ink)) },
-                        onClick = { layoutMenu = false; vm.setHideOther(!settings.readerHideOther) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text((if (settings.readerShowMyWords) "✓ " else "") + "Show my words", style = bodyStyle(if (settings.readerShowMyWords) c.accent else c.ink))
-                                Text("yellow: learning · green: known", style = captionStyle())
-                            }
-                        },
-                        onClick = { layoutMenu = false; vm.setShowMyWords(!settings.readerShowMyWords) },
-                    )
-                    Text("Word popup", style = captionStyle(), modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
+                    MenuSection("Reading")
+                    ToggleMenuItem("Tap a word to look it up", settings.readerTapLookup, { vm.setTapLookup(!settings.readerTapLookup) },
+                        note = "Long-press then highlights the sentence")
+                    ToggleMenuItem("Show my words", settings.readerShowMyWords, { vm.setShowMyWords(!settings.readerShowMyWords) },
+                        note = "Yellow: learning · green: known")
+                    if (Lang.ZH == a || Lang.ZH == b) {
+                        MenuSection("Pinyin")
+                        ChoiceMenuItem("On every word", settings.readerPinyinMode == PinyinMode.ALL, { vm.setPinyinMode(PinyinMode.ALL, null) })
+                        listOf(500, 1000, 2000, 3000).forEach { n ->
+                            ChoiceMenuItem(
+                                "Uncommon characters only", settings.readerPinyinMode == PinyinMode.RARE && settings.readerPinyinTop == n,
+                                { vm.setPinyinMode(PinyinMode.RARE, n) }, note = "outside the ${"%,d".format(n)} most common",
+                            )
+                        }
+                        ChoiceMenuItem("Off", settings.readerPinyinMode == PinyinMode.OFF, { vm.setPinyinMode(PinyinMode.OFF, null) })
+                    }
+                    MenuSection("Word popup")
                     PopupLayout.entries.forEach { l ->
-                        DropdownMenuItem(
-                            text = { Text(l.label, style = bodyStyle(if (l == settings.readerPopup) c.accent else c.ink)) },
-                            onClick = { layoutMenu = false; vm.setPopupLayout(l) },
-                        )
+                        ChoiceMenuItem(l.label, l == settings.readerPopup, { layoutMenu = false; vm.setPopupLayout(l) })
                     }
                 }
             }
@@ -786,16 +775,6 @@ private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, mod
     val match = env.popup?.takeIf { it.sentenceIdx == idx && it.matchLang == lang }?.match
     val onTap = { env.vm.highlight(idx) }
     val onWord: (String, WordAnchor?) -> Unit = { w, a -> env.vm.lookUpWord(lang, w, idx, env.other(lang), a) }
-    if (env.hideOther && lang == env.b && idx !in env.revealed) {
-        Text(
-            "Tap to show the translation",
-            style = style.copy(color = c.inkMuted, fontStyle = FontStyle.Italic, fontSize = (size.value * 0.85f).sp),
-            modifier = modifier.clip(RoundedCornerShape(4.dp)).background(c.surfaceAlt)
-                .clickable { env.vm.reveal(idx) }.padding(horizontal = 8.dp, vertical = 4.dp)
-                .semantics { contentDescription = "Translation hidden. Tap to show it." },
-        )
-        return
-    }
     if (lang == Lang.ZH) {
         ZhSentence(env, text, style, mark ?: match, onTap, onWord, modifier, matchOnly = mark == null && match != null)
     } else {
@@ -1128,40 +1107,6 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
     }
 }
 
-/** "拼音 ▾": pinyin for every word, only for uncommon characters (outside the top 500–3,000), or off. */
-@Composable
-private fun PinyinMenu(mode: PinyinMode, top: Int, onPick: (PinyinMode, Int?) -> Unit) {
-    val c = Diacritica.colors
-    var open by remember { mutableStateOf(false) }
-    Box {
-        PolyChip(
-            when (mode) { PinyinMode.ALL -> "拼音"; PinyinMode.RARE -> "拼音 · rare"; PinyinMode.OFF -> "拼音 off" },
-            selected = mode != PinyinMode.OFF, onClick = { open = true },
-        )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
-            DropdownMenuItem(
-                text = { Text("Pinyin on every word", style = bodyStyle(if (mode == PinyinMode.ALL) c.accent else c.ink)) },
-                onClick = { open = false; onPick(PinyinMode.ALL, null) },
-            )
-            listOf(500, 1000, 2000, 3000).forEach { n ->
-                val on = mode == PinyinMode.RARE && top == n
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text("Only uncommon characters", style = bodyStyle(if (on) c.accent else c.ink))
-                            Text("outside the ${"%,d".format(n)} most common", style = captionStyle())
-                        }
-                    },
-                    onClick = { open = false; onPick(PinyinMode.RARE, n) },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text("No pinyin", style = bodyStyle(if (mode == PinyinMode.OFF) c.accent else c.ink)) },
-                onClick = { open = false; onPick(PinyinMode.OFF, null) },
-            )
-        }
-    }
-}
 
 /** Play: read the story aloud from the highlighted sentence (one language or both); Stop while playing. */
 @Composable

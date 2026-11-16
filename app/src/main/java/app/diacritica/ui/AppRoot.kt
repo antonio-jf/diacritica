@@ -54,12 +54,22 @@ import app.diacritica.ui.theme.Diacritica
 import app.diacritica.ui.theme.DiacriticaTheme
 import app.diacritica.ui.theme.SurfaceStyle
 
-private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
+/** Every section that can sit in the bottom bar (Home always does; the rest are chosen in Settings). */
+internal enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "Home", PolyIcons.Home),
     DICTIONARY("dictionary", "Dictionary", PolyIcons.Search),
     READER("reader", "Reader", PolyIcons.Book),
     REHEARSE("rehearse", "Rehearse", PolyIcons.Pencil),
     REVIEW("review", "Review", PolyIcons.Cards),
+    TESTS("tests", "Tests", PolyIcons.Quiz),
+    GRAMMAR("grammar", "Grammar", PolyIcons.Grammar),
+    TRANSLATE("translate", "Translate", PolyIcons.Translate),
+    PROGRESS("progress", "Progress", PolyIcons.Chart),
+    LIBRARY("library", "Library", PolyIcons.Library);
+
+    companion object {
+        fun byRoute(r: String?): Tab? = entries.firstOrNull { it.route == r }
+    }
 }
 
 @Composable
@@ -95,6 +105,10 @@ fun AppRoot(
 
     DiacriticaTheme(s) {
         val nav = rememberNavController()
+        // Home, then the sections chosen in Settings › Bottom bar.
+        val barTabs = listOf(Tab.HOME) + s.navTabs.mapNotNull { Tab.byRoute(it) }.filter { it != Tab.HOME }
+        // A section in the bar is opened as a tab; otherwise it's pushed on top (with its own Back).
+        fun openSection(t: Tab) { if (t in barTabs) nav.goTo(t) else nav.navigate(t.route) }
         val back by nav.currentBackStackEntryAsState()
         val route = back?.destination?.route
         // A word shared from another app opens straight in the Dictionary (Home is the start page).
@@ -113,12 +127,12 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.READER -> nav.goTo(Tab.READER)
                                     app.diacritica.ui.home.HomeSection.REHEARSE -> nav.goTo(Tab.REHEARSE)
                                     app.diacritica.ui.home.HomeSection.REVIEW -> nav.goTo(Tab.REVIEW)
-                                    app.diacritica.ui.home.HomeSection.LIBRARY -> nav.navigate("library")
+                                    app.diacritica.ui.home.HomeSection.LIBRARY -> openSection(Tab.LIBRARY)
                                     app.diacritica.ui.home.HomeSection.SETTINGS -> nav.navigate("settings")
-                                    app.diacritica.ui.home.HomeSection.TRANSLATE -> nav.navigate("translate")
-                                    app.diacritica.ui.home.HomeSection.PROGRESS -> nav.navigate("progress")
-                                    app.diacritica.ui.home.HomeSection.TESTS -> nav.navigate("tests")
-                                    app.diacritica.ui.home.HomeSection.GRAMMAR -> nav.navigate("grammar")
+                                    app.diacritica.ui.home.HomeSection.TRANSLATE -> openSection(Tab.TRANSLATE)
+                                    app.diacritica.ui.home.HomeSection.PROGRESS -> openSection(Tab.PROGRESS)
+                                    app.diacritica.ui.home.HomeSection.TESTS -> openSection(Tab.TESTS)
+                                    app.diacritica.ui.home.HomeSection.GRAMMAR -> openSection(Tab.GRAMMAR)
                                 }
                             },
                         )
@@ -197,15 +211,16 @@ fun AppRoot(
                     }
                 }
             }
-            val current = Tab.entries.firstOrNull { route == it.route } ?: when {
-                route?.startsWith("detail") == true -> Tab.DICTIONARY
-                route?.startsWith("archive") == true -> Tab.REHEARSE
-                route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" || route == "tests" || route == "grammar" -> Tab.HOME
+            val bar = barTabs
+            val current = Tab.byRoute(route)?.takeIf { it in bar } ?: when {
+                route?.startsWith("detail") == true -> Tab.DICTIONARY.takeIf { it in bar } ?: Tab.HOME
+                route?.startsWith("archive") == true -> Tab.REHEARSE.takeIf { it in bar } ?: Tab.HOME
+                route != null -> Tab.HOME
                 else -> null
             }
             val offer by undo.offer.collectAsStateWithLifecycle()
             offer?.let { o -> UndoBar(o.message, onUndo = undo::undo, onDismiss = undo::dismiss) }
-            BottomNav(current = current) {
+            BottomNav(items = bar, current = current) {
                 nav.goTo(it)
             }
         }
@@ -221,13 +236,13 @@ private fun NavHostController.goTo(tab: Tab) {
 }
 
 @Composable
-private fun BottomNav(current: Tab?, onSelect: (Tab) -> Unit) {
+private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) {
     val c = Diacritica.colors
     val tokens = Diacritica.tokens
     Column(Modifier.fillMaxWidth().background(if (tokens.surfaceStyle == SurfaceStyle.TONAL) c.surface else c.ground).navigationBarsPadding()) {
         Hairline(heavy = tokens.heavyRules)
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceAround) {
-            Tab.entries.forEach { t ->
+            items.forEach { t ->
                 val selected = t == current
                 val pill = selected && (tokens.surfaceStyle == SurfaceStyle.TONAL || tokens.surfaceStyle == SurfaceStyle.RULED)
                 val fg = when {

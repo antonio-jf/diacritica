@@ -1,5 +1,6 @@
 package app.diacritica.ui.rehearse
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -113,7 +114,10 @@ private fun RoundRow(r: RehearseRound, feedback: List<LangFeedback>, fmt: DateFo
             Text(r.prompt, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 16.sp, color = Diacritica.colors.ink), maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 feedback.forEach { f ->
-                    Text("${f.lang.short} ${verdictMark(f.verdict)}", style = captionStyle(verdictColor(f.verdict)))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(f.lang.short, style = captionStyle(verdictColor(f.verdict)))
+                        androidx.compose.material3.Icon(verdictIcon(f.verdict), verdictLabel(f.verdict), tint = verdictColor(f.verdict), modifier = Modifier.padding(start = 3.dp).size(14.dp))
+                    }
                 }
             }
         }

@@ -66,6 +66,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setTextScale(v: Float) = edit { c.settings.setTextScale(v) }
     fun setLanguageColors(v: Boolean) = edit { c.settings.setLanguageColors(v) }
     fun setDictionaryLayout(l: DictionaryLayout) = edit { c.settings.setDictionaryLayout(l) }
+    fun setNavTabs(routes: List<String>) = edit { c.settings.setNavTabs(routes) }
     fun resetLayouts() = edit { c.settings.resetLayouts() }
     fun setScript(s: ScriptPreference) = edit { c.settings.setScript(s) }
     fun setSpeechRate(v: Float) = edit { c.settings.setSpeechRate(v) }
