@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.settings
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -50,7 +53,7 @@ fun UpdatePanel(state: UpdateState, updater: Updater, compact: Boolean, modifier
             is UpdateState.Available -> {
                 Text("Update available: ${state.release.tag.removePrefix("v")} (${mb(state.release.bytes)})", style = bodyStyle().copy(fontSize = 16.sp))
                 Text("You have ${updater.currentName}. The download resumes by itself if the connection drops, and is checked before installing.", style = captionStyle())
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PolyButton("Download", { updater.download(state.release) })
                     PolyButton("What's new", { uri.openUri(state.release.notesUrl) }, primary = false)
                 }
@@ -70,7 +73,7 @@ fun UpdatePanel(state: UpdateState, updater: Updater, compact: Boolean, modifier
             }
             is UpdateState.Failed -> {
                 Text(state.message, style = bodyStyle(c.error, 14.sp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.release?.let { r -> PolyButton("Try again", { updater.download(r) }) }
                     if (!compact) PolyButton("Check again", { updater.check(force = true) }, primary = false)
                 }

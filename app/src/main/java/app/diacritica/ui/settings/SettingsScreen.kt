@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.settings
 
 import android.os.Build
@@ -227,7 +229,7 @@ fun SettingsScreen(
                                 style = captionStyle(if (backupStatus.lastResult?.startsWith("Backup saved") == true) Diacritica.colors.inkMuted else Diacritica.colors.error),
                             )
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PolyButton("Back up now", { vm.autoBackup.runNow() }, primary = false)
                             PolyButton("Change folder", { autoFolder.launch(backupStatus.folder) }, primary = false)
                             PolyButton("Turn off", { vm.autoBackup.disable() }, primary = false)
@@ -404,7 +406,7 @@ private fun GeminiKeySetting(savedKey: String, savedModel: String, vm: SettingsV
     Setting("Gemini API key", if (savedKey.isBlank()) "not set" else "saved") {
         Text("Create one for free at aistudio.google.com › Get API key. It is stored only on this phone.", style = captionStyle())
         SettingsField(key, { key = it }, "Paste your API key", mask = !show)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton("Save key", { vm.setGeminiKey(key) })
             PolyButton(if (show) "Hide" else "Show", { show = !show }, primary = false)
             if (savedKey.isNotBlank()) PolyButton("Test", vm::testGeminiKey, primary = false)

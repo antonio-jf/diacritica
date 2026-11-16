@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.dictionary
 
+import androidx.compose.foundation.layout.FlowRow
 import app.diacritica.ui.components.MenuSection
 import app.diacritica.ui.components.ChoiceMenuItem
 import app.diacritica.data.user.HistoryItem
@@ -405,7 +408,7 @@ private fun VoiceMissingBanner(lang: Lang, onInstall: () -> Unit, onDismiss: () 
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("No ${lang.englishName} voice is installed for offline pronunciation.", style = bodyStyle(Diacritica.colors.onAccentSoft))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton("Install voice", onInstall)
             PolyButton("Dismiss", onDismiss, primary = false)
         }

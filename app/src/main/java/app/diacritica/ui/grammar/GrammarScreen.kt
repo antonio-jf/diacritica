@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.grammar
 
 import androidx.compose.foundation.background
@@ -199,7 +201,7 @@ private fun WeakPointCard(
                 style = captionStyle(), maxLines = 2,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton(if (generating) "Writing a test…" else "Practice test", onPractise, enabled = !busy)
             val topic = GrammarTopics.byKey(w.topic)
             PolyButton(if (w.topic == "mixed") "Rehearse grammar" else "Rehearse: ${topic.label}", onRehearse, primary = false)
