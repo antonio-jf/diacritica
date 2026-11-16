@@ -103,6 +103,28 @@ class SampleDb(unittest.TestCase):
         r = self.q("SELECT s.form_of FROM sense s JOIN entry e ON e.id=s.entry_id WHERE e.lang='it' AND e.word='chiavi'")
         self.assertEqual(r, [("chiave",)])
 
+    def test_phrases_kept_when_trimming(self):
+        import sqlite3 as _sq
+        import build_dictionary
+        b = build_dictionary.Builder(_sq.connect(":memory:"), {}, keep={"en": {"get", "up", "wake", "bed"}})
+        self.assertTrue(b.allowed("en", "get up"))
+        self.assertTrue(b.allowed("en", "wake up"))
+        self.assertFalse(b.allowed("en", "get rich quick"))   # "rich", "quick" not kept
+        self.assertFalse(b.allowed("en", "zebra"))
+        self.assertTrue(b.allowed("fr", "anything"))          # untrimmed language
+
+    def test_hsk_english_kept(self):
+        import build_dictionary
+        self.assertEqual(build_dictionary.cedict_english("to get out of bed; to get up"), ["get out of bed", "get up"])
+        self.assertEqual(build_dictionary.cedict_english("bookstore / CL:家[jia1]"), ["bookstore"])
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE TABLE zh (simp TEXT, defs TEXT)")
+        con.execute("INSERT INTO zh VALUES ('起床', 'to get out of bed; to get up'), ('书店', 'bookstore')")
+        keep = {"en": {"get"}}
+        self.assertEqual(build_dictionary.keep_hsk_english(con, {"起床"}, keep), 2)
+        self.assertIn("get up", keep["en"])
+        self.assertNotIn("bookstore", keep["en"])   # not an HSK word in this test
+
     def test_zh(self):
         r = self.q("SELECT simp, trad, pinyin, measure, hsk FROM zh WHERE pinyin_norm='gou'")[0]
         self.assertEqual(r, ("狗", "狗", "gǒu", "只 zhī · 条 tiáo", 1))

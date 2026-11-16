@@ -1,0 +1,91 @@
+# Rebuilds the full dictionary data pack and publishes it on the "data-packs" release, replacing the old one.
+# Run it by hand: Actions › "Dictionary pack" › Run workflow. Takes roughly 20–40 minutes.
+# The app's Data packs page then offers "Update" for the dictionary.
+name: Dictionary pack
+
+on:
+  workflow_dispatch:
+    inputs:
+      top:
+        description: "Most common words kept per language (0 = everything, ~240 MB)"
+        default: "30000"
+      raw_url:
+        description: "Wiktextract dump URL (leave empty to try kaikki.org's usual addresses)"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-packs
+  cancel-in-progress: false
+
+jobs:
+  dictionary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download sources
+        working-directory: pipeline
+        env:
+          RAW_URL: ${{ inputs.raw_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          # Wiktextract's English Wiktionary dump, all languages (several GB).
+          ok=""
+          for url in ${RAW_URL:-} \
+              https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz \
+              https://kaikki.org/dictionary/raw-wiktextract-data.json.gz; do
+            echo "Trying $url"
+            if curl -fL --retry 3 -o data/raw-wiktextract-data.jsonl.gz "$url"; then ok=1; break; fi
+          done
+          [ -n "$ok" ] || { echo "::error::Couldn't download the Wiktextract dump; pass raw_url"; exit 1; }
+          curl -fL --retry 3 -o data/cedict_1_0_ts_utf-8_mdbg.txt.gz https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz
+          for l in en fr de it es; do
+            curl -fL --retry 3 -o "data/${l}_50k.txt" "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/${l}/${l}_50k.txt"
+          done
+          ls -la data
+
+      - name: Build
+        working-directory: pipeline
+        env:
+          TOP: ${{ inputs.top }}
+        run: |
+          set -euo pipefail
+          python3 test_build.py
+          git checkout -- ../app/src/main/assets/dict/dictionary.db   # the tests regenerate the starter sample
+          mkdir -p build
+          if [ "${TOP:-0}" != "0" ]; then
+            trim="--top $TOP --freq-dir data"; label="Common words (top $(printf "%'d" "$TOP") per language)"
+          else
+            trim=""; label="Full dictionary"
+          fi
+          python3 build_dictionary.py --raw data/raw-wiktextract-data.jsonl.gz \
+            --cedict data/cedict_1_0_ts_utf-8_mdbg.txt.gz --hsk ../app/src/main/assets/zh/hsk.tsv \
+            $trim --label "$label" --out build/dictionary.db
+          python3 - <<'PY'
+          import sqlite3
+          d = sqlite3.connect("build/dictionary.db")
+          for w in ("get up", "bookstore", "go to work"):
+              n = d.execute("SELECT COUNT(*) FROM concept WHERE en_norm = ?", (w,)).fetchone()[0]
+              print(f"{w!r}: {n} meanings")
+          print("Mandarin links:", d.execute("SELECT COUNT(*) FROM translation WHERE lang = 'zh'").fetchone()[0])
+          PY
+
+      - name: Publish
+        working-directory: pipeline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download data-packs -p packs.json -O build/packs.old.json
+          python3 make_packs.py --out dist --dictionary build/dictionary.db \
+            --version "$(date -u +%Y-%m-%d.%H%M)" --merge build/packs.old.json
+          gh release upload data-packs dist/dictionary.db.gz dist/packs.json --clobber

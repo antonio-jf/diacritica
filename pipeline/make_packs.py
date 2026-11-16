@@ -111,6 +111,7 @@ def main() -> None:
     p.add_argument("--repo", default="antonio-jf/diacritica")
     p.add_argument("--tag", default="data-packs")
     p.add_argument("--version", help="override the version for every pack")
+    p.add_argument("--merge", help="existing packs.json: keep its other packs, replace only the ones built now")
     for k in PACKS:
         p.add_argument(f"--{k}", help=f"path to the {k} database")
     a = p.parse_args()
@@ -119,6 +120,14 @@ def main() -> None:
     entries = [pack(k, getattr(a, k), a.out, base, a.version) for k in PACKS if getattr(a, k)]
     if not entries:
         p.error("pass at least one of --dictionary, --sentences, --corpora")
+    if a.merge:
+        with open(a.merge, encoding="utf-8") as fh:
+            old = json.load(fh).get("packs", [])
+        built = {e["id"] for e in entries}
+        by_id = {e["id"]: e for e in entries}
+        # Keep the published order; new packs go at the end.
+        entries = [by_id.get(e["id"], e) for e in old] + [e for e in entries if e["id"] not in {o["id"] for o in old}]
+        print(f"merged with {a.merge}: replaced {sorted(built)}", file=sys.stderr)
     with open(os.path.join(a.out, "packs.json"), "w", encoding="utf-8") as fh:
         json.dump({"format": 1, "packs": entries}, fh, ensure_ascii=False, indent=1)
     print(f"wrote {len(entries)} packs and packs.json to {a.out}", file=sys.stderr)

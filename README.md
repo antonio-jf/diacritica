@@ -239,6 +239,11 @@ gh release create data-packs dist/* --title "Data packs" --notes "Offline data f
 
 Once the full dictionary is a pack, the APK can ship with only the starter dictionary and stay small.
 
+**Rebuilding the dictionary pack without a computer:** GitHub › Actions › *Dictionary pack* › *Run workflow*. It downloads
+the Wiktextract dump, CC-CEDICT and the frequency lists, builds with `--top 30000` (change it in the form; `0` keeps
+everything), and replaces `dictionary.db.gz` and its entry in `packs.json` on the `data-packs` release
+(`make_packs.py --merge` keeps the other packs). The app then offers *Update* on the Data packs page.
+
 ## Translate
 
 Home › Translate turns a sentence or paragraph (up to 5,000 characters) into all your active languages at once.

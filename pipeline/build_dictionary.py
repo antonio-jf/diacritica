@@ -31,6 +31,7 @@ import argparse
 import gzip
 import io
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -231,6 +232,38 @@ def load_hsk(path: str | None) -> dict[str, int]:
             if len(parts) >= 2 and parts[1].strip().isdigit():
                 out.setdefault(parts[0].strip(), int(parts[1]))
     return out
+
+
+# The app's HSK list (also used when --hsk isn't given, for the trimming below).
+APP_HSK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "main", "assets", "zh", "hsk.tsv")
+_PARENS = re.compile(r"\([^)]*\)")
+
+
+def cedict_english(defs: str) -> list[str]:
+    """English words and short phrases in a CC-CEDICT definition ("to get out of bed; to get up" →
+    ["get out of bed", "get up"]). Mirrors DictionaryRepository.cedictEnglish() in the app."""
+    out: list[str] = []
+    for part in re.split(r"[/;,]", defs or ""):
+        p = _PARENS.sub("", part).strip()
+        for pre in ("to ", "a ", "an ", "the "):
+            if p.startswith(pre):
+                p = p[len(pre):].strip()
+        if p and len(p) <= 30 and p.count(" ") <= 3 and not p.startswith(("variant of", "surname", "CL:")):
+            if p not in out:
+                out.append(p)
+    return out
+
+
+def keep_hsk_english(con: sqlite3.Connection, hsk_words: set[str], keep: dict[str, set[str]]) -> int:
+    """When trimming by frequency, also keep the English headwords that HSK vocabulary is defined with
+    (bookstore, go to work, this year, get up…): Mandarin reaches the other languages through them."""
+    if "en" not in keep or not hsk_words:
+        return 0
+    before = len(keep["en"])
+    for simp, defs in con.execute("SELECT simp, defs FROM zh"):
+        if simp in hsk_words:
+            keep["en"].update(normalize(e) for e in cedict_english(defs)[:6])
+    return len(keep["en"]) - before
 
 
 # ---------------------------------------------------------------- Wiktextract helpers
@@ -439,7 +472,12 @@ class Builder:
         if lang not in self.keep:
             return True
         n = normalize(word)
-        return n in self.keep[lang] or n in self.linked.get(lang, set())
+        if n in self.keep[lang] or n in self.linked.get(lang, set()):
+            return True
+        # Phrases (phrasal verbs, set expressions: "get up", "wake up", "take care of") aren't in single-word
+        # frequency lists; keep those of up to four words when every word is a kept word.
+        parts = n.replace("-", " ").split()
+        return 1 < len(parts) <= 4 and all(p in self.keep[lang] for p in parts)
 
     def add_entry(self, lang: str, e: dict) -> None:
         word = (e.get("word") or "").strip()
@@ -565,13 +603,17 @@ def build_from_raw(args: argparse.Namespace, b: "Builder") -> list[str]:
 def build(args: argparse.Namespace) -> None:
     con = sqlite3.connect(args.out)
     con.executescript("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;")
-    for t in ("meta", "concept", "translation", "entry", "sense", "form", "zh"):
+    for t in ("meta", "concept", "translation", "entry", "sense", "form", "extra", "zh"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
     con.executescript(SCHEMA)
 
-    hsk = load_hsk(args.hsk)
+    hsk = load_hsk(args.hsk or (APP_HSK if os.path.exists(APP_HSK) else None))
     zh_lookup = load_cedict(con, args.cedict, hsk) if args.cedict else {}
-    b = Builder(con, zh_lookup, load_frequency(args.freq_dir, args.top))
+    keep = load_frequency(args.freq_dir, args.top)
+    added = keep_hsk_english(con, set(hsk), keep)
+    if added:
+        print(f"frequency en: +{added:,} English headwords used by HSK definitions", file=sys.stderr)
+    b = Builder(con, zh_lookup, keep)
 
     raw_langs: list[str] = []
     if args.raw:
