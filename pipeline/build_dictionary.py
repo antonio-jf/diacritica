@@ -603,7 +603,7 @@ def build_from_raw(args: argparse.Namespace, b: "Builder") -> list[str]:
 def build(args: argparse.Namespace) -> None:
     con = sqlite3.connect(args.out)
     con.executescript("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;")
-    for t in ("meta", "concept", "translation", "entry", "sense", "form", "zh"):
+    for t in ("meta", "concept", "translation", "entry", "sense", "form", "extra", "zh"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
     con.executescript(SCHEMA)
 
