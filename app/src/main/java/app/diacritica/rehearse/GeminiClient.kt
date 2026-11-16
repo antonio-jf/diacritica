@@ -330,7 +330,10 @@ class GeminiClient {
     suspend fun generateJson(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
         call(apiKey, model, userText, schema, system)
 
-    /** Calls generateContent; on "model not found" tries the fallback models. */
+    /**
+     * Calls generateContent. A busy model (500/503/504, timeouts) is retried twice with a short wait, then the
+     * fallback models are tried; "model not found" and quota limits move straight on to the next model.
+     */
     private suspend fun call(apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM): JsonObject {
         if (apiKey.isBlank()) throw GeminiException("No Gemini API key set.")
         val today = pacificToday()
@@ -340,7 +343,9 @@ class GeminiClient {
         var lastError: GeminiException? = null
         for (m in models) {
             try {
-                return callOnce(apiKey, m, userText, schema, system)
+                return withBusyRetries { callOnce(apiKey, m, userText, schema, system) }
+            } catch (e: Busy) {
+                lastError = GeminiException("Gemini is busy right now (Google's servers are overloaded). Try again in a moment.")
             } catch (e: ModelUnavailable) {
                 lastError = GeminiException("Model $m is not available.")
             } catch (e: QuotaExceeded) {
@@ -355,6 +360,21 @@ class GeminiClient {
         throw lastError ?: GeminiException("No model available.")
     }
 
+    /** Runs [block], retrying twice (after ~1.5 s, then ~4 s) while Gemini answers that it's busy. */
+    private suspend fun <T> withBusyRetries(block: suspend () -> T): T {
+        val waits = longArrayOf(1_500, 4_000)
+        var attempt = 0
+        while (true) {
+            try {
+                return block()
+            } catch (e: Busy) {
+                if (attempt >= waits.size) throw e
+                kotlinx.coroutines.delay(waits[attempt++])
+            }
+        }
+    }
+
+    private class Busy : Exception()
     private class ModelUnavailable : Exception()
     private class QuotaExceeded(val daily: Boolean) : Exception()
 
@@ -382,11 +402,17 @@ class GeminiClient {
                 setRequestProperty("x-goog-api-key", apiKey.trim())
             }
             try {
-                conn.outputStream.use { it.write(body.toString().toByteArray()) }
-                val code = conn.responseCode
+                val code = try {
+                    conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                    conn.responseCode
+                } catch (e: java.net.SocketTimeoutException) {
+                    throw Busy()
+                }
                 val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.use { it.readBytes().decodeToString() } ?: ""
                 when {
                     code == 404 -> throw ModelUnavailable()
+                    // 503 UNAVAILABLE / "model is overloaded", and other temporary server errors.
+                    code == 500 || code == 502 || code == 503 || code == 504 -> throw Busy()
                     code == 400 && text.contains("API key", ignoreCase = true) -> throw GeminiException("The Gemini API key was rejected. Check it in Settings.")
                     code == 401 || code == 403 -> throw GeminiException("The Gemini API key was rejected. Check it in Settings.")
                     code == 429 -> throw QuotaExceeded(daily = text.contains("PerDay", ignoreCase = true) || text.contains("per day", ignoreCase = true))

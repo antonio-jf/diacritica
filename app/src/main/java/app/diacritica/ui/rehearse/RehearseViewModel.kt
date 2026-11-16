@@ -425,23 +425,44 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
                 _state.update { it.copy(checking = false, aiError = "You're offline, so only the quick offline check ran.") }
                 return@launch
             }
-            val toAsk = st.targets.filter { rules[it]?.verdict != Verdict.CORRECT }
-            if (toAsk.isEmpty()) { _state.update { it.copy(checking = false) }; return@launch }
-            try {
-                val ai = c.gemini.grade(
-                    s.geminiKey, s.geminiModel, st.promptLang ?: Lang.EN, st.prompt,
-                    toAsk.map { GeminiClient.AnswerInput(it, st.answers[it].orEmpty(), st.references[it].orEmpty()) },
-                    s.strictAccents, s.strictTones,
-                )
-                _state.update { cur ->
-                    val merged = cur.feedback.toMutableMap()
-                    ai.forEach { (l, f) -> merged[l] = f.copy(reference = cur.references[l]?.firstOrNull(), referenceGenerated = l in cur.generated) }
-                    cur.copy(feedback = merged, checking = false)
-                }
-                saveFeedback()
-            } catch (e: Exception) {
-                _state.update { it.copy(checking = false, aiError = e.message ?: "The AI check failed.") }
+            aiCheck(s, rules)
+        }
+    }
+
+    /** "Check again" after the Gemini check failed (busy, offline, a limit): the offline result stays meanwhile. */
+    fun retryAiCheck() {
+        val st = _state.value
+        if (!st.submitted || st.checking) return
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            if (!c.online.isOnline()) {
+                _state.update { it.copy(aiError = "You're still offline, so only the quick offline check ran.") }
+                return@launch
             }
+            _state.update { it.copy(checking = true, aiError = null) }
+            aiCheck(s, _state.value.feedback)
+        }
+    }
+
+    /** Full grammar feedback from Gemini (skips answers the rules already confirmed as exact matches). */
+    private suspend fun aiCheck(s: AppSettings, rules: Map<Lang, LangFeedback>) {
+        val st = _state.value
+        val toAsk = st.targets.filter { rules[it]?.verdict != Verdict.CORRECT }
+        if (toAsk.isEmpty()) { _state.update { it.copy(checking = false) }; return }
+        try {
+            val ai = c.gemini.grade(
+                s.geminiKey, s.geminiModel, st.promptLang ?: Lang.EN, st.prompt,
+                toAsk.map { GeminiClient.AnswerInput(it, st.answers[it].orEmpty(), st.references[it].orEmpty()) },
+                s.strictAccents, s.strictTones,
+            )
+            _state.update { cur ->
+                val merged = cur.feedback.toMutableMap()
+                ai.forEach { (l, f) -> merged[l] = f.copy(reference = cur.references[l]?.firstOrNull(), referenceGenerated = l in cur.generated) }
+                cur.copy(feedback = merged, checking = false, aiError = null)
+            }
+            saveFeedback()
+        } catch (e: Exception) {
+            _state.update { it.copy(checking = false, aiError = e.message ?: "The AI check failed.") }
         }
     }
 
