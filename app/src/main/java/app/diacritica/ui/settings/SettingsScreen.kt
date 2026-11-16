@@ -365,9 +365,16 @@ private fun GeminiKeySetting(savedKey: String, savedModel: String, vm: SettingsV
             PolyButton(if (show) "Hide" else "Show", { show = !show }, primary = false)
             if (savedKey.isNotBlank()) PolyButton("Test", vm::testGeminiKey, primary = false)
         }
-        Text("Model (change only if Google renames it)", style = captionStyle())
-        SettingsField(model, { model = it }, "gemini-3.5-flash", mask = false)
-        if (model != savedModel) PolyButton("Save model", { vm.setGeminiModel(model) }, primary = false)
+        Text("Model", style = captionStyle())
+        app.diacritica.rehearse.GeminiClient.CHOICES.forEach { (id, label, note) ->
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                PolyChip(label, savedModel == id, { model = id; vm.setGeminiModel(id) })
+                Text("  $note", style = captionStyle(), modifier = Modifier.weight(1f))
+            }
+        }
+        Text("If a model uses up its free requests for the day, the app switches to Flash-Lite until they reset. Or type another model ID:", style = captionStyle())
+        SettingsField(model, { model = it }, app.diacritica.rehearse.GeminiClient.DEFAULT_MODEL, mask = false)
+        if (model != savedModel) PolyButton("Save model", { vm.setGeminiModel(model.trim()) }, primary = false)
     }
 }
 
