@@ -12,6 +12,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Spacer
@@ -163,7 +164,7 @@ private fun LazyListScope.tableLayout(results: List<LangResult>, actions: WordAc
         Column(Modifier.padding(horizontal = 16.dp)) {
             if (r.words.isEmpty()) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.width(48.dp)) { LangBadge(r.lang) }
+                    Box(Modifier.widthIn(min = 48.dp).padding(end = 10.dp)) { LangBadge(r.lang) }
                     NoTranslation(r.lang, actions)
                 }
             }

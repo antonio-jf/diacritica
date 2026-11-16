@@ -2,6 +2,7 @@ package app.diacritica.ui.progress
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -150,7 +151,7 @@ fun ProgressScreen(vm: ProgressViewModel, onBack: () -> Unit) {
                     Gap(10.dp)
                     st.wordsRead.forEach { (l, n) ->
                         Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.width(40.dp)) { LangBadge(l) }
+                            Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(l) }
                             Text(nf.format(n) + if (l == Lang.ZH) " characters read" else " words read", style = bodyStyle())
                         }
                     }
@@ -187,7 +188,7 @@ private fun LangBar(lang: Lang, fraction: Float, value: String, detail: String, 
     val c = Diacritica.colors
     Column(Modifier.padding(vertical = 4.dp).semantics { contentDescription = "${lang.englishName}: $value, $detail" }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(40.dp)) { LangBadge(lang) }
+            Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(lang) }
             Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(c.line)) {
                 Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(color))
             }
