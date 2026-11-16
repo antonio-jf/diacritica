@@ -59,11 +59,12 @@ jobs:
           TOP: ${{ inputs.top }}
         run: |
           set -euo pipefail
+          python3 sample/make_sample.py          # the tests read this freshly built sample
           python3 test_build.py
           git checkout -- ../app/src/main/assets/dict/dictionary.db   # the tests regenerate the starter sample
           mkdir -p build
           if [ "${TOP:-0}" != "0" ]; then
-            trim="--top $TOP --freq-dir data"; label="Common words (top $(printf "%'d" "$TOP") per language)"
+            trim="--top $TOP --freq-dir data"; label="Common words (top $(python3 -c 'import sys; print(f"{int(sys.argv[1]):,}")' "$TOP") per language)"
           else
             trim=""; label="Full dictionary"
           fi
