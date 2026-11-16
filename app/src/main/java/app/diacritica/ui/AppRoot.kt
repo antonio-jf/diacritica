@@ -75,6 +75,7 @@ fun AppRoot(
     packsVm: app.diacritica.ui.packs.DataPacksViewModel,
     testsVm: app.diacritica.ui.tests.TestsViewModel,
     grammarVm: app.diacritica.ui.grammar.GrammarViewModel,
+    undo: app.diacritica.undo.UndoManager,
     sharedText: String?,
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
@@ -202,6 +203,8 @@ fun AppRoot(
                 route == "settings" || route == "appearance" || route == "library" || route == "translate" || route == "progress" || route == "packs" || route == "tests" || route == "grammar" -> Tab.HOME
                 else -> null
             }
+            val offer by undo.offer.collectAsStateWithLifecycle()
+            offer?.let { o -> UndoBar(o.message, onUndo = undo::undo, onDismiss = undo::dismiss) }
             BottomNav(current = current) {
                 nav.goTo(it)
             }
@@ -264,5 +267,23 @@ private fun BottomNav(current: Tab?, onSelect: (Tab) -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** "Removed … · Undo", above the tab bar for a few seconds after a deletion. */
+@Composable
+private fun UndoBar(message: String, onUndo: () -> Unit, onDismiss: () -> Unit) {
+    val c = Diacritica.colors
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).background(c.ink)
+            .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(message, style = app.diacritica.ui.components.bodyStyle(c.ground, 14.sp), maxLines = 2, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+        androidx.compose.material3.TextButton(onClick = onUndo) {
+            Text("Undo", style = app.diacritica.ui.components.bodyStyle(c.accentSoft, 14.sp).copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+        }
+        app.diacritica.ui.components.PolyIconButton(app.diacritica.ui.components.PolyIcons.Close, "Dismiss", onDismiss, tint = c.ground.copy(alpha = 0.7f))
     }
 }

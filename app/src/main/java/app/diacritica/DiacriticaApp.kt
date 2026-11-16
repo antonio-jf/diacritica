@@ -1,6 +1,7 @@
 package app.diacritica
 
 import app.diacritica.backup.BackupManager
+import app.diacritica.backup.AutoBackup
 import app.diacritica.translate.OnDeviceTranslator
 import app.diacritica.packs.PackManager
 import android.app.Application
@@ -14,6 +15,9 @@ import app.diacritica.rehearse.GeminiClient
 import app.diacritica.rehearse.SentenceRepository
 import app.diacritica.reader.StoryRepository
 import app.diacritica.reader.BooksRepository
+import app.diacritica.reader.ReadAloud
+import app.diacritica.undo.UndoManager
+import app.diacritica.update.Updater
 import app.diacritica.review.ReviewRepository
 import app.diacritica.data.user.UserDatabase
 import app.diacritica.settings.SettingsRepository
@@ -28,6 +32,9 @@ class AppContainer(app: Application) {
     val userDb = UserDatabase.create(app)
     val settings = SettingsRepository(app)
     val speaker = Speaker(app)
+    val readAloud = ReadAloud(app, speaker)
+    val undo = UndoManager()
+    val updater = Updater(app)
     val online = OnlineLookup(app, dictionaryDb)
     val review = ReviewRepository(userDb, dictionary)
     val sentences = SentenceRepository(app)
@@ -38,6 +45,7 @@ class AppContainer(app: Application) {
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
     val backup = BackupManager(app, userDb)
+    val autoBackup = AutoBackup(app)
     val tests = TestStore(app)
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
 }
@@ -49,5 +57,7 @@ class DiacriticaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Re-register the daily backup (no-op if already scheduled or no folder chosen).
+        runCatching { container.autoBackup.schedule() }
     }
 }

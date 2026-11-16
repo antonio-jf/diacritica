@@ -1,5 +1,6 @@
 package app.diacritica.ui.home
 
+import app.diacritica.ui.settings.UpdatePanel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -72,6 +73,7 @@ fun HomeScreen(
 ) {
     val c = Diacritica.colors
     val st by vm.stats.collectAsStateWithLifecycle()
+    val update by vm.updater.state.collectAsStateWithLifecycle()
     val pad = Diacritica.spacing.screen
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -83,6 +85,8 @@ fun HomeScreen(
             style = captionStyle(), modifier = Modifier.padding(horizontal = pad),
         )
         Gap(14.dp)
+        // Shown only when there's an update (available, downloading, ready to install).
+        UpdatePanel(update, vm.updater, compact = true, modifier = Modifier.padding(horizontal = pad).padding(bottom = 14.dp))
 
         // ---------------------------------------------------- Dictionary
         Column(Modifier.padding(horizontal = pad)) {

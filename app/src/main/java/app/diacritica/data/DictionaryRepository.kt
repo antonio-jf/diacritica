@@ -115,6 +115,33 @@ class DictionaryRepository(
         ).use { c -> buildList { while (c.moveToNext()) add(FormNoteText.parse(c.getString(0), c.getString(1))) } }
             .distinctBy { it.lemma to it.description }.take(3)
 
+    /**
+     * Every single-word form of [word] from its conjugation/declension tables, plus the word itself:
+     * nehmen → nehmen, nahm, genommen, nimmt… Articles in table forms are dropped ("die Häuser" → Häuser).
+     */
+    suspend fun surfaceForms(lang: Lang, word: String): Set<String> = withContext(Dispatchers.IO) {
+        val db = database.get()
+        val out = HashSet<String>()
+        out += TextNorm.normalize(word)
+        db.rawQuery(
+            "SELECT f.form FROM entry e JOIN form f ON f.entry_id = e.id WHERE e.lang = ? AND e.norm = ? LIMIT 400",
+            arrayOf(lang.code, TextNorm.normalize(word)),
+        ).use { c ->
+            while (c.moveToNext()) {
+                val parts = c.getString(0).trim().split(' ').filter { it.isNotEmpty() }
+                val single = when {
+                    parts.size == 1 -> parts[0]
+                    parts.size == 2 && parts[0].lowercase() in formArticles -> parts[1]
+                    else -> null
+                }
+                single?.let { out += TextNorm.normalize(it) }
+            }
+        }
+        out
+    }
+
+    private val formArticles = setOf("der", "die", "das", "den", "dem", "des", "le", "la", "les", "l'", "il", "lo", "gli", "i", "el", "los", "las")
+
     private fun lemmaFor(db: SQLiteDatabase, lang: Lang, q: String): String? =
         db.rawQuery(
             "SELECT s.form_of FROM entry e JOIN sense s ON s.entry_id = e.id " +

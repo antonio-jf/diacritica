@@ -1,5 +1,15 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.settings.TranslateEngine
+import app.diacritica.reader.TextImport
+import app.diacritica.data.TextNorm
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.combine
+import app.diacritica.undo.removeSavedWord
+import app.diacritica.undo.deleteStory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.diacritica.AppContainer
@@ -44,10 +54,14 @@ data class WordPopup(
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
 
 data class ReaderUiState(
+    /** Sentences whose hidden translation you've revealed ("Hide the translation until tapped"). */
+    val revealed: Set<Int> = emptySet(),
     val story: LoadedStory? = null,
     val highlighted: Int? = null,
     val popup: WordPopup? = null,
     val generating: Boolean = false,
+    /** Making a story from pasted text: (sentences translated, total), or null. */
+    val importing: Pair<Int, Int>? = null,
     val error: String? = null,
     val message: String? = null,
 )
@@ -123,9 +137,72 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun close() = _state.update { it.copy(story = null, highlighted = null, popup = null) }
+    fun close() {
+        if (reading.value?.storyId == _state.value.story?.story?.id) c.readAloud.stop()
+        _state.update { it.copy(story = null, highlighted = null, popup = null, revealed = emptySet()) }
+    }
 
-    fun delete(id: Long) { viewModelScope.launch { c.stories.delete(id) } }
+    /** What read-aloud is playing (any story), for the play/stop button. */
+    val reading: StateFlow<app.diacritica.reader.ReadAloudState?> = c.readAloud.state
+
+    /**
+     * Reads the open story aloud from the highlighted (or last read) sentence to the end, in [langs]
+     * order for each sentence, highlighting and scrolling along.
+     */
+    fun readAloud(langs: List<Lang>) {
+        val story = _state.value.story ?: return
+        val from = _state.value.highlighted ?: story.story.lastSentence.coerceAtLeast(0)
+        viewModelScope.launch {
+            val rate = c.settings.settings.first().speechRate
+            c.readAloud.play(story.story.id, story.title(langs.first()), story.sentences, from, langs, rate) { i ->
+                _state.update { st -> if (st.story?.story?.id == story.story.id) st.copy(highlighted = i) else st }
+                viewModelScope.launch { c.stories.saveProgress(story.story.id, i) }
+            }
+        }
+        lastReadLangs = langs
+    }
+
+    private var lastReadLangs: List<Lang> = emptyList()
+
+    fun stopReading() = c.readAloud.stop()
+
+    fun reveal(idx: Int) = _state.update { it.copy(revealed = it.revealed + idx) }
+
+    fun setTapLookup(on: Boolean) { viewModelScope.launch { c.settings.setReaderTapLookup(on) } }
+    fun setShowMyWords(on: Boolean) { viewModelScope.launch { c.settings.setReaderShowMyWords(on) } }
+
+    /**
+     * Your words in the open story's languages: normalized word form → 1 (learning: saved or in Review)
+     * or 2 (known: a mature card). Forms come from the dictionary's tables, so "nahm" counts for nehmen.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val wordMarks: StateFlow<Map<Lang, Map<String, Int>>> = combine(
+        c.userDb.saved().all(),
+        c.userDb.cards().knowledge(),
+        _state.map { it.story?.languages.orEmpty() }.distinctUntilChanged(),
+    ) { saved, knowledge, langs -> Triple(saved, knowledge, langs) }
+        .mapLatest { (saved, knowledge, langs) ->
+            withContext(Dispatchers.IO) {
+                val status = HashMap<Pair<Lang, String>, Int>()
+                saved.forEach { w -> Lang.fromCode(w.lang)?.takeIf { it in langs }?.let { status.merge(it to w.word, 1) { a, b -> maxOf(a, b) } } }
+                knowledge.forEach { k -> Lang.fromCode(k.lang)?.takeIf { it in langs }?.let { status.merge(it to k.word, if (k.known == 1) 2 else 1) { a, b -> maxOf(a, b) } } }
+                val out = HashMap<Lang, HashMap<String, Int>>()
+                for ((key, v) in status) {
+                    val (lang, word) = key
+                    val m = out.getOrPut(lang) { HashMap() }
+                    val forms = if (lang == Lang.ZH) setOf(word) else runCatching { c.dictionary.surfaceForms(lang, word) }.getOrDefault(setOf(TextNorm.normalize(word)))
+                    forms.forEach { f -> m.merge(f, v) { a, b -> maxOf(a, b) } }
+                }
+                out.mapValues { it.value.toMap() }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    fun setHideOther(on: Boolean) { viewModelScope.launch { c.settings.setReaderHideOther(on) } }
+
+    fun delete(id: Long) {
+        if (reading.value?.storyId == id) c.readAloud.stop()
+        viewModelScope.launch { c.deleteStory(id) }
+    }
 
     /** False friends for a tapped word, against the other reading language and English. */
     fun falseFriends(p: WordPopup, other: Lang): List<FalseFriendWarning> {
@@ -157,6 +234,12 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     /** Tap on a sentence: highlight it in both languages and remember the position. */
     fun highlight(idx: Int) {
         val s = _state.value.story ?: return
+        // While reading aloud, tapping a sentence jumps there.
+        if (reading.value?.storyId == s.story.id && lastReadLangs.isNotEmpty()) {
+            _state.update { it.copy(highlighted = idx) }
+            readAloud(lastReadLangs)
+            return
+        }
         val next = if (_state.value.highlighted == idx) null else idx
         _state.update { it.copy(highlighted = next) }
         if (next != null) viewModelScope.launch { c.stories.saveProgress(s.story.id, next) }
@@ -221,7 +304,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val key = "${w.lang.code}:${w.word}"
             if (key in savedKeys.value) {
-                c.userDb.saved().remove(w.lang.code, w.word); c.review.removeWordCards(w.lang, w.word)
+                c.removeSavedWord(w.lang.code, w.word)
             } else {
                 val s = c.settings.settings.first()
                 val story = _state.value.story
@@ -246,6 +329,50 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun clearMessage() = _state.update { it.copy(message = null, error = null) }
 
     /** Writes a new story with Gemini and opens it. */
+    /**
+     * Makes a story from your own text: detects its language (unless [from] is given), splits it into
+     * sentences, translates them into [targets] (Gemini in one request when that's the Translate engine,
+     * otherwise on the phone; on-device fills any gaps), saves it on the shelf and opens it.
+     */
+    fun importText(title: String, text: String, from: Lang?, targets: List<Lang>) {
+        if (text.isBlank() || _state.value.importing != null) return
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val src = from ?: c.translator.detect(text) ?: s.readerLangA
+            val into = targets.filter { it != src }.ifEmpty { listOf(if (src == Lang.EN) Lang.ES else Lang.EN) }
+            val sentences = TextImport.sentences(text.take(TextImport.MAX_CHARS), src)
+            if (sentences.isEmpty()) { _state.update { it.copy(error = "No sentences found in that text.") }; return@launch }
+            val total = sentences.size * into.size
+            _state.update { it.copy(importing = 0 to total, error = null) }
+            try {
+                var rows: List<Map<Lang, String>> = sentences.map { mapOf(src to it) }
+                if (s.translateEngine == TranslateEngine.GEMINI && s.geminiKey.isNotBlank() && c.online.isOnline()) {
+                    rows = runCatching { TextImport.translateWithGemini(c.gemini, s.geminiKey, s.geminiModel, src, sentences, into) }.getOrDefault(rows)
+                }
+                var done = rows.sumOf { r -> into.count { it in r } }
+                _state.update { it.copy(importing = done to total) }
+                val filled = rows.mapIndexed { i, r ->
+                    val m = r.toMutableMap()
+                    for (l in into) if (l !in m) {
+                        m[l] = c.translator.translate(sentences[i], src, l)
+                        done++
+                        _state.update { it.copy(importing = done to total) }
+                    }
+                    m.toMap()
+                }
+                val id = c.stories.importText(title.trim().ifEmpty { TextImport.titleFrom(sentences) }, listOf(src) + into, filled)
+                c.settings.setReaderLangs(src, into.first())
+                _state.update { it.copy(importing = null) }
+                open(id)
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(importing = null, error = if (!c.online.isOnline()) "The translation model for one of these languages isn't on the phone yet and you're offline. Connect once to download it (about 30 MB)."
+                        else "Couldn't translate the text: ${e.message ?: "unknown error"}")
+                }
+            }
+        }
+    }
+
     fun generate(topic: String, level: String? = null) {
         viewModelScope.launch {
             val s = c.settings.settings.first()

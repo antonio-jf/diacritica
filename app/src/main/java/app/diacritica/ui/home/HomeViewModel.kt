@@ -33,6 +33,7 @@ data class HomeStats(
 
 class HomeViewModel(private val c: AppContainer) : ViewModel() {
     private val db = c.userDb
+    val updater get() = c.updater
     /** Re-checked every minute so cards that fall due while Home is open are counted. */
     private val clock = flow { while (true) { emit(System.currentTimeMillis()); delay(60_000) } }
 

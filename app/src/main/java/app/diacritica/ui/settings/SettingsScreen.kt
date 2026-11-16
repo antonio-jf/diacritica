@@ -30,6 +30,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +72,7 @@ fun SettingsScreen(
     val message by vm.message.collectAsStateWithLifecycle()
     val backupTarget = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let(vm::exportBackup) }
     val backupSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::restoreBackup) }
+    val autoFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let { vm.autoBackup.enable(it) } }
     var confirmRestore by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // Sections start closed; each header shows a one-line summary of its current values.
     var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(listOf<String>()) }
@@ -199,7 +202,42 @@ fun SettingsScreen(
                     backupTarget.launch("diacritica-backup-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.zip")
                 }
                 LinkRow("Restore…", "Replaces everything in the app, then restarts it") { confirmRestore = true }
+                // ---- Automatic backup
+                val backupStatus by vm.autoBackup.status.collectAsStateWithLifecycle()
+                Text("Automatic backup", style = captionStyle(), modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp))
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (backupStatus.folder == null) {
+                        Text(
+                            "Every day, a backup file goes into a folder you choose (Google Drive, a USB stick, Documents…); the last ${app.diacritica.backup.AutoBackup.KEEP} are kept. On your other device, use Restore and pick the newest file there.",
+                            style = captionStyle(),
+                        )
+                        PolyButton("Choose a folder…", { autoFolder.launch(null) }, primary = false)
+                    } else {
+                        Text("Daily, into “${backupStatus.folderName ?: "the chosen folder"}”.", style = bodyStyle(size = 14.sp))
+                        backupStatus.lastAt?.let { at ->
+                            Text(
+                                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(at)) +
+                                    " · " + (backupStatus.lastResult ?: ""),
+                                style = captionStyle(if (backupStatus.lastResult?.startsWith("Backup saved") == true) Diacritica.colors.inkMuted else Diacritica.colors.error),
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PolyButton("Back up now", { vm.autoBackup.runNow() }, primary = false)
+                            PolyButton("Change folder", { autoFolder.launch(backupStatus.folder) }, primary = false)
+                            PolyButton("Turn off", { vm.autoBackup.disable() }, primary = false)
+                        }
+                    }
+                }
                 message?.let { Text(it, style = captionStyle(Diacritica.colors.accent), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+                // ---- App updates (GitHub Releases)
+                val update by vm.updater.state.collectAsStateWithLifecycle()
+                var auto by remember { mutableStateOf(vm.updater.autoCheck) }
+                Text("App updates", style = captionStyle(), modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp))
+                UpdatePanel(update, vm.updater, compact = false, modifier = Modifier.padding(horizontal = 20.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Check for updates by itself (once a day)", style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(checked = auto, onCheckedChange = { auto = it; vm.updater.autoCheck = it })
+                }
                 Text(
                     "Sources: Wiktionary (CC BY-SA), CC-CEDICT (CC BY-SA), Tatoeba (CC BY 2.0 FR), OPUS. Fonts: SIL Open Font License.",
                     style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
