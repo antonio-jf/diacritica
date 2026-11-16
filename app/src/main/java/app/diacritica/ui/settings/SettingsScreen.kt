@@ -203,27 +203,27 @@ fun SettingsScreen(
                 }
                 LinkRow("Restore…", "Replaces everything in the app, then restarts it") { confirmRestore = true }
                 // ---- Automatic backup
-                val auto by vm.autoBackup.status.collectAsStateWithLifecycle()
+                val backupStatus by vm.autoBackup.status.collectAsStateWithLifecycle()
                 Text("Automatic backup", style = captionStyle(), modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp))
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (auto.folder == null) {
+                    if (backupStatus.folder == null) {
                         Text(
                             "Every day, a backup file goes into a folder you choose (Google Drive, a USB stick, Documents…); the last ${app.diacritica.backup.AutoBackup.KEEP} are kept. On your other device, use Restore and pick the newest file there.",
                             style = captionStyle(),
                         )
                         PolyButton("Choose a folder…", { autoFolder.launch(null) }, primary = false)
                     } else {
-                        Text("Daily, into “${auto.folderName ?: "the chosen folder"}”.", style = bodyStyle(size = 14.sp))
-                        auto.lastAt?.let { at ->
+                        Text("Daily, into “${backupStatus.folderName ?: "the chosen folder"}”.", style = bodyStyle(size = 14.sp))
+                        backupStatus.lastAt?.let { at ->
                             Text(
                                 java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(at)) +
-                                    " · " + (auto.lastResult ?: ""),
-                                style = captionStyle(if (auto.lastResult?.startsWith("Backup saved") == true) Diacritica.colors.inkMuted else Diacritica.colors.error),
+                                    " · " + (backupStatus.lastResult ?: ""),
+                                style = captionStyle(if (backupStatus.lastResult?.startsWith("Backup saved") == true) Diacritica.colors.inkMuted else Diacritica.colors.error),
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PolyButton("Back up now", { vm.autoBackup.runNow() }, primary = false)
-                            PolyButton("Change folder", { autoFolder.launch(auto.folder) }, primary = false)
+                            PolyButton("Change folder", { autoFolder.launch(backupStatus.folder) }, primary = false)
                             PolyButton("Turn off", { vm.autoBackup.disable() }, primary = false)
                         }
                     }
