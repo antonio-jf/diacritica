@@ -107,7 +107,23 @@ class TestsViewModel(private val c: AppContainer) : ViewModel() {
 
     /** [practise] for a lesson shown on the Grammar page, which knows only the attempt's id. */
     fun practiseFrom(lesson: Lesson, attemptId: Long) {
+        if (attemptId < 0) return practiseBookLesson(lesson)
         c.tests.get(attemptId)?.let { practise(lesson, it) }
+    }
+
+    /** A lesson made from a book passage (Books › Break down): its practice sentences, into the book's language. */
+    private fun practiseBookLesson(lesson: Lesson) {
+        if (lesson.practice.isEmpty()) return
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val base = app.diacritica.tests.TestSet(
+                id = "book", title = lesson.title,
+                level = app.diacritica.rehearse.Difficulty.band(s.rehearseLevel).cefrLabel.take(2),
+                hsk = app.diacritica.rehearse.Difficulty.band(s.rehearseZhLevel).hsk,
+                focus = "mixed", description = lesson.why, items = emptyList(),
+            )
+            start(TestBank.fromLesson(lesson, base), Lang.EN, listOfNotNull(lesson.lang ?: s.activeLanguages.firstOrNull { it != Lang.EN }))
+        }
     }
 
     fun open(a: TestAttempt) {

@@ -82,6 +82,27 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
      * "Rehearse this sentence" from the Reader: the story's sentence becomes the prompt in [promptLang]; the
      * story's other languages are the references. The current path stays as it is for the next sentence.
      */
+    /**
+     * A passage from one of your books (Books › Rehearse this): it's the prompt as written, in [lang]. The English
+     * translation from a breakdown, if any, is kept as a reference; the other references are filled in as usual.
+     */
+    fun rehearseText(text: String, lang: Lang, source: String, english: String?) {
+        external = true
+        viewModelScope.launch {
+            try {
+                _state.update { RehearseUiState(loading = true, roundsDone = it.roundsDone) }
+                val s = c.settings.settings.first()
+                // Stored like a generated sentence so the archive and Weak spots can reload it.
+                val id = -(System.currentTimeMillis())
+                c.userDb.generatedRefs().save(GeneratedRef(id, lang.code, text))
+                english?.takeIf { lang != Lang.EN && it.isNotBlank() }?.let { c.userDb.generatedRefs().save(GeneratedRef(id, Lang.EN.code, it)) }
+                show(Pick(SentenceGroup(id, Difficulty.tag(s.rehearseLevel), mapOf(lang to listOf(text))), source, promptLangs = listOf(lang)), s)
+            } finally {
+                external = false
+            }
+        }
+    }
+
     fun rehearseStorySentence(storyId: Long, idx: Int, promptLang: Lang) {
         external = true
         viewModelScope.launch {
