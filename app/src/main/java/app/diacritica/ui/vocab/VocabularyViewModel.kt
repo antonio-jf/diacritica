@@ -9,6 +9,10 @@ import app.diacritica.data.ScriptPreference
 import app.diacritica.data.user.SavedWord
 import app.diacritica.undo.removeSavedWord
 import app.diacritica.vocab.VocabCheck
+import app.diacritica.vocab.CatalogTopic
+import app.diacritica.vocab.CustomVocabStore
+import app.diacritica.vocab.VocabCatalog
+import app.diacritica.rehearse.GeminiClient
 import app.diacritica.vocab.VocabSet
 import app.diacritica.vocab.VocabSets
 import app.diacritica.vocab.VocabWord
@@ -70,7 +74,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     private val _state = MutableStateFlow(VocabUiState())
     val state: StateFlow<VocabUiState> = _state.asStateFlow()
     private val app = context.applicationContext
-    private val custom = app.diacritica.vocab.CustomVocabStore(java.io.File(context.filesDir, "vocab/custom.json"))
+    private val custom = CustomVocabStore(java.io.File(context.filesDir, "vocab/custom.json"))
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -102,7 +106,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     fun openCatalog(open: Boolean) = _state.update { it.copy(catalog = open, catalogError = null) }
 
     /** Gemini writes the words of a catalog topic (or your own, when [topic] is null) in all six languages; kept afterwards. */
-    fun addTopic(topic: app.diacritica.vocab.CatalogTopic?, ownTopic: String?, count: Int, advanced: Boolean) {
+    fun addTopic(topic: CatalogTopic?, ownTopic: String?, count: Int, advanced: Boolean) {
         val name = topic?.title ?: ownTopic?.trim()?.takeIf { it.isNotEmpty() } ?: return
         val id = topic?.id ?: ("custom-" + name.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "-").trim('-').take(40))
         if (id in _state.value.writing) return
@@ -110,10 +114,10 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
         viewModelScope.launch {
             val s = c.settings.settings.first()
             val result = when {
-                s.geminiKey.isBlank() -> Result.failure(app.diacritica.rehearse.GeminiClient.GeminiException("New sets are written by Gemini: add your API key in Settings."))
-                !c.online.isOnline() -> Result.failure(app.diacritica.rehearse.GeminiClient.GeminiException("You're offline. Connect to add a set."))
+                s.geminiKey.isBlank() -> Result.failure(GeminiClient.GeminiException("New sets are written by Gemini: add your API key in Settings."))
+                !c.online.isOnline() -> Result.failure(GeminiClient.GeminiException("You're offline. Connect to add a set."))
                 else -> runCatching {
-                    app.diacritica.vocab.VocabCatalog.write(
+                    VocabCatalog.write(
                         c.gemini, s.geminiKey, s.geminiModel, id, name, topic?.hint, topic?.category ?: "Your topics", count, advanced,
                     ).copy(custom = true)
                 }
@@ -123,7 +127,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
                 val shown = inScript(set, s.script)
                 _state.update { st -> st.copy(sets = st.sets.filter { it.id != id } + shown, writing = st.writing - id, message = "“${set.title}” added: ${set.words.size} words.") }
             }.onFailure { e ->
-                _state.update { it.copy(writing = it.writing - id, catalogError = (e as? app.diacritica.rehearse.GeminiClient.GeminiException)?.message ?: "Couldn't write the set. Try again.") }
+                _state.update { it.copy(writing = it.writing - id, catalogError = (e as? GeminiClient.GeminiException)?.message ?: "Couldn't write the set. Try again.") }
             }
         }
     }
