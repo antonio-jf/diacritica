@@ -78,6 +78,8 @@ data class PassagePanel(
     val noteId: Long? = null,
     /** Titles of grammar points already turned into lessons. */
     val lessons: Set<String> = emptySet(),
+    /** Shown highlighted in the book. */
+    val highlighted: Boolean = false,
     val message: String? = null,
 )
 
@@ -114,6 +116,23 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
     val notes: StateFlow<List<app.diacritica.mybooks.BookNote>> = _reader.map { it.book?.id }.distinctUntilChanged()
         .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else c.bookshelf.notes(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val marks: StateFlow<List<app.diacritica.mybooks.BookMark>> = _reader.map { it.book?.id }.distinctUntilChanged()
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else c.bookshelf.marks(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Highlighted passages by paragraph ("chapter:paragraph"), to colour them in the text. */
+    val highlights: StateFlow<Map<String, List<String>>> = notes.map { list ->
+        list.filter { it.highlight }.groupBy({ "${it.chapter}:${it.paragraph}" }, { it.passage })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** The first paragraph on screen, for bookmarks. */
+    private val _visible = MutableStateFlow(0)
+    val visibleParagraph: StateFlow<Int> = _visible.asStateFlow()
+
+    /** Furthest paragraph reached (whole-book index); moving past it counts words as read. */
+    private var furthest = 0
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -156,6 +175,8 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
             val ch = book.chapter.coerceIn(0, (chapters.size - 1).coerceAtLeast(0))
             val paras = c.bookshelf.paragraphs(id, ch)
             _reader.value = BookReaderState(book, chapters, ch, paras, scrollTo = book.paragraph.coerceIn(0, (paras.size - 1).coerceAtLeast(0)), loading = false)
+            // Books opened before the reading log existed: what was already read doesn't count again.
+            furthest = maxOf(book.furthest, (chapters.getOrNull(ch)?.start ?: 0) + book.paragraph)
             c.bookshelf.setPosition(id, ch, book.paragraph, chapters, book.paragraphs)
         }
     }
@@ -176,8 +197,64 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The first paragraph on screen; saved a moment after scrolling stops. */
     fun visible(paragraph: Int) {
+        _visible.value = paragraph
         saveJob?.cancel()
-        saveJob = viewModelScope.launch { delay(700); savePosition(paragraph) }
+        saveJob = viewModelScope.launch { delay(700); savePosition(paragraph); logReading(paragraph) }
+    }
+
+    /** Counts the words of paragraphs newly scrolled past (in this chapter) as read today. */
+    private suspend fun logReading(paragraph: Int) {
+        val st = _reader.value
+        val book = st.book ?: return
+        val lang = Lang.fromCode(book.lang) ?: return
+        val start = st.chapters.getOrNull(st.chapter)?.start ?: return
+        val g = start + paragraph
+        if (g <= furthest) return
+        val from = (maxOf(furthest + 1, start) - start).coerceIn(0, st.paragraphs.size)
+        val to = (paragraph + 1).coerceIn(from, st.paragraphs.size)
+        val words = st.paragraphs.subList(from, to).sumOf { app.diacritica.mybooks.Bookshelf.countWords(it.text, lang) }
+        furthest = g
+        runCatching { c.bookshelf.recordRead(book, words, g) }
+    }
+
+    // ------------------------------------------------------------------ bookmarks and highlights
+
+    fun toggleBookmark() {
+        val st = _reader.value
+        val book = st.book ?: return
+        val p = _visible.value.coerceIn(0, (st.paragraphs.size - 1).coerceAtLeast(0))
+        val existing = marks.value.any { it.chapter == st.chapter && it.paragraph == p }
+        val label = st.paragraphs.getOrNull(p)?.text?.replace('\n', ' ')?.let { if (it.length > 90) it.take(87) + "…" else it } ?: ""
+        viewModelScope.launch {
+            val added = c.bookshelf.toggleMark(book.id, st.chapter, p, label, existing)
+            _reader.update { it.copy(message = if (added) "Bookmarked." else "Bookmark removed.") }
+        }
+    }
+
+    fun deleteMark(id: Long) { viewModelScope.launch { c.bookshelf.deleteMark(id) } }
+
+    /** Highlights the selection (it becomes a note shown coloured in the text). */
+    fun highlightSelection() {
+        val sel = _selection.value ?: return
+        val text = selectedText() ?: return
+        val book = _reader.value.book ?: return
+        viewModelScope.launch {
+            c.bookshelf.upsertNote(book.id, sel.chapter, sel.paragraph, text) { it.copy(highlight = true) }
+            _selection.value = null
+            _reader.update { it.copy(message = "Highlighted. It's in this book's notes too.") }
+        }
+    }
+
+    /** Highlight on/off for the passage in the panel. */
+    fun setHighlight(on: Boolean) {
+        val p = _panel.value ?: return
+        val book = _reader.value.book ?: return
+        viewModelScope.launch {
+            val note = c.bookshelf.upsertNote(book.id, p.chapter, p.paragraph, p.passage) { n ->
+                n.copy(highlight = on, translation = p.translation ?: n.translation)
+            }
+            _panel.update { it?.copy(noteId = note.id, highlighted = on, message = if (on) "Highlighted in the book." else "Highlight removed.") }
+        }
     }
 
     private suspend fun savePosition(paragraph: Int) {
@@ -292,7 +369,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
                 target = defaultTarget(s, from),
                 translation = note?.translation,
                 breakdown = app.diacritica.mybooks.Breakdown.decode(note?.breakdown),
-                noteId = note?.id, lessons = lessonTitles(note),
+                noteId = note?.id, lessons = lessonTitles(note), highlighted = note?.highlight == true,
             )
             if (breakdown) breakDown() else if (note?.translation == null) translate(_panel.value!!.target)
         }
@@ -307,6 +384,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
             _panel.value = PassagePanel(
                 passage = n.passage, chapter = n.chapter, paragraph = n.paragraph, breakdownMode = b != null,
                 target = defaultTarget(s, from), translation = n.translation, breakdown = b, noteId = n.id, lessons = lessonTitles(n),
+                highlighted = n.highlight,
             )
         }
     }

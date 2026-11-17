@@ -103,10 +103,13 @@ fun BookReaderScreen(
     val c = Diacritica.colors
     val st by vm.reader.collectAsStateWithLifecycle()
     val word by vm.word.collectAsStateWithLifecycle()
-    val marks by vm.wordMarks.collectAsStateWithLifecycle()
+    val wordMarks by vm.wordMarks.collectAsStateWithLifecycle()
     val selection by vm.selection.collectAsStateWithLifecycle()
     val panel by vm.panel.collectAsStateWithLifecycle()
     val notes by vm.notes.collectAsStateWithLifecycle()
+    val marks by vm.marks.collectAsStateWithLifecycle()
+    val highlights by vm.highlights.collectAsStateWithLifecycle()
+    val visibleP by vm.visibleParagraph.collectAsStateWithLifecycle()
     LaunchedEffect(bookId) { vm.open(bookId) }
     // Back clears a selection before leaving the book.
     androidx.activity.compose.BackHandler(enabled = selection != null) { vm.clearSelection() }
@@ -131,7 +134,12 @@ fun BookReaderScreen(
                     style = bodyStyle(size = 15.sp).copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            PolyIconButton(PolyIcons.Note, "Notes", { notesOpen = true }, tint = if (notes.isNotEmpty()) c.accent else c.ink)
+            val bookmarked = marks.any { it.chapter == st.chapter && it.paragraph == visibleP }
+            PolyIconButton(
+                if (bookmarked) PolyIcons.BookmarkFilled else PolyIcons.Bookmark, if (bookmarked) "Remove bookmark" else "Bookmark this page",
+                vm::toggleBookmark, tint = if (bookmarked) c.accent else c.ink,
+            )
+            PolyIconButton(PolyIcons.Note, "Notes and bookmarks", { notesOpen = true }, tint = if (notes.isNotEmpty() || marks.isNotEmpty()) c.accent else c.ink)
             PolyIconButton(PolyIcons.Toc, "Contents", { toc = true }, tint = c.ink)
             PolyIconButton(PolyIcons.Search, "Search in book", { search = true }, tint = c.ink)
             Box {
@@ -175,7 +183,8 @@ fun BookReaderScreen(
             itemsIndexed(st.paragraphs, key = { _, p -> "${p.chapter}-${p.idx}" }) { _, p ->
                 val sel = selection?.takeIf { it.chapter == st.chapter && it.paragraph == p.idx }?.let { it.start until it.end }
                 Paragraph(
-                    p, lang, style, size, marks, settings, vm,
+                    p, lang, style, size, wordMarks, settings, vm,
+                    highlights = highlights["${st.chapter}:${p.idx}"].orEmpty(),
                     mark = word?.takeIf { it.sentence.isNotEmpty() && p.text.contains(it.sentence) }?.token,
                     selected = sel, selecting = selection != null,
                 )
@@ -222,7 +231,11 @@ fun BookReaderScreen(
     }
     if (notesOpen) {
         ModalBottomSheet(onDismissRequest = { notesOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = c.ground) {
-            NotesSheet(notes, st.chapters.map { it.title }, onOpen = { n -> notesOpen = false; vm.openNote(n) }, onDelete = vm::deleteNote)
+            NotesSheet(
+                notes, marks, st.chapters.map { it.title },
+                onOpen = { n -> notesOpen = false; vm.openNote(n) }, onDelete = vm::deleteNote,
+                onOpenMark = { m -> notesOpen = false; vm.goToChapter(m.chapter, m.paragraph) }, onDeleteMark = vm::deleteMark,
+            )
         }
     }
     panel?.let { p ->
@@ -259,23 +272,29 @@ internal fun sentenceAround(text: String, offset: Int, lang: Lang): String {
 @Composable
 private fun Paragraph(
     p: BookParagraph, lang: Lang, style: TextStyle, size: TextUnit, marks: Map<String, Int>,
-    settings: AppSettings, vm: BooksViewModel, mark: String?, selected: IntRange?, selecting: Boolean,
+    settings: AppSettings, vm: BooksViewModel, highlights: List<String>, mark: String?, selected: IntRange?, selecting: Boolean,
 ) {
+    // Highlighted passages as ranges of this paragraph.
+    val hl = remember(p.text, highlights) {
+        highlights.mapNotNull { h -> p.text.indexOf(h).takeIf { it >= 0 }?.let { it until it + h.length } }
+    }
     val pStyle = if (p.heading) style.copy(fontSize = (size.value * 1.25f).sp, fontWeight = FontWeight.SemiBold, lineHeight = (size.value * 1.6f).sp) else style
     val m = Modifier.fillMaxWidth().padding(top = if (p.heading) 18.dp else 0.dp, bottom = if (p.heading) 12.dp else (size.value * 0.7f).dp)
     val onSelect: (IntRange) -> Unit = { r -> if (!r.isEmpty()) vm.select(p.idx, r.first, r.last + 1) }
     val onAdjust: (IntRange) -> Unit = { r -> if (!r.isEmpty()) vm.adjust(p.idx, r.first, r.last + 1) }
-    if (lang == Lang.ZH) ZhParagraph(p.text, pStyle, marks, settings, vm, mark, m, selected, selecting, onSelect, onAdjust)
-    else PlainParagraph(p.text, lang, pStyle, marks, mark, m, selected, selecting, onSelect, onAdjust) { w, offset -> vm.lookUp(w, sentenceAround(p.text, offset, lang)) }
+    if (lang == Lang.ZH) ZhParagraph(p.text, pStyle, marks, settings, vm, mark, m, selected, selecting, onSelect, onAdjust, hl)
+    else PlainParagraph(p.text, lang, pStyle, marks, mark, m, selected, selecting, onSelect, onAdjust, hl) { w, offset -> vm.lookUp(w, sentenceAround(p.text, offset, lang)) }
 }
 
 @Composable
 private fun PlainParagraph(
     text: String, lang: Lang, style: TextStyle, mine: Map<String, Int>, mark: String?, modifier: Modifier,
     selected: IntRange?, selecting: Boolean, onSelect: (IntRange) -> Unit, onAdjust: (IntRange) -> Unit,
+    highlights: List<IntRange>,
     onWord: (String, Int) -> Unit,
 ) {
     val selColor = selectionColor()
+    val hlColor = highlightColor()
     val selecting by rememberUpdatedState(selecting)
     val select by rememberUpdatedState(onSelect)
     val adjust by rememberUpdatedState(onAdjust)
@@ -286,9 +305,10 @@ private fun PlainParagraph(
     val haptics = LocalHapticFeedback.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val word by rememberUpdatedState(onWord)
-    val annotated = remember(text, mine, mark, learning, selected) {
+    val annotated = remember(text, mine, mark, learning, selected, highlights) {
         buildAnnotatedString {
             append(text)
+            highlights.forEach { r -> addStyle(SpanStyle(background = hlColor), r.first, (r.last + 1).coerceAtMost(text.length)) }
             if (selected != null && !selected.isEmpty()) addStyle(SpanStyle(background = selColor), selected.first, (selected.last + 1).coerceAtMost(text.length))
             if (mine.isNotEmpty()) for (mm in wordPattern.findAll(text)) {
                 val w = mm.value
@@ -334,9 +354,11 @@ private fun PlainParagraph(
 private fun ZhParagraph(
     text: String, style: TextStyle, mine: Map<String, Int>, settings: AppSettings, vm: BooksViewModel, mark: String?, modifier: Modifier,
     selected: IntRange?, selecting: Boolean, onSelect: (IntRange) -> Unit, onAdjust: (IntRange) -> Unit,
+    highlights: List<IntRange>,
 ) {
     val c = Diacritica.colors
     val selColor = selectionColor()
+    val hlColor = highlightColor()
     val haptics = LocalHapticFeedback.current
     var tokens by remember(text) { mutableStateOf(emptyList<DictionaryRepository.ZhToken>()) }
     LaunchedEffect(text) { tokens = vm.zhTokens(text) }
@@ -361,6 +383,7 @@ private fun ZhParagraph(
                     .background(
                         when {
                             inSelection -> selColor
+                            highlights.any { h -> range.first <= h.last && range.last >= h.first } -> hlColor
                             isWord && mark == t.text -> c.accent.copy(alpha = 0.22f)
                             status >= 2 -> c.success.copy(alpha = 0.16f)
                             status == 1 -> c.warning.copy(alpha = 0.22f)

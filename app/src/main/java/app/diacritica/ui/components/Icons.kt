@@ -65,6 +65,8 @@ object PolyIcons {
     val Archive = stroke("archive", "M4 5h16v4H4z", "M5 9v10h14V9", "M10 13h4")
     val Trash = stroke("trash", "M5 7h14", "M9 7V4h6v3", "M7 7l1 13h8l1-13")
     val Plus = stroke("plus", "M12 5v14", "M5 12h14")
+    val Bookmark = stroke("bookmark", "M7 4h10v16l-5-4-5 4z")
+    val BookmarkFilled = stroke("bookmark-filled", "M7 4h10v16l-5-4-5 4z", filled = true)
     val Note = stroke("note", "M6 4h9l3 3v13H6z", "M9 11h6", "M9 15h6")
     /** An open book: the Books section (your EPUBs). */
     val Books = stroke("books", "M3 6.5c3-1.6 6-1.6 9 0V19c-3-1.6-6-1.6-9 0z", "M12 6.5c3-1.6 6-1.6 9 0V19c-3-1.6-6-1.6-9 0z")
