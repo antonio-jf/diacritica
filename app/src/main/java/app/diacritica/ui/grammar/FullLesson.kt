@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package app.diacritica.ui.grammar
 
 import androidx.compose.foundation.background
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -18,6 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -168,5 +174,60 @@ internal fun FullLessonPage(l: Lesson, onBack: () -> Unit, onSpeak: (Lang, Strin
                 PolyButton("Practise as a mini test", { onPractise(l) })
             }
         }
+    }
+}
+
+/** "Ask for a lesson": describe a word, a character or a structure; Gemini writes a full lesson on it. */
+@Composable
+internal fun AskLessonCard(langs: List<Lang>, initial: Lang?, library: app.diacritica.grammar.LessonLibrary) {
+    val c = Diacritica.colors
+    val asking by library.asking.collectAsState()
+    var text by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    var lang by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf((initial ?: langs.firstOrNull { it != Lang.EN && it != Lang.ES } ?: langs.firstOrNull() ?: Lang.EN).code) }
+    val chosen = Lang.fromCode(lang) ?: Lang.EN
+    val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Ask for a lesson", style = titleStyle().copy(fontSize = 16.sp))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            langs.forEach { l -> app.diacritica.ui.components.PolyChip(l.nativeName, l == chosen, { lang = l.code }) }
+        }
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Diacritica.shapes.field)).background(c.ground)
+                .border(1.dp, c.line, RoundedCornerShape(Diacritica.shapes.field)).padding(12.dp),
+        ) {
+            if (text.isEmpty()) {
+                Text(
+                    when (chosen) {
+                        Lang.ZH -> "A word, a character or a structure… e.g. 起 and the words built with it, or when to use 把"
+                        Lang.DE -> "A word or a structure… e.g. the difference between seit and vor, or verbs with zu"
+                        Lang.FR -> "A word or a structure… e.g. when to use the subjunctive, or depuis vs pendant"
+                        Lang.IT -> "A word or a structure… e.g. ci and ne, or the passato remoto"
+                        else -> "A word, an expression or a structure you want explained"
+                    },
+                    style = bodyStyle(c.inkMuted, 15.sp),
+                )
+            }
+            androidx.compose.foundation.text.BasicTextField(
+                value = text, onValueChange = { text = it.take(400) },
+                textStyle = bodyStyle(size = 15.sp),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PolyButton(
+                if (asking.busy) "Writing the lesson…" else "Write lesson",
+                { library.ask(text, chosen) },
+                enabled = !asking.busy && text.isNotBlank(),
+            )
+            Spacer(Modifier.width(10.dp))
+            if (!asking.busy) Text("Saved here when it's ready", style = captionStyle(), modifier = Modifier.weight(1f))
+        }
+        asking.error?.let { Text(it, style = captionStyle(c.error)) }
+        // Clear the box once the lesson is written.
+        androidx.compose.runtime.LaunchedEffect(asking.done) { if (asking.done != null) text = "" }
     }
 }

@@ -52,4 +52,13 @@ class LessonWriterTest {
         assertTrue(LessonWriter.prompt(base, "B1", 2).contains("pinyin"))
         assertTrue(!LessonWriter.prompt(base.copy(lang = Lang.DE), "B1", 2).contains("pinyin"))
     }
+
+    @Test fun requestedLessonTakesGeminiTitle() {
+        val out = obj("""{"title":"The character 起","overview":"o","pattern":"","sections":[{"heading":"h","text":"t","examples":[]}],"pitfalls":[],"contrast":"","tip":"","practice":[]}""")
+        val base = Lesson(title = "起 and its words", lang = Lang.ZH, why = "You asked: 起 and its words", explanation = "")
+        val l = LessonWriter.parse(out, base)!!
+        assertEquals("The character 起", l.title)
+        assertTrue(LessonWriter.requestPrompt("起", Lang.ZH, "B1", 2).contains("components and radical"))
+        assertTrue(LessonWriter.schema(withTitle = true).toString().contains("\"title\""))
+    }
 }

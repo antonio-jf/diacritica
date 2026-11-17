@@ -116,12 +116,17 @@ fun GrammarScreen(
             }
 
             if (tab == 1) {
+                val asking by vm.lessons.asking.collectAsStateWithLifecycle()
+                // Open a lesson you asked for as soon as it's written.
+                LaunchedEffect(asking.done) { asking.done?.let { openKey = it; vm.lessons.consumeAsked() } }
+                val myLangs by vm.activeLangs.collectAsStateWithLifecycle()
+                AskLessonCard(myLangs, st.filter, vm.lessons)
                 val list = fullLessons.entries.filter { st.filter == null || it.value.lang == st.filter }
                     .sortedWith(compareBy({ it.value.lang?.ordinal ?: 99 }, { it.value.title.lowercase() }))
                 if (list.isEmpty()) {
                     PolySurface(Modifier.fillMaxWidth()) {
                         Text(
-                            "No full lessons yet. Open a lesson in Overview and tap Write full lesson: Gemini writes a complete one " +
+                            "No full lessons yet. Ask for one above, or open a lesson in Overview and tap Write full lesson: Gemini writes a complete one " +
                                 "(how it's formed, each use with examples, common mistakes, English and Spanish compared). " +
                                 "Lessons you make from a passage in Books or the Reader are written automatically.",
                             style = bodyStyle(size = 14.sp),

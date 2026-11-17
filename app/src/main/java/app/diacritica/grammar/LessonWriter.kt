@@ -36,7 +36,6 @@ object LessonWriter {
 
     fun prompt(l: Lesson, level: String, hsk: Int): String = buildString {
         val lang = l.lang
-        val name = lang?.englishName ?: "the language"
         appendLine("Lesson: “${l.title}”" + (lang?.let { " (${it.englishName})" } ?: "") + ".")
         appendLine("Learner level: " + if (lang == Lang.ZH) "about HSK $hsk." else "$level (CEFR).")
         if (l.why.isNotBlank()) appendLine("Where it came from: ${l.why}")
@@ -45,6 +44,25 @@ object LessonWriter {
         l.examples.forEach { appendLine("- ${it.text} — ${it.translation}") }
         appendLine()
         appendLine("Write the full lesson:")
+        body(lang)
+    }
+
+    /** A lesson the learner asked for in their own words: a word, a character, a structure, a doubt. */
+    fun requestPrompt(request: String, lang: Lang, level: String, hsk: Int): String = buildString {
+        appendLine("The learner asks for a lesson on this (${lang.englishName}):")
+        appendLine("“${request.trim()}”")
+        appendLine("Learner level: " + if (lang == Lang.ZH) "about HSK $hsk." else "$level (CEFR).")
+        appendLine("Teach exactly what they asked. If it's a word or expression: its meanings, how it's used, collocations, " +
+            "register, and near-synonyms it gets confused with. If it's a Chinese character: its components and radical, " +
+            "readings, meanings, and common words built with it. If it's a structure or a doubt: the rule and its uses.")
+        appendLine()
+        appendLine("Write the full lesson:")
+        appendLine("- title: 2–6 words naming the topic (e.g. \"把 sentences\", \"Subjunctive after 'bien que'\", \"The character 起\").")
+        body(lang)
+    }
+
+    private fun StringBuilder.body(lang: Lang?) {
+        val name = lang?.englishName ?: "the language"
         appendLine("- overview: 4–6 sentences: what this is, what it expresses, and when you use it.")
         appendLine("- pattern: how it's built in $name, one compact formula per line (e.g. \"subject + 把 + object + verb + result\").")
         appendLine("- sections: 3–5 sections, each one use, form or exception (regular cases first, then irregular forms, " +
@@ -58,9 +76,10 @@ object LessonWriter {
         append("- practice: 6 English sentences to translate into $name that use the point, from easy to harder.")
     }
 
-    fun schema(): JsonObject = buildJsonObject {
+    fun schema(withTitle: Boolean = false): JsonObject = buildJsonObject {
         put("type", "OBJECT")
         putJsonObject("properties") {
+            if (withTitle) putJsonObject("title") { put("type", "STRING") }
             putJsonObject("overview") { put("type", "STRING") }
             putJsonObject("pattern") { put("type", "STRING") }
             putJsonObject("sections") {
@@ -89,7 +108,7 @@ object LessonWriter {
             putJsonObject("tip") { put("type", "STRING") }
             putJsonObject("practice") { put("type", "ARRAY"); putJsonObject("items") { put("type", "STRING") } }
         }
-        putJsonArray("required") { add("overview"); add("pattern"); add("sections"); add("pitfalls"); add("contrast"); add("tip"); add("practice") }
+        putJsonArray("required") { if (withTitle) add("title"); add("overview"); add("pattern"); add("sections"); add("pitfalls"); add("contrast"); add("tip"); add("practice") }
     }
 
     private fun kotlinx.serialization.json.JsonObjectBuilder.example() {
@@ -120,6 +139,7 @@ object LessonWriter {
         if (sections.isEmpty()) return null
         val practice = (o["practice"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.ifEmpty { null } }
         return base.copy(
+            title = o.str("title") ?: base.title,
             explanation = o.str("overview") ?: base.explanation,
             pattern = o.str("pattern").orEmpty(),
             sections = sections,
@@ -136,5 +156,11 @@ object LessonWriter {
     suspend fun write(gemini: GeminiClient, apiKey: String, model: String, l: Lesson, level: String, hsk: Int): Lesson {
         val out = gemini.generateJson(apiKey, model, prompt(l, level, hsk), schema(), SYSTEM)
         return parse(out, l) ?: throw GeminiClient.GeminiException("Gemini didn't return a usable lesson. Try again.")
+    }
+
+    suspend fun ask(gemini: GeminiClient, apiKey: String, model: String, request: String, lang: Lang, level: String, hsk: Int): Lesson {
+        val out = gemini.generateJson(apiKey, model, requestPrompt(request, lang, level, hsk), schema(withTitle = true), SYSTEM)
+        val base = Lesson(title = request.trim().take(60), lang = lang, why = "You asked: " + request.trim(), explanation = "")
+        return parse(out, base) ?: throw GeminiClient.GeminiException("Gemini didn't return a usable lesson. Try again.")
     }
 }
