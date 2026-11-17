@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Vocabulary › More topics: a catalog of 40 more specific topics (plants, science, engineering, business, music, law…) and any topic you name; Gemini writes the set in all six languages once, and it's kept for offline use.
 - Books: with text selected, tapping anywhere on the page (a word or blank space) clears the selection.
 - Vocabulary: 25 word sets by topic (food, people, things, places, nature, actions, time, health and hobbies) in all six languages, with articles and pinyin. Listen, add words to Review, and finish each set with a mini test (choose or type; typed answers checked for the article and accents, Mandarin in characters or pinyin).
 - German verbs show how they're used: reflexive *sich*, prepositions and the case they take (e.g. *sich freuen auf + Akk.*).
