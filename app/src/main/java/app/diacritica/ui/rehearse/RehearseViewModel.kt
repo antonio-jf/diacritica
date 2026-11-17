@@ -176,7 +176,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
                 else Pick(hit.first, "Tatoeba", practice = hit.second, promptLangs = active.filter { it != hit.second.first })
             }
 
-            RehearsePath.FROM_READING -> fromReading() ?: everyday("Open a story in the Reader first; until then, here's an everyday sentence.")
+            RehearsePath.FROM_READING -> fromReading() ?: everyday("Open a story in the Reader or read a bit of a book first; until then, here's an everyday sentence.")
 
             RehearsePath.WEAK_SPOTS -> weakSpot() ?: everyday("No weak spots yet: every round so far was right. Here's an everyday sentence.")
 
@@ -210,8 +210,9 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /** A sentence you've already read in a Reader story (or any story, if none is opened yet). */
     private suspend fun fromReading(): Pick? {
+        if (useBook()) bookPick(1)?.let { return it }
         val stories = c.stories.all().first()
-        if (stories.isEmpty()) return null
+        if (stories.isEmpty()) return bookPick(1)
         val opened = stories.filter { it.lastOpenedAt != null }.ifEmpty { return null }
         repeat(6) {
             val story = opened.random()
@@ -293,8 +294,31 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /** [n] consecutive sentences of a story you've opened, up to where you've read. */
+    /**
+     * Whether "From my reading" takes this sentence from one of your books rather than a Reader story: books only
+     * when Gemini can write the references (a book has just its own language), half the time when there are both.
+     */
+    private suspend fun useBook(): Boolean {
+        val s = c.settings.settings.first()
+        if (s.geminiKey.isBlank() || !c.online.isOnline()) return false
+        val hasStories = c.stories.all().first().any { it.lastOpenedAt != null }
+        return !hasStories || kotlin.random.Random.nextBoolean()
+    }
+
+    /** A passage of [n] sentences from the read part of one of your books (Books section). */
+    private suspend fun bookPick(n: Int): Pick? {
+        val s = c.settings.settings.first()
+        if (s.geminiKey.isBlank()) return null
+        val r = runCatching { c.bookshelf.readPassage(n, s.activeLanguages.toSet()) }.getOrNull() ?: return null
+        // Stored like a generated sentence so the archive and Weak spots can reload it.
+        val id = -(System.currentTimeMillis())
+        c.userDb.generatedRefs().save(GeneratedRef(id, r.lang.code, r.text))
+        return Pick(SentenceGroup(id, Difficulty.tag(s.rehearseLevel), mapOf(r.lang to listOf(r.text))), "From “${r.title}”", promptLangs = listOf(r.lang))
+    }
+
     private suspend fun readingPassage(n: Int): Pick? {
-        val opened = c.stories.all().first().filter { it.lastOpenedAt != null }.ifEmpty { return null }
+        if (useBook()) bookPick(n)?.let { return it }
+        val opened = c.stories.all().first().filter { it.lastOpenedAt != null }.ifEmpty { return bookPick(n) }
         repeat(6) {
             val story = opened.random()
             val loaded = c.stories.load(story.id) ?: return@repeat

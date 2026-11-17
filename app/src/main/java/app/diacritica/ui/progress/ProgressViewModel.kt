@@ -40,6 +40,11 @@ data class ProgressUiState(
     val sentencesRead: Int = 0,
     /** Words read in each language of your Reader pair (Mandarin: characters). */
     val wordsRead: Map<Lang, Int> = emptyMap(),
+    /** Books section: words read in the period per language (Mandarin: characters), days with reading, books. */
+    val bookWords: Map<Lang, Int> = emptyMap(),
+    val bookDays: Int = 0,
+    val booksReading: List<app.diacritica.mybooks.MyBook> = emptyList(),
+    val booksFinished: Int = 0,
 )
 
 class ProgressViewModel(private val c: AppContainer) : ViewModel() {
@@ -86,8 +91,16 @@ class ProgressViewModel(private val c: AppContainer) : ViewModel() {
                     for (l in pair) words[l] = (words[l] ?: 0) + read.sumOf { m -> m[l]?.let { ProgressStats.wordCount(it, l) } ?: 0 }
                 }
 
+                // Books: words counted as you move past them (re-reading doesn't count twice).
+                val fromDay = range.days?.let { java.time.LocalDate.now().toEpochDay() - it + 1 } ?: 0L
+                val books = runCatching { c.bookshelf.stats(fromDay) }.getOrNull()
+
                 ProgressUiState(
                     loading = false, range = range,
+                    bookWords = books?.words.orEmpty().mapNotNull { w -> Lang.fromCode(w.lang)?.let { it to w.words } }.toMap(),
+                    bookDays = books?.days ?: 0,
+                    booksReading = books?.reading.orEmpty().take(4),
+                    booksFinished = books?.finished ?: 0,
                     rounds = rounds.size,
                     tests = testCount,
                     accuracy = ProgressStats.accuracy(allFeedback, s.activeLanguages),

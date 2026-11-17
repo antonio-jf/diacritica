@@ -163,6 +163,39 @@ fun ProgressScreen(vm: ProgressViewModel, onBack: () -> Unit) {
                     style = captionStyle(),
                 )
             }
+
+            // ------------------------------------------------ Books
+            if (st.bookWords.isNotEmpty() || st.booksReading.isNotEmpty() || st.booksFinished > 0) {
+                PolySurface {
+                    SectionLabel("Books")
+                    Gap(8.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BigStat(nf.format(st.bookWords.values.sum()), "words read", Modifier.weight(1f))
+                        BigStat(nf.format(st.bookDays), if (st.bookDays == 1) "day reading" else "days reading", Modifier.weight(1f))
+                        BigStat(nf.format(st.booksFinished), "finished", Modifier.weight(1f))
+                    }
+                    if (st.bookWords.size > 1 || st.bookWords.keys.any { it == Lang.ZH }) {
+                        Gap(10.dp)
+                        st.bookWords.forEach { (l, n) ->
+                            Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(l) }
+                                Text(nf.format(n) + if (l == Lang.ZH) " characters" else " words", style = bodyStyle())
+                            }
+                        }
+                    }
+                    if (st.booksReading.isNotEmpty()) {
+                        Gap(10.dp)
+                        Text("Reading now", style = captionStyle())
+                        st.booksReading.forEach { b ->
+                            Lang.fromCode(b.lang)?.let { l ->
+                                LangBar(l, b.progress, "${(b.progress * 100).toInt()}%", b.title, Diacritica.colors.accent)
+                            }
+                        }
+                    }
+                    Gap(6.dp)
+                    Text("Words count once, as you read past them; skipping ahead with Contents doesn't count.", style = captionStyle())
+                }
+            }
         }
     }
 }

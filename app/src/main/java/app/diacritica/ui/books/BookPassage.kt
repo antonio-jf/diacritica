@@ -104,7 +104,7 @@ internal fun SelectionBar(vm: BooksViewModel, text: String?) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton("Break down", onClick = { vm.openPanel(breakdown = true) })
             PolyButton("Translate", onClick = { vm.openPanel(breakdown = false) }, primary = false)
-            PolyButton("Save", onClick = vm::saveSelection, primary = false)
+            PolyButton("Highlight", onClick = vm::highlightSelection, primary = false)
             PolyButton("Copy", onClick = { text?.let { clipboard.setText(AnnotatedString(it)) }; vm.clearSelection() }, primary = false)
         }
     }
@@ -137,7 +137,7 @@ internal fun PassageSheet(
         Gap(12.dp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton("Rehearse this", onClick = { onRehearse(p.passage, p.breakdown?.translation) })
-            if (p.noteId == null) PolyButton("Save to notes", onClick = vm::savePassage, primary = false)
+            PolyButton(if (p.highlighted) "Remove highlight" else "Highlight", onClick = { vm.setHighlight(!p.highlighted) }, primary = false)
             PolyButton("Go to passage", onClick = { onGoTo(p.chapter, p.paragraph) }, primary = false)
             PolyButton("Copy", onClick = { clipboard.setText(AnnotatedString(p.passage)) }, primary = false)
         }
@@ -247,23 +247,42 @@ private fun GrammarCard(g: GrammarPoint, made: Boolean, onLesson: () -> Unit) {
 // ------------------------------------------------------------------ notes
 
 @Composable
-internal fun NotesSheet(notes: List<BookNote>, chapterTitles: List<String>, onOpen: (BookNote) -> Unit, onDelete: (Long) -> Unit) {
+internal fun NotesSheet(
+    notes: List<BookNote>, marks: List<app.diacritica.mybooks.BookMark>, chapterTitles: List<String>,
+    onOpen: (BookNote) -> Unit, onDelete: (Long) -> Unit,
+    onOpenMark: (app.diacritica.mybooks.BookMark) -> Unit, onDeleteMark: (Long) -> Unit,
+) {
     val c = Diacritica.colors
     Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-        SectionLabel("Notes in this book", Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
-        if (notes.isEmpty()) {
+        if (notes.isEmpty() && marks.isEmpty()) {
+            SectionLabel("Notes and bookmarks", Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
             Text(
-                "Long-press a sentence to select it, then Break down, Translate or Save. Your breakdowns and saved passages appear here.",
+                "Long-press a sentence to select it, then Break down, Translate or Highlight. The bookmark button at the top marks " +
+                    "your place. Both appear here.",
                 style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             )
         }
-        LazyColumn(Modifier.heightIn(max = 520.dp)) {
-            items(notes, key = { it.id }) { n ->
+        LazyColumn(Modifier.heightIn(max = 560.dp)) {
+            if (marks.isNotEmpty()) {
+                item { SectionLabel("Bookmarks", Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+                items(marks, key = { "m${it.id}" }) { m ->
+                    Row(Modifier.fillMaxWidth().clickable { onOpenMark(m) }.padding(start = 20.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(chapterTitles.getOrNull(m.chapter) ?: "Chapter ${m.chapter + 1}", style = captionStyle(c.accent), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(m.label, style = bodyStyle(size = 15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        PolyIconButton(PolyIcons.Trash, "Delete bookmark", { onDeleteMark(m.id) }, tint = c.inkMuted)
+                    }
+                }
+            }
+            if (notes.isNotEmpty()) item { SectionLabel("Notes", Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+            items(notes, key = { "n${it.id}" }) { n ->
                 Row(Modifier.fillMaxWidth().clickable { onOpen(n) }.padding(start = 20.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(n.passage.replace('\n', ' '), style = bodyStyle(size = 15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                         val tags = listOfNotNull(
                             chapterTitles.getOrNull(n.chapter),
+                            "highlight".takeIf { n.highlight },
                             "breakdown".takeIf { n.breakdown != null },
                             "translation".takeIf { n.translation != null && n.breakdown == null },
                             n.lessons?.let { "lessons" },
@@ -277,6 +296,10 @@ internal fun NotesSheet(notes: List<BookNote>, chapterTitles: List<String>, onOp
         Gap(12.dp)
     }
 }
+
+/** Background of highlighted passages (a soft marker yellow, apart from selection and word shading). */
+@Composable
+internal fun highlightColor(): androidx.compose.ui.graphics.Color = Diacritica.colors.savedStar.copy(alpha = 0.26f)
 
 /** Background of selected text. */
 @Composable

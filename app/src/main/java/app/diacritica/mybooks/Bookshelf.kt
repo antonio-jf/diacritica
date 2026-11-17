@@ -34,7 +34,7 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
     suspend fun delete(id: Long) {
         val b = dao.book(id)
         db.withTransaction {
-            dao.deleteParagraphs(id); dao.deleteChapters(id); dao.deleteNotes(id); dao.deleteBook(id)
+            dao.deleteParagraphs(id); dao.deleteChapters(id); dao.deleteNotes(id); dao.deleteMarks(id); dao.deleteReads(id); dao.deleteBook(id)
         }
         b?.cover?.let { File(it).delete() }
     }
@@ -65,6 +65,73 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
             val title = titles.getOrPut(n.bookId) { dao.book(n.bookId)?.title ?: "a book" }
             list.map { Triple(it, n, title) }
         }
+    }
+
+    // ------------------------------------------------------------------ bookmarks
+
+    fun marks(bookId: Long) = dao.marks(bookId)
+    suspend fun deleteMark(id: Long) = dao.deleteMark(id)
+
+    /** Adds a bookmark at the paragraph, or removes the one that's there. Returns true if one was added. */
+    suspend fun toggleMark(bookId: Long, chapter: Int, paragraph: Int, label: String, existing: Boolean): Boolean {
+        if (existing) { dao.deleteMarkAt(bookId, chapter, paragraph); return false }
+        dao.addMark(BookMark(bookId = bookId, chapter = chapter, paragraph = paragraph, label = label))
+        return true
+    }
+
+    // ------------------------------------------------------------------ reading log (Progress)
+
+    /** Counts [words] as read today and moves the furthest point to [furthest]. */
+    suspend fun recordRead(book: MyBook, words: Int, furthest: Int) {
+        if (words > 0) {
+            val day = java.time.LocalDate.now().toEpochDay()
+            val prev = dao.readOn(book.id, day)?.words ?: 0
+            dao.saveRead(BookRead(book.id, day, book.lang, prev + words))
+        }
+        dao.setFurthest(book.id, furthest)
+    }
+
+    data class Stats(val words: List<LangWords>, val days: Int, val reading: List<MyBook>, val finished: Int)
+
+    /** Reading since [fromDay] (epoch day; 0 = all time), plus books in progress. */
+    suspend fun stats(fromDay: Long): Stats = withContext(Dispatchers.IO) {
+        val opened = dao.openedBooks()
+        Stats(
+            words = dao.wordsSince(fromDay),
+            days = dao.daysReadSince(fromDay),
+            reading = opened.filter { it.progress < 0.98f }.sortedByDescending { it.openedAt },
+            finished = opened.count { it.progress >= 0.98f },
+        )
+    }
+
+    // ------------------------------------------------------------------ Rehearse
+
+    data class ReadPassage(val bookId: Long, val title: String, val lang: Lang, val chapter: Int, val paragraph: Int, val text: String)
+
+    /**
+     * [n] consecutive sentences from a part of one of your books you've already read (up to the furthest point),
+     * for Rehearse's "From my reading". Null if no book has been read yet.
+     */
+    suspend fun readPassage(n: Int, langs: Set<Lang>): ReadPassage? = withContext(Dispatchers.IO) {
+        val books = dao.openedBooks().filter { b -> Lang.fromCode(b.lang)?.let { it in langs } == true }
+        if (books.isEmpty()) return@withContext null
+        repeat(10) {
+            val b = books.random()
+            val lang = Lang.fromCode(b.lang) ?: return@repeat
+            val chapters = dao.chapters(b.id).ifEmpty { return@repeat }
+            val reached = maxOf(b.furthest, (chapters.getOrNull(b.chapter)?.start ?: 0) + b.paragraph)
+            val g = (0..reached).random()
+            val ch = chapters.lastOrNull { it.start <= g } ?: return@repeat
+            val p = dao.paragraph(b.id, ch.idx, g - ch.start) ?: return@repeat
+            if (p.heading) return@repeat
+            val sentences = splitSentences(p.text, lang)
+            if (sentences.isEmpty()) return@repeat
+            val k = n.coerceIn(1, sentences.size)
+            val start = (0..sentences.size - k).random()
+            val text = sentences.subList(start, start + k).joinToString(if (lang == Lang.ZH) "" else " ")
+            return@withContext ReadPassage(b.id, b.title, lang, ch.idx, p.idx, text)
+        }
+        null
     }
 
     class ImportResult(val id: Long, val alreadyHad: Boolean)
@@ -141,6 +208,28 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
                 else -> null
             }
         }
+
+        /** Sentences of a paragraph worth translating: at least a few words (or characters), not too long. */
+        fun splitSentences(text: String, lang: Lang): List<String> {
+            val it = java.text.BreakIterator.getSentenceInstance(lang.locale)
+            val flat = text.replace('\n', ' ')
+            it.setText(flat)
+            val out = ArrayList<String>()
+            var start = it.first()
+            var end = it.next()
+            while (end != java.text.BreakIterator.DONE) {
+                out += cleanSentence(flat.substring(start, end))
+                start = end; end = it.next()
+            }
+            return out.filter { s ->
+                val size = countWords(s, lang)
+                if (lang == Lang.ZH) size in 4..60 else size in 3..35
+            }
+        }
+
+        /** Trims a closing quote the splitter left at the start (« Oui. » Il…) or an opening one at the end. */
+        internal fun cleanSentence(s: String): String =
+            s.trim().trimStart('»', '”', '’', ')', ']', ' ').trimEnd('«', '“', '‘', '(', '[', ' ').trim()
 
         fun countWords(text: String, lang: Lang): Int =
             if (lang == Lang.ZH) text.count { TextNorm.containsHan(it.toString()) }
