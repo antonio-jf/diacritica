@@ -107,15 +107,17 @@ fun BookReaderScreen(
     val st by vm.reader.collectAsStateWithLifecycle()
     val word by vm.word.collectAsStateWithLifecycle()
     val wordMarks by vm.wordMarks.collectAsStateWithLifecycle()
-    val selection by vm.selection.collectAsStateWithLifecycle()
     val panel by vm.panel.collectAsStateWithLifecycle()
     val notes by vm.notes.collectAsStateWithLifecycle()
     val marks by vm.marks.collectAsStateWithLifecycle()
     val highlights by vm.highlights.collectAsStateWithLifecycle()
     val visibleP by vm.visibleParagraph.collectAsStateWithLifecycle()
     LaunchedEffect(bookId) { vm.open(bookId) }
-    // Back clears a selection before leaving the book.
-    androidx.activity.compose.BackHandler(enabled = selection != null) { vm.clearSelection() }
+    // The normal Android selection, with the app's own toolbar (see BookSelection.kt).
+    val realClipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = remember(realClipboard) { CapturingClipboard(realClipboard) }
+    val toolbar = remember { SelectionToolbar() }
+    val selecting = toolbar.request != null
     var notesOpen by remember { mutableStateOf(false) }
     val book = st.book
     val lang = book?.lang?.let { Lang.fromCode(it) } ?: Lang.EN
@@ -211,6 +213,7 @@ fun BookReaderScreen(
                 detectHorizontalDragGestures(
                     onDragEnd = {
                         when {
+                            toolbar.request != null -> {}
                             drag < -threshold && chapterNow + 1 < chapterCount -> vm.goToChapter(chapterNow + 1)
                             drag > threshold && chapterNow > 0 -> vm.goToChapter(chapterNow - 1)
                         }
@@ -221,6 +224,10 @@ fun BookReaderScreen(
                 )
             },
         ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalTextToolbar provides toolbar,
+            androidx.compose.ui.platform.LocalClipboardManager provides clipboard,
+        ) { androidx.compose.foundation.text.selection.SelectionContainer {
         LazyColumn(
             Modifier.fillMaxSize().graphicsLayer {
                 translationX = drag * 0.45f
@@ -231,21 +238,45 @@ fun BookReaderScreen(
             // Index 0 stays a spacer, so paragraph i is item i + 1.
             item(key = "top-${st.chapter}") { Gap(8.dp) }
             itemsIndexed(st.paragraphs, key = { _, p -> "${p.chapter}-${p.idx}" }) { _, p ->
-                val sel = selection?.takeIf { it.chapter == st.chapter && it.paragraph == p.idx }?.let { it.start until it.end }
                 Paragraph(
                     p, lang, style, size, wordMarks, settings, vm,
                     highlights = highlights["${st.chapter}:${p.idx}"].orEmpty(),
                     mark = word?.takeIf { it.sentence.isNotEmpty() && p.text.contains(it.sentence) }?.token,
-                    selected = sel, selecting = selection != null,
+                    selected = null, selecting = selecting,
                 )
             }
             item(key = "end-${st.chapter}") {
-                Text(
-                    if (next != null) "End of chapter · swipe left for the next" else "The end",
-                    style = captionStyle(), modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 40.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                androidx.compose.foundation.text.selection.DisableSelection {
+                    Text(
+                        if (next != null) "End of chapter · swipe left for the next" else "The end",
+                        style = captionStyle(), modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 40.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
             }
+        }
+        } }
+        // The app's selection toolbar, next to the selected text.
+        toolbar.request?.let { r ->
+            val gap = with(density) { 8.dp.roundToPx() }
+            fun take(action: (String) -> Unit) {
+                val text = r.copy?.let { clipboard.capture(it) }?.trim()
+                toolbar.hide()
+                if (!text.isNullOrEmpty()) action(text)
+            }
+            val source = "From “${book.title}”"
+            // Reading the selection ends it (Compose's copy releases it), so the text is taken only once an action is tapped.
+            val actions = buildList {
+                add(ToolbarAction(PolyIcons.Explain, "Explain") { take { t -> vm.useText(t); vm.openPanel(breakdown = true) } })
+                add(ToolbarAction(PolyIcons.Translate, "Translate") { take { t -> vm.useText(t); vm.openPanel(breakdown = false) } })
+                add(ToolbarAction(PolyIcons.Pencil, "Rehearse") { take { t -> onRehearse(t, lang, source, null) } })
+                add(ToolbarAction(PolyIcons.Marker, "Highlight") { take { t -> vm.useText(t); vm.highlightSelection() } })
+                add(ToolbarAction(PolyIcons.Copy, "Copy") { take { t -> clipboard.setReal(t) } })
+            }
+            androidx.compose.ui.window.Popup(
+                popupPositionProvider = AboveSelection(r.rect, gap),
+                properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+            ) { SelectionPill(actions) }
         }
         // What letting go will do, once the swipe is far enough.
         val target = when {
@@ -263,13 +294,6 @@ fun BookReaderScreen(
         st.message?.let { msg ->
             LaunchedEffect(msg) { kotlinx.coroutines.delay(2500); vm.clearReaderMessage() }
             Text(msg, style = captionStyle(c.accent), modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp))
-        }
-        if (selection != null) {
-            SelectionBar(vm, vm.selectedText(), onRehearse = { text ->
-                vm.clearSelection()
-                onRehearse(text, lang, "From “${book.title}”", null)
-            })
-            return@Column
         }
         // ---------------------------------------------------------- progress line
         val first by remember { androidx.compose.runtime.derivedStateOf { (list.firstVisibleItemIndex - 1).coerceAtLeast(0) } }
@@ -396,18 +420,8 @@ private fun PlainParagraph(
                 if (haptic) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 word(w, off)
             }
-            // Tap looks a word up; long-press selects the sentence. While selecting, taps extend or trim the selection.
-            detectTapGestures(
-                onTap = { pos ->
-                    if (selecting) layout?.let { l -> wordRange(text, l.getOffsetForPosition(pos))?.let(adjust) }
-                    else lookAt(pos, false)
-                },
-                onLongPress = { pos ->
-                    val l = layout ?: return@detectTapGestures
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    select(sentenceRange(text, l.getOffsetForPosition(pos), lang))
-                },
-            )
+            // Tap looks a word up. Long-press belongs to the normal text selection (handles + the app's toolbar).
+            detectTapGestures(onTap = { pos -> if (!selecting) lookAt(pos, false) })
         },
     )
 }
@@ -453,22 +467,16 @@ private fun ZhParagraph(
                             else -> Color.Transparent
                         },
                     )
-                    .combinedClickable(
-                        onClick = {
-                            when {
-                                selecting -> onAdjust(range)
-                                isWord -> vm.lookUp(t.text, sentenceAround(text, offsets[i], Lang.ZH))
-                            }
-                        },
-                        onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSelect(sentenceRange(text, offsets[i], Lang.ZH))
-                        },
+                    .then(
+                        if (isWord) Modifier.clickable(indication = null, interactionSource = null) {
+                            if (!selecting) vm.lookUp(t.text, sentenceAround(text, offsets[i], Lang.ZH))
+                        } else Modifier,
                     )
                     .padding(horizontal = if (isWord) 1.dp else 0.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (pinyinRow) Text(pinyinFor(t) ?: "", style = pinyinStyle, maxLines = 1)
+                // Pinyin isn't part of the text: left out of selections.
+                if (pinyinRow) androidx.compose.foundation.text.selection.DisableSelection { Text(pinyinFor(t) ?: "", style = pinyinStyle, maxLines = 1) }
                 Text(t.text, style = style.copy(lineHeight = (style.fontSize.value * 1.3f).sp))
             }
         } }
