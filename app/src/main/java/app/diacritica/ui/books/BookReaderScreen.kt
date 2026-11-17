@@ -5,6 +5,7 @@ package app.diacritica.ui.books
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -48,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -155,6 +158,31 @@ fun BookReaderScreen(
             return@Column
         }
 
+        // ---------------------------------------------------------- chapter strip (sticky): previous · next
+        val prev = st.chapters.getOrNull(st.chapter - 1)
+        val next = st.chapters.getOrNull(st.chapter + 1)
+        if (prev != null || next != null) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    prev?.let {
+                        Text(
+                            "‹ ${it.title}", style = captionStyle(c.accent), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { vm.goToChapter(st.chapter - 1) }.padding(horizontal = 6.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    next?.let {
+                        Text(
+                            "${it.title} ›", style = captionStyle(c.accent).copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { vm.goToChapter(st.chapter + 1) }.padding(horizontal = 6.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
+            Hairline()
+        }
+
         // ---------------------------------------------------------- text
         val list = rememberLazyListState()
         // Index 0 is the "previous chapter" row, so paragraph i is item i + 1.
@@ -172,15 +200,36 @@ fun BookReaderScreen(
             fontFamily = if (settings.bookSerif) Fonts.sourceSerif else Fonts.inter,
             fontSize = size, lineHeight = (settings.bookTextSize * settings.bookLineSpacing).sp, color = c.ink,
         )
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(horizontal = 22.dp, vertical = 8.dp)) {
-            item(key = "prev-${st.chapter}") {
-                if (st.chapter > 0) {
-                    Text(
-                        "‹ ${st.chapters[st.chapter - 1].title}", style = captionStyle(c.accent), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { vm.goToChapter(st.chapter - 1) }.padding(vertical = 10.dp),
-                    )
-                } else Gap(8.dp)
-            }
+        // Swipe left for the next chapter, right for the previous one. The page follows the finger a little.
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val threshold = with(density) { 96.dp.toPx() }
+        var drag by remember { mutableFloatStateOf(0f) }
+        val chapterNow by rememberUpdatedState(st.chapter)
+        val chapterCount by rememberUpdatedState(st.chapters.size)
+        Box(
+            Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        when {
+                            drag < -threshold && chapterNow + 1 < chapterCount -> vm.goToChapter(chapterNow + 1)
+                            drag > threshold && chapterNow > 0 -> vm.goToChapter(chapterNow - 1)
+                        }
+                        drag = 0f
+                    },
+                    onDragCancel = { drag = 0f },
+                    onHorizontalDrag = { change, amount -> drag += amount; change.consume() },
+                )
+            },
+        ) {
+        LazyColumn(
+            Modifier.fillMaxSize().graphicsLayer {
+                translationX = drag * 0.45f
+                alpha = 1f - (kotlin.math.abs(drag) / (threshold * 4)).coerceAtMost(0.35f)
+            },
+            state = list, contentPadding = PaddingValues(horizontal = 22.dp, vertical = 8.dp),
+        ) {
+            // Index 0 stays a spacer, so paragraph i is item i + 1.
+            item(key = "top-${st.chapter}") { Gap(8.dp) }
             itemsIndexed(st.paragraphs, key = { _, p -> "${p.chapter}-${p.idx}" }) { _, p ->
                 val sel = selection?.takeIf { it.chapter == st.chapter && it.paragraph == p.idx }?.let { it.start until it.end }
                 Paragraph(
@@ -190,16 +239,26 @@ fun BookReaderScreen(
                     selected = sel, selecting = selection != null,
                 )
             }
-            item(key = "next-${st.chapter}") {
-                Column(Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    val next = st.chapters.getOrNull(st.chapter + 1)
-                    if (next != null) {
-                        Text("Next", style = captionStyle())
-                        Gap(6.dp)
-                        PolyButton(next.title, onClick = { vm.goToChapter(st.chapter + 1) })
-                    } else Text("The end", style = captionStyle())
-                }
+            item(key = "end-${st.chapter}") {
+                Text(
+                    if (next != null) "End of chapter · swipe left for the next" else "The end",
+                    style = captionStyle(), modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 40.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
+        }
+        // What letting go will do, once the swipe is far enough.
+        val target = when {
+            drag < -threshold -> next?.title
+            drag > threshold -> prev?.title
+            else -> null
+        }
+        target?.let {
+            Text(
+                (if (drag < 0) "Next: " else "Previous: ") + it, style = captionStyle(c.ground), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(16.dp)).background(c.accent).padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
         }
         st.message?.let { msg ->
             LaunchedEffect(msg) { kotlinx.coroutines.delay(2500); vm.clearReaderMessage() }
