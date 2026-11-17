@@ -87,7 +87,7 @@ internal fun sentenceRange(text: String, offset: Int, lang: Lang): IntRange {
 
 /** Shown instead of the progress line while a passage is selected. */
 @Composable
-internal fun SelectionBar(vm: BooksViewModel, text: String?) {
+internal fun SelectionBar(vm: BooksViewModel, text: String?, onRehearse: (String) -> Unit) {
     val c = Diacritica.colors
     val clipboard = LocalClipboardManager.current
     Column(Modifier.fillMaxWidth().background(c.surface).padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -104,6 +104,7 @@ internal fun SelectionBar(vm: BooksViewModel, text: String?) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PolyButton("Break down", onClick = { vm.openPanel(breakdown = true) })
             PolyButton("Translate", onClick = { vm.openPanel(breakdown = false) }, primary = false)
+            PolyButton("Rehearse this", onClick = { text?.let(onRehearse) }, primary = false)
             PolyButton("Highlight", onClick = vm::highlightSelection, primary = false)
             PolyButton("Copy", onClick = { text?.let { clipboard.setText(AnnotatedString(it)) }; vm.clearSelection() }, primary = false)
         }
