@@ -120,6 +120,10 @@ data class AppSettings(
     val readerPopup: PopupLayout = PopupLayout.SHEET,
     /** Top/bottom layouts: share of the height for the top pane (dragged with the divider). */
     val readerSplit: Float = 0.5f,
+    /** Books: reading text size (sp), line spacing (× size) and serif or sans-serif text. */
+    val bookTextSize: Int = 19,
+    val bookLineSpacing: Float = 1.6f,
+    val bookSerif: Boolean = true,
     /** Reader: a tap looks up the word (long-press highlights the sentence) instead of the reverse. */
     val readerTapLookup: Boolean = false,
     /** Sections in the bottom bar after Home, in order (routes: dictionary, reader, rehearse, review, tests…). */
@@ -180,6 +184,9 @@ class SettingsRepository(private val context: Context) {
         val readerPinyinTop = intPreferencesKey("reader_pinyin_top")
         val readerPopup = stringPreferencesKey("layout_word_popup")
         val readerSplit = floatPreferencesKey("reader_split")
+        val bookTextSize = intPreferencesKey("book_text_size")
+        val bookLineSpacing = floatPreferencesKey("book_line_spacing")
+        val bookSerif = booleanPreferencesKey("book_serif")
         val readerTapLookup = booleanPreferencesKey("reader_tap_lookup")
         val navTabs = stringPreferencesKey("nav_tabs")
         val readerShowMyWords = booleanPreferencesKey("reader_show_my_words")
@@ -236,6 +243,9 @@ class SettingsRepository(private val context: Context) {
             readerPinyinTop = p[K.readerPinyinTop] ?: d.readerPinyinTop,
             readerPopup = enumOr(p[K.readerPopup], d.readerPopup),
             readerSplit = (p[K.readerSplit] ?: d.readerSplit).coerceIn(0.2f, 0.8f),
+            bookTextSize = (p[K.bookTextSize] ?: d.bookTextSize).coerceIn(13, 32),
+            bookLineSpacing = (p[K.bookLineSpacing] ?: d.bookLineSpacing).coerceIn(1.2f, 2.2f),
+            bookSerif = p[K.bookSerif] ?: d.bookSerif,
             readerTapLookup = p[K.readerTapLookup] ?: d.readerTapLookup,
             navTabs = p[K.navTabs]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.distinct()?.take(MAX_NAV_TABS) ?: d.navTabs,
             readerShowMyWords = p[K.readerShowMyWords] ?: d.readerShowMyWords,
@@ -288,6 +298,11 @@ class SettingsRepository(private val context: Context) {
     suspend fun setNavTabs(v: List<String>) = context.dataStore.edit { it[K.navTabs] = v.distinct().take(MAX_NAV_TABS).joinToString(",") }
     suspend fun setReaderTapLookup(v: Boolean) = context.dataStore.edit { it[K.readerTapLookup] = v }
     suspend fun setReaderShowMyWords(v: Boolean) = context.dataStore.edit { it[K.readerShowMyWords] = v }
+    suspend fun setBookText(size: Int? = null, spacing: Float? = null, serif: Boolean? = null) = context.dataStore.edit {
+        size?.let { v -> it[K.bookTextSize] = v.coerceIn(13, 32) }
+        spacing?.let { v -> it[K.bookLineSpacing] = v.coerceIn(1.2f, 2.2f) }
+        serif?.let { v -> it[K.bookSerif] = v }
+    }
     suspend fun setReaderSplit(v: Float) = context.dataStore.edit { it[K.readerSplit] = v.coerceIn(0.2f, 0.8f) }
     suspend fun setStoryLevel(level: String, hsk: Int) = context.dataStore.edit { it[K.storyLevel] = level; it[K.storyHsk] = hsk }
     suspend fun setRehearseLevel(v: Int) = context.dataStore.edit { it[K.rehearseLevel] = v.coerceIn(1, 10) }

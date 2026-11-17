@@ -193,6 +193,8 @@ object EpubParser {
         "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "ul", "ol", "blockquote", "pre", "dt", "dd", "dl",
         "section", "article", "header", "footer", "figure", "figcaption", "table", "tr", "td", "th", "hr", "body", "main", "nav", "address",
     )
+    /** Stands for a <br> while collecting text (markup newlines become spaces). */
+    private const val BR = '\u2028'
     private val HEADING = setOf("h1", "h2", "h3", "h4", "h5", "h6")
     private val SKIP = setOf("script", "style", "head", "title", "svg", "math", "img", "image", "sup", "audio", "video", "object", "iframe", "rt", "rp")
 
@@ -224,7 +226,8 @@ object EpubParser {
                 when (node) {
                     is TextNode -> {
                         if (buf.isEmpty() || buf.isBlank()) bufHeading = headingDepth > 0
-                        buf.append(node.wholeText)
+                        // Line breaks in the markup are just whitespace; only <br> breaks a line (see [BR]).
+                        buf.append(node.wholeText.replace('\n', ' ').replace('\r', ' '))
                     }
                     is Element -> {
                         if (skip(node)) return NodeFilter.FilterResult.SKIP_ENTIRELY
@@ -234,7 +237,7 @@ object EpubParser {
                             flush()
                             emit(null, anchors[id])
                         }
-                        if (tag == "br") buf.append('\n')
+                        if (tag == "br") buf.append(BR)
                         if (tag in BLOCK) flush()
                         if (tag in HEADING) headingDepth++
                     }
@@ -259,7 +262,7 @@ object EpubParser {
      * characters a markup line break is dropped instead of becoming a space.
      */
     internal fun tidy(raw: String): String {
-        val lines = raw.replace(' ', ' ').split('\n').map { line ->
+        val lines = raw.replace('\u00A0', ' ').split(BR).map { line ->
             val sb = StringBuilder()
             var pendingSpace = false
             for (ch in line) {
