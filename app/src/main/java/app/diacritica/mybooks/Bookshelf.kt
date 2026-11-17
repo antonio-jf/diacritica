@@ -54,15 +54,20 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
         return n.copy(id = if (n.id == 0L) id else n.id)
     }
 
-    /** Lessons made from book passages, for the Grammar section: (lesson, note, book title). */
-    suspend fun lessons(): List<Triple<app.diacritica.tests.Lesson, BookNote, String>> {
+    /**
+     * Lessons made from book passages, for the Grammar section: (lesson, note, title). Notes with a negative
+     * bookId belong to Reader stories (−storyId); [storyTitle] names them.
+     */
+    suspend fun lessons(storyTitle: suspend (Long) -> String? = { null }): List<Triple<app.diacritica.tests.Lesson, BookNote, String>> {
         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
         val titles = HashMap<Long, String>()
         return dao.notesWithLessons().flatMap { n ->
             val list = runCatching {
                 json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(app.diacritica.tests.Lesson.serializer()), n.lessons!!)
             }.getOrDefault(emptyList())
-            val title = titles.getOrPut(n.bookId) { dao.book(n.bookId)?.title ?: "a book" }
+            val title = titles.getOrPut(n.bookId) {
+                if (n.bookId < 0) storyTitle(-n.bookId) ?: "a Reader story" else dao.book(n.bookId)?.title ?: "a book"
+            }
             list.map { Triple(it, n, title) }
         }
     }

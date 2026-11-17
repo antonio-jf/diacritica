@@ -184,14 +184,27 @@ private fun TranslationView(vm: BooksViewModel, p: PassagePanel, settings: AppSe
 
 @Composable
 private fun BreakdownView(vm: BooksViewModel, p: PassagePanel, bookLang: Lang) {
-    val c = Diacritica.colors
     val saved by vm.savedKeys.collectAsStateWithLifecycle()
-    val b: Breakdown = p.breakdown ?: run {
-        if (p.loading) {
+    BreakdownBody(p.breakdown, p.loading, p.error != null, bookLang, saved, p.lessons, vm::breakDown, vm::saveVocab, vm::makeLesson)
+}
+
+/**
+ * A breakdown (Books and Reader): translation, word by word, grammar points with "Make a lesson", and words worth
+ * learning with a save star. While [loading], a progress line; after an error, "Try again".
+ */
+@Composable
+internal fun BreakdownBody(
+    breakdown: Breakdown?, loading: Boolean, failed: Boolean, lang: Lang, saved: Set<String>, lessons: Set<String>,
+    onRetry: () -> Unit, onSaveVocab: (app.diacritica.mybooks.VocabItem) -> Unit, onMakeLesson: (GrammarPoint) -> Unit,
+) {
+    val c = Diacritica.colors
+    val bookLang = lang
+    val b: Breakdown = breakdown ?: run {
+        if (loading) {
             Text("Gemini is breaking it down…", style = captionStyle())
             Gap(6.dp)
             LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent, trackColor = c.line)
-        } else if (p.error != null) PolyButton("Try again", onClick = vm::breakDown)
+        } else if (failed) PolyButton("Try again", onClick = onRetry)
         return
     }
     SectionLabel("Translation")
@@ -221,7 +234,7 @@ private fun BreakdownView(vm: BooksViewModel, p: PassagePanel, bookLang: Lang) {
         Gap(16.dp)
         SectionLabel("Grammar")
         Gap(6.dp)
-        b.grammar.forEach { g -> GrammarCard(g, made = g.title in p.lessons, onLesson = { vm.makeLesson(g) }); Gap(10.dp) }
+        b.grammar.forEach { g -> GrammarCard(g, made = g.title in lessons, onLesson = { onMakeLesson(g) }); Gap(10.dp) }
     }
 
     if (b.vocabulary.isNotEmpty()) {
@@ -238,7 +251,7 @@ private fun BreakdownView(vm: BooksViewModel, p: PassagePanel, bookLang: Lang) {
                 }
                 PolyIconButton(
                     if (isSaved) PolyIcons.StarFilled else PolyIcons.Star, if (isSaved) "Remove from saved" else "Save word",
-                    onClick = { vm.saveVocab(v) }, tint = if (isSaved) c.savedStar else c.inkMuted,
+                    onClick = { onSaveVocab(v) }, tint = if (isSaved) c.savedStar else c.inkMuted,
                 )
             }
         }
