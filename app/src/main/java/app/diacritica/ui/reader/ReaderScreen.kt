@@ -62,6 +62,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -628,20 +629,29 @@ private fun SplitPanes(env: SentenceEnv, numbered: Boolean) {
     SyncScroll(top, bottom)
     FollowHighlight(env.highlighted, top, bottom)
     // Drag the divider to give either language more room; double-tap it to split evenly again.
-    var frac by remember(env.split) { mutableStateOf(env.split) }
+    // One state object for the whole life of the panes: the gesture handlers below are started once and keep a
+    // reference to it. (Re-creating it when the saved split changed left them writing to a stale copy, so after
+    // the first drag the panes only moved on release.) The saved value is applied only while not dragging.
+    val frac = remember { mutableFloatStateOf(env.split) }
+    var dragging by remember { mutableStateOf(false) }
+    LaunchedEffect(env.split) { if (!dragging) frac.floatValue = env.split }
     var height by remember { mutableStateOf(1f) }
     val c = Diacritica.colors
     Column(Modifier.fillMaxSize().onGloballyPositioned { height = it.size.height.toFloat().coerceAtLeast(1f) }) {
-        Pane(env, env.a, top, numbered, Modifier.weight(frac))
+        Pane(env, env.a, top, numbered, Modifier.weight(frac.floatValue))
         Row(
             Modifier.fillMaxWidth().background(c.surface)
                 .pointerInput(Unit) {
-                    detectVerticalDragGestures(onDragEnd = { env.vm.setSplit(frac) }) { change, dy ->
+                    detectVerticalDragGestures(
+                        onDragStart = { dragging = true },
+                        onDragEnd = { dragging = false; env.vm.setSplit(frac.floatValue) },
+                        onDragCancel = { dragging = false; env.vm.setSplit(frac.floatValue) },
+                    ) { change, dy ->
                         change.consume()
-                        frac = (frac + dy / height).coerceIn(0.2f, 0.8f)
+                        frac.floatValue = (frac.floatValue + dy / height).coerceIn(0.2f, 0.8f)
                     }
                 }
-                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { frac = 0.5f; env.vm.setSplit(0.5f) }) }
+                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { frac.floatValue = 0.5f; env.vm.setSplit(0.5f) }) }
                 .semantics { contentDescription = "Divider between the two languages. Drag to resize; double-tap to reset." }
                 .padding(horizontal = Diacritica.spacing.screen, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -652,7 +662,7 @@ private fun SplitPanes(env: SentenceEnv, numbered: Boolean) {
             Box(Modifier.padding(horizontal = 10.dp).width(36.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(c.inkMuted.copy(alpha = 0.5f)))
             Box(Modifier.weight(1f)) { Hairline() }
         }
-        Pane(env, env.b, bottom, numbered, Modifier.weight(1f - frac))
+        Pane(env, env.b, bottom, numbered, Modifier.weight(1f - frac.floatValue))
     }
 }
 
