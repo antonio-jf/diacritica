@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -53,6 +55,30 @@ data class BookReaderState(
     val jump: Int = 0,
     val loading: Boolean = true,
     val searchResults: List<BookSearchHit>? = null,
+    /** A short confirmation shown above the bottom of the page. */
+    val message: String? = null,
+)
+
+/** Selected text: a character range [start, end) in one paragraph of the current chapter. */
+data class Selection(val chapter: Int, val paragraph: Int, val start: Int, val end: Int)
+
+/** The passage panel: a translation or a breakdown of the selected (or a saved) passage. */
+data class PassagePanel(
+    val passage: String,
+    val chapter: Int,
+    val paragraph: Int,
+    val breakdownMode: Boolean,
+    val target: Lang = Lang.EN,
+    val translating: Boolean = false,
+    val translation: String? = null,
+    val loading: Boolean = false,
+    val breakdown: app.diacritica.mybooks.Breakdown? = null,
+    val error: String? = null,
+    /** The saved note, once there is one. */
+    val noteId: Long? = null,
+    /** Titles of grammar points already turned into lessons. */
+    val lessons: Set<String> = emptySet(),
+    val message: String? = null,
 )
 
 /** A tapped word: the dictionary's answer and the sentence it came from (saved with the word). */
@@ -77,6 +103,17 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
 
     private val _word = MutableStateFlow<BookWord?>(null)
     val word: StateFlow<BookWord?> = _word.asStateFlow()
+
+    private val _selection = MutableStateFlow<Selection?>(null)
+    val selection: StateFlow<Selection?> = _selection.asStateFlow()
+
+    private val _panel = MutableStateFlow<PassagePanel?>(null)
+    val panel: StateFlow<PassagePanel?> = _panel.asStateFlow()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val notes: StateFlow<List<app.diacritica.mybooks.BookNote>> = _reader.map { it.book?.id }.distinctUntilChanged()
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else c.bookshelf.notes(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -110,6 +147,8 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
     fun open(id: Long) {
         if (_reader.value.book?.id == id && !_reader.value.loading) return
         _word.value = null
+        _selection.value = null
+        _panel.value = null
         _reader.value = BookReaderState(loading = true)
         viewModelScope.launch {
             val book = c.bookshelf.book(id) ?: run { _reader.update { it.copy(loading = false) }; return@launch }
@@ -127,6 +166,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
         if (index !in st.chapters.indices) return
         viewModelScope.launch {
             val paras = if (index == st.chapter) st.paragraphs else c.bookshelf.paragraphs(book.id, index)
+            _selection.value = null
             _reader.update { it.copy(chapter = index, paragraphs = paras, scrollTo = paragraph.coerceIn(0, (paras.size - 1).coerceAtLeast(0)), jump = it.jump + 1, searchResults = null) }
             savePosition(paragraph)
         }
@@ -155,6 +195,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun closeSearch() = _reader.update { it.copy(searchResults = null) }
+    fun clearReaderMessage() = _reader.update { it.copy(message = null) }
 
     fun setText(size: Int? = null, spacing: Float? = null, serif: Boolean? = null) {
         viewModelScope.launch { c.settings.setBookText(size, spacing, serif) }
@@ -199,6 +240,199 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // ------------------------------------------------------------------ passages
+
+    private fun bookLang(): Lang? = _reader.value.book?.lang?.let { Lang.fromCode(it) }
+
+    /** Long-press: select [start, end) of a paragraph (a sentence). */
+    fun select(paragraph: Int, start: Int, end: Int) {
+        _word.value = null
+        _selection.value = Selection(_reader.value.chapter, paragraph, start, end)
+    }
+
+    /**
+     * Tap while selecting: a word outside the selection extends it to that word; a word inside trims the nearer end
+     * back to it. A tap in another paragraph starts over there.
+     */
+    fun adjust(paragraph: Int, start: Int, end: Int) {
+        val sel = _selection.value ?: return select(paragraph, start, end)
+        if (sel.paragraph != paragraph || sel.chapter != _reader.value.chapter) return select(paragraph, start, end)
+        _selection.value = when {
+            start < sel.start -> sel.copy(start = start)
+            end > sel.end -> sel.copy(end = end)
+            // Inside: move whichever edge is closer to the tapped word.
+            start - sel.start <= sel.end - end -> sel.copy(start = end.coerceAtMost(sel.end))
+            else -> sel.copy(end = start.coerceAtLeast(sel.start))
+        }.let { if (it.end <= it.start) sel else it }
+    }
+
+    fun clearSelection() { _selection.value = null }
+
+    fun selectedText(): String? {
+        val sel = _selection.value ?: return null
+        val p = _reader.value.paragraphs.getOrNull(sel.paragraph)?.text ?: return null
+        return p.substring(sel.start.coerceIn(0, p.length), sel.end.coerceIn(0, p.length)).trim().takeIf { it.isNotEmpty() }
+    }
+
+    private fun defaultTarget(s: app.diacritica.settings.AppSettings, from: Lang): Lang =
+        listOf(Lang.EN, Lang.ES).firstOrNull { it != from && it in s.activeLanguages } ?: s.activeLanguages.firstOrNull { it != from } ?: Lang.EN
+
+    /** Opens the panel for the selection: a translation ([breakdown] false) or a Gemini breakdown. */
+    fun openPanel(breakdown: Boolean) {
+        val sel = _selection.value ?: return
+        val text = selectedText() ?: return
+        val book = _reader.value.book ?: return
+        viewModelScope.launch {
+            val note = c.bookshelf.noteFor(book.id, text)
+            val s = c.settings.settings.first()
+            val from = bookLang() ?: return@launch
+            _panel.value = PassagePanel(
+                passage = text, chapter = sel.chapter, paragraph = sel.paragraph, breakdownMode = breakdown,
+                target = defaultTarget(s, from),
+                translation = note?.translation,
+                breakdown = app.diacritica.mybooks.Breakdown.decode(note?.breakdown),
+                noteId = note?.id, lessons = lessonTitles(note),
+            )
+            if (breakdown) breakDown() else if (note?.translation == null) translate(_panel.value!!.target)
+        }
+    }
+
+    /** Opens a saved note's panel (from the Notes list). */
+    fun openNote(n: app.diacritica.mybooks.BookNote) {
+        val b = app.diacritica.mybooks.Breakdown.decode(n.breakdown)
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val from = bookLang() ?: Lang.EN
+            _panel.value = PassagePanel(
+                passage = n.passage, chapter = n.chapter, paragraph = n.paragraph, breakdownMode = b != null,
+                target = defaultTarget(s, from), translation = n.translation, breakdown = b, noteId = n.id, lessons = lessonTitles(n),
+            )
+        }
+    }
+
+    fun closePanel() { _panel.value = null }
+
+    fun showBreakdown(on: Boolean) {
+        val p = _panel.value ?: return
+        _panel.value = p.copy(breakdownMode = on)
+        if (on && p.breakdown == null && !p.loading) breakDown()
+        if (!on && p.translation == null && !p.translating) translate(p.target)
+    }
+
+    /** On-device translation (ML Kit), so it works offline and costs nothing. */
+    fun translate(target: Lang) {
+        val p = _panel.value ?: return
+        val from = bookLang() ?: return
+        _panel.value = p.copy(target = target, translating = true, translation = null, error = null)
+        viewModelScope.launch {
+            val t = runCatching { c.translator.translate(p.passage, from, target) }
+            _panel.update { cur ->
+                if (cur?.passage != p.passage) cur
+                else t.fold(
+                    { cur.copy(translating = false, translation = it) },
+                    { e -> cur.copy(translating = false, error = "Couldn't translate on this device (${e.message ?: "model not available"}).") },
+                )
+            }
+        }
+    }
+
+    fun breakDown() {
+        val p = _panel.value ?: return
+        val book = _reader.value.book ?: return
+        val lang = bookLang() ?: return
+        if (p.breakdown != null) return
+        if (p.passage.length > app.diacritica.mybooks.Breakdown.MAX_CHARS) {
+            _panel.value = p.copy(error = "That's a long selection. Break down up to about ${app.diacritica.mybooks.Breakdown.MAX_CHARS} characters at a time.")
+            return
+        }
+        _panel.value = p.copy(loading = true, error = null)
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            if (s.geminiKey.isBlank()) {
+                _panel.update { it?.copy(loading = false, error = "Breakdowns are written by Gemini: add a key in Settings › Rehearse.") }
+                return@launch
+            }
+            if (!c.online.isOnline()) {
+                _panel.update { it?.copy(loading = false, error = "You're offline. Breakdowns need the internet; translation works offline.") }
+                return@launch
+            }
+            val context = _reader.value.paragraphs.getOrNull(p.paragraph)?.text
+            try {
+                val b = app.diacritica.mybooks.Breakdown.request(c.gemini, s.geminiKey, s.geminiModel, p.passage, lang, book.title, context)
+                // Saved straight away: the same passage never needs a second request.
+                val note = c.bookshelf.upsertNote(book.id, p.chapter, p.paragraph, p.passage) { it.copy(breakdown = app.diacritica.mybooks.Breakdown.encode(b)) }
+                _panel.update { cur -> if (cur?.passage == p.passage) cur.copy(loading = false, breakdown = b, noteId = note.id) else cur }
+            } catch (e: Exception) {
+                _panel.update { it?.copy(loading = false, error = e.message ?: "The breakdown failed. Try again.") }
+            }
+        }
+    }
+
+    fun savePassage() {
+        val p = _panel.value ?: return
+        val book = _reader.value.book ?: return
+        viewModelScope.launch {
+            val note = c.bookshelf.upsertNote(book.id, p.chapter, p.paragraph, p.passage) { n ->
+                n.copy(translation = p.translation ?: n.translation)
+            }
+            _panel.update { it?.copy(noteId = note.id, message = "Saved to this book's notes.") }
+        }
+    }
+
+    /** Saves the selection as a note without opening anything. */
+    fun saveSelection() {
+        val sel = _selection.value ?: return
+        val text = selectedText() ?: return
+        val book = _reader.value.book ?: return
+        viewModelScope.launch {
+            c.bookshelf.upsertNote(book.id, sel.chapter, sel.paragraph, text) { it }
+            _selection.value = null
+            _reader.update { it.copy(message = "Passage saved to this book's notes.") }
+        }
+    }
+
+    fun deleteNote(id: Long) { viewModelScope.launch { c.bookshelf.deleteNote(id) } }
+
+    private val lessonJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    private val lessonList = kotlinx.serialization.builtins.ListSerializer(app.diacritica.tests.Lesson.serializer())
+
+    private fun lessonTitles(n: app.diacritica.mybooks.BookNote?): Set<String> =
+        n?.lessons?.let { runCatching { lessonJson.decodeFromString(lessonList, it).map { l -> l.title }.toSet() }.getOrNull() }.orEmpty()
+
+    /** Turns a grammar point into a lesson in the Grammar section, linked to this passage. */
+    fun makeLesson(point: app.diacritica.mybooks.GrammarPoint) {
+        val p = _panel.value ?: return
+        val b = p.breakdown ?: return
+        val book = _reader.value.book ?: return
+        val lang = bookLang() ?: return
+        viewModelScope.launch {
+            val lesson = b.lesson(point, lang, book.title, p.passage)
+            c.bookshelf.upsertNote(book.id, p.chapter, p.paragraph, p.passage) { n ->
+                val list = n.lessons?.let { runCatching { lessonJson.decodeFromString(lessonList, it) }.getOrNull() }.orEmpty()
+                n.copy(lessons = lessonJson.encodeToString(lessonList, list.filter { it.title != lesson.title } + lesson))
+            }
+            _panel.update { it?.copy(lessons = it.lessons + point.title, message = "Added to Grammar › Lessons.") }
+        }
+    }
+
+    /** A word from the breakdown's vocabulary, saved like a tapped word (with the passage as its context). */
+    fun saveVocab(v: app.diacritica.mybooks.VocabItem) {
+        val lang = bookLang() ?: return
+        val p = _panel.value ?: return
+        viewModelScope.launch {
+            val key = "${lang.code}:${v.word}"
+            if (key in savedKeys.value) {
+                c.removeSavedWord(lang.code, v.word)
+            } else {
+                val s = c.settings.settings.first()
+                c.userDb.saved().save(SavedWord(lang = lang.code, word = v.word, note = p.passage.replace('\n', ' ')))
+                c.review.ensureCards(lang, v.word, s.activeLanguages, s.script)
+            }
+        }
+    }
+
+    fun clearPanelMessage() = _panel.update { it?.copy(message = null) }
 
     // ------------------------------------------------------------------ words
 

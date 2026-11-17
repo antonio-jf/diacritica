@@ -34,9 +34,37 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
     suspend fun delete(id: Long) {
         val b = dao.book(id)
         db.withTransaction {
-            dao.deleteParagraphs(id); dao.deleteChapters(id); dao.deleteBook(id)
+            dao.deleteParagraphs(id); dao.deleteChapters(id); dao.deleteNotes(id); dao.deleteBook(id)
         }
         b?.cover?.let { File(it).delete() }
+    }
+
+    // ------------------------------------------------------------------ notes on passages
+
+    fun notes(bookId: Long) = dao.notes(bookId)
+    suspend fun note(id: Long) = dao.note(id)
+    suspend fun noteFor(bookId: Long, passage: String) = dao.noteFor(bookId, passage)
+    suspend fun deleteNote(id: Long) = dao.deleteNote(id)
+
+    /** Creates or updates the note for [passage] (one per passage), changing only what [change] sets. */
+    suspend fun upsertNote(bookId: Long, chapter: Int, paragraph: Int, passage: String, change: (BookNote) -> BookNote): BookNote {
+        val base = dao.noteFor(bookId, passage) ?: BookNote(bookId = bookId, chapter = chapter, paragraph = paragraph, passage = passage)
+        val n = change(base)
+        val id = dao.saveNote(n)
+        return n.copy(id = if (n.id == 0L) id else n.id)
+    }
+
+    /** Lessons made from book passages, for the Grammar section: (lesson, note, book title). */
+    suspend fun lessons(): List<Triple<app.diacritica.tests.Lesson, BookNote, String>> {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val titles = HashMap<Long, String>()
+        return dao.notesWithLessons().flatMap { n ->
+            val list = runCatching {
+                json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(app.diacritica.tests.Lesson.serializer()), n.lessons!!)
+            }.getOrDefault(emptyList())
+            val title = titles.getOrPut(n.bookId) { dao.book(n.bookId)?.title ?: "a book" }
+            list.map { Triple(it, n, title) }
+        }
     }
 
     class ImportResult(val id: Long, val alreadyHad: Boolean)
