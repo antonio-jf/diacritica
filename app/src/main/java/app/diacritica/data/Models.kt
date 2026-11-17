@@ -28,6 +28,8 @@ data class WordInfo(
     val hsk: Int? = null,
     /** Where the word came from when not from Wiktionary's translation tables (e.g. "CC-CEDICT"). */
     val source: String? = null,
+    /** German verbs: sich, and the prepositions and cases their objects take ("sich freuen auf + Akk."). */
+    val patterns: List<VerbPattern> = emptyList(),
 )
 
 /** All words for one language under the selected sense; empty = no translation in the data. */
@@ -71,6 +73,8 @@ data class EntryDetail(
     /** From Wiktionary; null in dictionaries built before etymologies were included. */
     val etymology: String? = null,
     val synonyms: List<String> = emptyList(),
+    /** German verbs: sich and preposition + case per meaning. */
+    val patterns: List<VerbPattern> = emptyList(),
 )
 
 data class ZhReading(

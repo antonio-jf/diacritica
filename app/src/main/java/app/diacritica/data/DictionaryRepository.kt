@@ -387,6 +387,7 @@ class DictionaryRepository(
             gender = gender, pos = pos, plural = e?.plural, genitive = genitive, ipa = e?.ipa,
             gloss = sense?.gloss ?: c?.label?.takeIf { lang == Lang.EN && it.isNotBlank() },
             example = sense?.example, exampleEn = sense?.exampleEn,
+            patterns = if (lang == Lang.DE && e != null && pos == "verb") VerbPatterns.load(db, e.id) else emptyList(),
         )
     }
 
@@ -553,7 +554,8 @@ class DictionaryRepository(
                 .use { c -> buildList { while (c.moveToNext()) add(FormRow(c.getString(0), c.getString(1))) } }
             val extra = if (!hasExtra) null else db.rawQuery("SELECT etymology, synonyms FROM extra WHERE entry_id = ?", arrayOf(e.id.toString()))
                 .use { c -> if (c.moveToFirst()) c.getStringOrNull(0) to c.getStringOrNull(1) else null }
-            EntryDetail(lang, e.word, e.pos, e.gender, e.ipa, e.plural, senses, forms, extra?.first, WordExtras.split(extra?.second))
+            val patterns = if (lang == Lang.DE && e.pos == "verb") VerbPatterns.load(db, e.id) else emptyList()
+            EntryDetail(lang, e.word, e.pos, e.gender, e.ipa, e.plural, senses, forms, extra?.first, WordExtras.split(extra?.second), patterns)
         }
         val concepts = when (lang) {
             Lang.EN -> conceptsByEnglish(db, TextNorm.normalize(word))

@@ -125,6 +125,23 @@ class SampleDb(unittest.TestCase):
         self.assertIn("get up", keep["en"])
         self.assertNotIn("bookstore", keep["en"])   # not an HSK word in this test
 
+    def test_german_verb_patterns(self):
+        from build_dictionary import verb_patterns
+        self.assertEqual(
+            verb_patterns("(reflexive) to look forward to [with auf (+ accusative)]", ["reflexive"], "to look forward to"),
+            [(True, "auf", "accusative", "to look forward to")])
+        self.assertEqual(
+            verb_patterns("(intransitive) to wait (for) [with auf (+ accusative)]", ["intransitive"], "to wait (for)"),
+            [(False, "auf", "accusative", "to wait (for)")])
+        self.assertEqual(verb_patterns("(reflexive, poetical) to take delight in [with genitive]", [], "to take delight in"),
+                         [(True, None, "genitive", "to take delight in")])
+        self.assertEqual(verb_patterns("(intransitive, + dative) to help", [], "to help"), [(False, None, "dative", "to help")])
+        self.assertEqual(verb_patterns("(reflexive) to hurry", [], "to hurry"), [(True, None, None, "to hurry")])
+        self.assertEqual(verb_patterns("(transitive) to maintain", ["transitive"], "to maintain"), [])
+        self.assertEqual(verb_patterns("to think [with an (+ dative) or über (+ accusative)]", [], "to think"),
+                         [(False, "an", "dative", "to think"), (False, "über", "accusative", "to think")])
+        self.assertEqual(verb_patterns("to decide [with an infinitive]", [], "to decide"), [])
+
     def test_zh(self):
         r = self.q("SELECT simp, trad, pinyin, measure, hsk FROM zh WHERE pinyin_norm='gou'")[0]
         self.assertEqual(r, ("狗", "狗", "gǒu", "只 zhī · 条 tiáo", 1))

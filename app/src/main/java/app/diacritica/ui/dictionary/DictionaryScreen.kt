@@ -279,6 +279,7 @@ private fun Headword(r: LookupResult, actions: WordActions, onPickLang: (Lang) -
             }
             WordActionButtons(h, actions)
         }
+        app.diacritica.ui.components.VerbPatternNotes(h)
         if (r.forms.isNotEmpty()) {
             // Looking up the base word from here replaces the search, like typing it.
             FormNotes(r.query, r.forms, onLemma = { l -> onLookUp(l, r.source) })
