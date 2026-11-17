@@ -9,7 +9,7 @@ data class VocabWord(val forms: Map<Lang, String>, val pinyin: String) {
     fun form(l: Lang): String = forms[l].orEmpty()
 }
 
-data class VocabSet(val id: String, val title: String, val category: String, val words: List<VocabWord>)
+data class VocabSet(val id: String, val title: String, val category: String, val words: List<VocabWord>, val custom: Boolean = false)
 
 /**
  * Topic word sets (fruits, colours, professions…), bundled as assets/vocab/sets.tsv: a "@ id | Title | Category" line,

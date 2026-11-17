@@ -9,6 +9,10 @@ import app.diacritica.data.ScriptPreference
 import app.diacritica.data.user.SavedWord
 import app.diacritica.undo.removeSavedWord
 import app.diacritica.vocab.VocabCheck
+import app.diacritica.vocab.CatalogTopic
+import app.diacritica.vocab.CustomVocabStore
+import app.diacritica.vocab.VocabCatalog
+import app.diacritica.rehearse.GeminiClient
 import app.diacritica.vocab.VocabSet
 import app.diacritica.vocab.VocabSets
 import app.diacritica.vocab.VocabWord
@@ -59,6 +63,10 @@ data class VocabUiState(
     /** Best score per "setId:lang". */
     val best: Map<String, Int> = emptyMap(),
     val message: String? = null,
+    val catalog: Boolean = false,
+    /** Catalog ids (or "custom-…") Gemini is writing now. */
+    val writing: Set<String> = emptySet(),
+    val catalogError: String? = null,
 )
 
 class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewModel() {
@@ -66,6 +74,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     private val _state = MutableStateFlow(VocabUiState())
     val state: StateFlow<VocabUiState> = _state.asStateFlow()
     private val app = context.applicationContext
+    private val custom = CustomVocabStore(java.io.File(context.filesDir, "vocab/custom.json"))
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -74,12 +83,8 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
         viewModelScope.launch {
             val s = c.settings.settings.first()
             val sets = withContext(Dispatchers.IO) {
-                val raw = runCatching { VocabSets.all(app) }.getOrDefault(emptyList())
-                // Mandarin in the script chosen in Settings.
-                if (s.script == ScriptPreference.SIMPLIFIED_FIRST || s.script == ScriptPreference.SIMPLIFIED_ONLY) raw
-                else raw.map { set ->
-                    set.copy(words = set.words.map { w -> w.copy(forms = w.forms + (Lang.ZH to c.dictionary.toScript(w.form(Lang.ZH), s.script))) })
-                }
+                val raw = runCatching { VocabSets.all(app) }.getOrDefault(emptyList()) + custom.load()
+                raw.map { inScript(it, s.script) }
             }
             val langs = s.activeLanguages.ifEmpty { Lang.entries.toList() }
             val learning = langs.filter { it != Lang.EN && it != Lang.ES }
@@ -88,6 +93,50 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
             val from = prefs.getString("from", null)?.let { Lang.fromCode(it) }?.takeIf { it != lang } ?: if (lang == Lang.EN) Lang.ES else Lang.EN
             val best = prefs.all.filterKeys { it.startsWith("best:") }.mapNotNull { (k, v) -> (v as? Int)?.let { k.removePrefix("best:") to it } }.toMap()
             _state.update { it.copy(loading = false, sets = sets, langs = langs, lang = lang, from = from, best = best) }
+        }
+    }
+
+    /** Mandarin in the script chosen in Settings. */
+    private suspend fun inScript(set: VocabSet, script: ScriptPreference): VocabSet =
+        if (script == ScriptPreference.SIMPLIFIED_FIRST || script == ScriptPreference.SIMPLIFIED_ONLY) set
+        else set.copy(words = set.words.map { w -> w.copy(forms = w.forms + (Lang.ZH to c.dictionary.toScript(w.form(Lang.ZH), script))) })
+
+    // ------------------------------------------------ catalog
+
+    fun openCatalog(open: Boolean) = _state.update { it.copy(catalog = open, catalogError = null) }
+
+    /** Gemini writes the words of a catalog topic (or your own, when [topic] is null) in all six languages; kept afterwards. */
+    fun addTopic(topic: CatalogTopic?, ownTopic: String?, count: Int, advanced: Boolean) {
+        val name = topic?.title ?: ownTopic?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val id = topic?.id ?: ("custom-" + name.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "-").trim('-').take(40))
+        if (id in _state.value.writing) return
+        _state.update { it.copy(writing = it.writing + id, catalogError = null) }
+        viewModelScope.launch {
+            val s = c.settings.settings.first()
+            val result = when {
+                s.geminiKey.isBlank() -> Result.failure(GeminiClient.GeminiException("New sets are written by Gemini: add your API key in Settings."))
+                !c.online.isOnline() -> Result.failure(GeminiClient.GeminiException("You're offline. Connect to add a set."))
+                else -> runCatching {
+                    VocabCatalog.write(
+                        c.gemini, s.geminiKey, s.geminiModel, id, name, topic?.hint, topic?.category ?: "Your topics", count, advanced,
+                    ).copy(custom = true)
+                }
+            }
+            result.onSuccess { set ->
+                withContext(Dispatchers.IO) { custom.save(set) }
+                val shown = inScript(set, s.script)
+                _state.update { st -> st.copy(sets = st.sets.filter { it.id != id } + shown, writing = st.writing - id, message = "“${set.title}” added: ${set.words.size} words.") }
+            }.onFailure { e ->
+                _state.update { it.copy(writing = it.writing - id, catalogError = (e as? GeminiClient.GeminiException)?.message ?: "Couldn't write the set. Try again.") }
+            }
+        }
+    }
+
+    /** Removes a set you added (it can be added again from the catalog). */
+    fun deleteSet(id: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { custom.delete(id) }
+            _state.update { st -> st.copy(sets = st.sets.filter { it.id != id }, open = if (st.open == id) null else st.open) }
         }
     }
 
@@ -102,7 +151,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
         _state.update { it.copy(from = l) }
     }
 
-    fun open(id: String?) = _state.update { it.copy(open = id, quiz = null) }
+    fun open(id: String?) = _state.update { it.copy(open = id, quiz = null, catalog = if (id != null) false else it.catalog) }
 
     fun set(id: String): VocabSet? = _state.value.sets.firstOrNull { it.id == id }
 

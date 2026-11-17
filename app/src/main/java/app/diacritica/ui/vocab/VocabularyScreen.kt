@@ -83,6 +83,10 @@ fun VocabularyScreen(vm: VocabularyViewModel, onBack: () -> Unit) {
             BackHandler { vm.open(null) }
             SetView(vm, st, open)
         }
+        st.catalog -> {
+            BackHandler { vm.openCatalog(false) }
+            CatalogView(vm, st)
+        }
         else -> SetList(vm, st, onBack)
     }
 }
@@ -112,7 +116,26 @@ private fun SetList(vm: VocabularyViewModel, st: VocabUiState, onBack: () -> Uni
             Text("Word sets by topic. Learn a set, then test yourself on it.", style = bodyStyle(c.inkMuted, 14.sp))
             if (st.loading) { Text("Loading…", style = captionStyle()); return@Column }
             LangPickers(vm, st)
-            st.sets.groupBy { it.category }.forEach { (category, sets) ->
+            st.message?.let { LaunchedEffect(it) { kotlinx.coroutines.delay(2500); vm.clearMessage() }; Text(it, style = captionStyle(c.success)) }
+            Gap(4.dp)
+            val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(shape).background(c.accentSoft.copy(alpha = 0.45f)).border(1.dp, c.accent.copy(alpha = 0.5f), shape)
+                    .clickable { vm.openCatalog(true) }.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("More topics", style = titleStyle().copy(fontSize = 16.sp))
+                    Text(
+                        "${app.diacritica.vocab.VocabCatalog.topics.size} more: plants, science, engineering, business, music… or any topic you name." +
+                            if (st.writing.isNotEmpty()) "  ·  Writing ${st.writing.size}…" else "",
+                        style = captionStyle(),
+                    )
+                }
+                Text("›", style = titleStyle().copy(fontSize = 22.sp, color = c.accent))
+            }
+            val (added, bundled) = st.sets.partition { it.custom }
+            (listOfNotNull(added.takeIf { it.isNotEmpty() }?.let { "Added by you" to it }) + bundled.groupBy { it.category }.toList()).forEach { (category, sets) ->
                 Gap(6.dp)
                 SectionLabel(category)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -165,8 +188,22 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PolyIconButton(PolyIcons.Back, "Back", { vm.open(null) }, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
             ScreenHeader(set.title, Modifier.weight(1f))
+            if (set.custom) {
+                var confirm by remember { mutableStateOf(false) }
+                PolyIconButton(PolyIcons.Trash, "Remove this set", { confirm = true }, tint = c.inkMuted, modifier = Modifier.padding(top = 10.dp, end = 4.dp))
+                if (confirm) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { confirm = false },
+                        title = { Text("Remove “${set.title}”?") },
+                        text = { Text("You can add it again from More topics. Words you added to Review stay there.") },
+                        confirmButton = { androidx.compose.material3.TextButton(onClick = { confirm = false; vm.deleteSet(set.id) }) { Text("Remove") } },
+                        dismissButton = { androidx.compose.material3.TextButton(onClick = { confirm = false }) { Text("Cancel") } },
+                    )
+                }
+            }
         }
         Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (set.custom) Text("Written by Gemini for you. Double-check anything that looks odd in the dictionary.", style = captionStyle())
             Text("${set.words.size} words in ${st.lang.englishName}, shown in ${st.from.englishName}. Tap ☆ to add a word to Review.", style = captionStyle())
             Gap(4.dp)
             set.words.forEach { w ->
@@ -318,5 +355,71 @@ private fun QuizResults(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet
         }
         PolyButton("Test the whole set again", { vm.startQuiz(set.id, q.mode) }, primary = missed.isEmpty())
         PolyButton("Back to the words", { vm.closeQuiz() }, primary = false)
+    }
+}
+
+@Composable
+private fun CatalogView(vm: VocabularyViewModel, st: VocabUiState) {
+    val c = Diacritica.colors
+    val pad = Diacritica.spacing.screen
+    var count by rememberSaveable { mutableStateOf(20) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
+    var own by rememberSaveable { mutableStateOf("") }
+    val have = st.sets.filter { it.custom }.associateBy { it.id }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().imePadding().padding(bottom = 24.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Back, "Back", { vm.openCatalog(false) }, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
+            ScreenHeader("More topics", Modifier.weight(1f))
+        }
+        Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Pick a topic and Gemini writes its words in all six languages, with articles and pinyin. " +
+                    "It's kept on your phone, so it works offline afterwards.",
+                style = bodyStyle(c.inkMuted, 14.sp),
+            )
+            Text("Words per set", style = captionStyle())
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(12, 20, 30).forEach { n -> PolyChip("$n", count == n, { count = n }) } }
+            Text("Level", style = captionStyle())
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                PolyChip("Everyday", !advanced, { advanced = false })
+                PolyChip("Advanced", advanced, { advanced = true })
+            }
+            st.catalogError?.let { Text(it, style = captionStyle(c.error)) }
+            st.message?.let { LaunchedEffect(it) { kotlinx.coroutines.delay(2500); vm.clearMessage() }; Text(it, style = captionStyle(c.success)) }
+
+            Gap(4.dp)
+            SectionLabel("Your own topic")
+            val shape = RoundedCornerShape(Diacritica.shapes.field)
+            Box(Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(12.dp)) {
+                if (own.isEmpty()) Text("e.g. photography, the human brain, camping, wine tasting", style = bodyStyle(c.inkMuted))
+                BasicTextField(
+                    value = own, onValueChange = { own = it.take(80) }, singleLine = true,
+                    textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent), modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            val ownBusy = st.writing.any { it.startsWith("custom-") }
+            PolyButton(if (ownBusy) "Writing…" else "Write this set", { vm.addTopic(null, own, count, advanced); own = "" }, enabled = own.isNotBlank() && !ownBusy)
+
+            app.diacritica.vocab.VocabCatalog.topics.groupBy { it.category }.forEach { (category, topics) ->
+                Gap(6.dp)
+                SectionLabel(category)
+                topics.forEach { t ->
+                    val added = have[t.id]
+                    val busy = t.id in st.writing
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(t.title, style = bodyStyle(size = 16.sp).copy(fontWeight = FontWeight.Medium))
+                            Text(if (added != null) "${added.words.size} words · added" else t.hint, style = captionStyle(if (added != null) c.success else c.inkMuted))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        when {
+                            added != null -> PolyButton("Open", { vm.open(t.id) }, primary = false)
+                            busy -> Text("Writing…", style = captionStyle(c.accent))
+                            else -> PolyButton("Add", { vm.addTopic(t, null, count, advanced) }, primary = false)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
