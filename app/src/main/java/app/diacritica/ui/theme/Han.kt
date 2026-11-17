@@ -7,7 +7,6 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.isSp
 
 /** How much larger Chinese characters are drawn than the text around them (1 = same size). */
 val LocalHanScale = staticCompositionLocalOf { 1f }

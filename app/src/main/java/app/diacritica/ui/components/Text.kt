@@ -17,8 +17,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.isEm
-import androidx.compose.ui.unit.isSp
 import androidx.compose.ui.unit.sp
 import app.diacritica.ui.theme.Han
 import app.diacritica.ui.theme.LocalHanScale
