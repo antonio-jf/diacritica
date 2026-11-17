@@ -633,6 +633,7 @@ private fun WordSheet(vm: BooksViewModel, w: BookWord, onOpenWord: (Lang, String
         } else if (found && !hw.word.equals(w.token, ignoreCase = true)) {
             Text("“${w.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
+        app.diacritica.ui.components.VerbPatternNotes(hw, max = 4)
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
         when {
             w.loading -> { Gap(14.dp); Text("Looking up…", style = captionStyle()) }

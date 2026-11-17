@@ -1071,6 +1071,7 @@ private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpe
         } else if (r?.redirectedFrom != null || (found && !hw.word.equals(p.token, ignoreCase = true))) {
             Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
+        app.diacritica.ui.components.VerbPatternNotes(hw, max = 4)
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
         if (!p.loading) vm.falseFriends(p, env.other(p.lang)).forEach {
             FalseFriendNote(it, Modifier.padding(top = 10.dp))

@@ -160,6 +160,7 @@ private fun EntryCard(e: EntryDetail, onSynonym: (String) -> Unit) {
     PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         SectionLabel(listOfNotNull(e.pos, Articles.genderLabel(e.gender)).joinToString(" · ").ifBlank { "entry" })
         SeparableVerbs.detect(e)?.let { sv -> SeparableFlag(sv) }
+        app.diacritica.ui.components.VerbPatternNotes(app.diacritica.data.WordInfo(e.lang, e.word, pos = e.pos, patterns = e.patterns), max = 8)
         Gap(6.dp)
         e.senses.forEachIndexed { i, s ->
             Column(Modifier.padding(vertical = 4.dp)) {

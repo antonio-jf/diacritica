@@ -40,6 +40,7 @@ object WiktextractImporter {
     /** Removes everything previously stored for this word, so a fresh download replaces it. */
     fun deleteWord(db: SQLiteDatabase, lang: Lang, word: String) {
         ensureExtraTable(db)
+        db.execSQL("DELETE FROM verb_pattern WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM extra WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM sense WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
         db.execSQL("DELETE FROM form WHERE entry_id IN (SELECT id FROM entry WHERE lang = ? AND word = ?)", arrayOf(lang.code, word))
@@ -53,6 +54,8 @@ object WiktextractImporter {
     /** Dictionaries built before etymologies were added have no `extra` table; downloads add it. */
     fun ensureExtraTable(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS extra (entry_id INTEGER PRIMARY KEY, etymology TEXT, synonyms TEXT)")
+        // German verb patterns (sich, preposition + case): packs built before them have no table; downloads add it.
+        db.execSQL(app.diacritica.data.VerbPatterns.CREATE)
     }
 
     /** Imports all lines for one word in one language. Returns the number of entries stored. */
@@ -85,6 +88,17 @@ object WiktextractImporter {
                 put("entry_id", id); put("ord", s.ord); put("gloss", s.gloss); put("example", s.example)
                 put("example_en", s.exampleEn); put("form_of", s.formOf)
             })
+        }
+        if (lang == Lang.DE && pos == "verb") {
+            e.objs("senses").take(MAX_SENSES).forEachIndexed { i, s ->
+                val gloss = s.strs("glosses").joinToString("; ")
+                app.diacritica.data.VerbPatterns.parse(s.strs("raw_glosses").firstOrNull(), s.strs("tags"), gloss).forEach { p ->
+                    db.insert("verb_pattern", null, ContentValues().apply {
+                        put("entry_id", id); put("ord", i); put("reflexive", if (p.reflexive) 1 else 0)
+                        put("prep", p.prep); put("gcase", p.case); put("gloss", p.gloss)
+                    })
+                }
+            }
         }
         forms.forEach { (f, t) ->
             db.insert("form", null, ContentValues().apply { put("entry_id", id); put("form", f); put("tags", t) })

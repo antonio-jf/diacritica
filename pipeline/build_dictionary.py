@@ -158,6 +158,8 @@ CREATE TABLE sense (entry_id INTEGER NOT NULL, ord INTEGER NOT NULL, gloss TEXT,
                     example_en TEXT, form_of TEXT);
 CREATE TABLE form (entry_id INTEGER NOT NULL, form TEXT NOT NULL, tags TEXT);
 CREATE TABLE extra (entry_id INTEGER PRIMARY KEY, etymology TEXT, synonyms TEXT);
+CREATE TABLE verb_pattern (entry_id INTEGER NOT NULL, ord INTEGER NOT NULL, reflexive INTEGER NOT NULL,
+                           prep TEXT, gcase TEXT, gloss TEXT);
 CREATE TABLE zh (id INTEGER PRIMARY KEY, simp TEXT NOT NULL, trad TEXT NOT NULL, pinyin TEXT NOT NULL,
                  pinyin_num TEXT NOT NULL, pinyin_norm TEXT NOT NULL, defs TEXT, measure TEXT, hsk INTEGER);
 """
@@ -168,6 +170,7 @@ CREATE INDEX idx_tr_concept ON translation(concept_id);
 CREATE INDEX idx_entry_lang_norm ON entry(lang, norm);
 CREATE INDEX idx_sense_entry ON sense(entry_id);
 CREATE INDEX idx_form_entry ON form(entry_id);
+CREATE INDEX idx_verb_pattern_entry ON verb_pattern(entry_id);
 CREATE INDEX idx_zh_simp ON zh(simp);
 CREATE INDEX idx_zh_trad ON zh(trad);
 CREATE INDEX idx_zh_pnorm ON zh(pinyin_norm);
@@ -377,6 +380,60 @@ def first_ipa(e: dict) -> str | None:
     return None
 
 
+# German verbs: sich, and the preposition + case (or bare case) the object takes, from Wiktionary's labels:
+# "(reflexive) to look forward to [with auf (+ accusative)]" → (True, "auf", "accusative").
+# Mirrors app/src/main/java/app/diacritica/data/VerbPatterns.kt.
+VERB_PREPS = {
+    "an", "auf", "aus", "bei", "bis", "durch", "für", "gegen", "hinter", "in", "mit", "nach", "neben", "ohne",
+    "seit", "über", "um", "unter", "von", "vor", "wegen", "zu", "zwischen", "gegenüber", "außer", "entlang", "trotz",
+    "statt", "während", "als",
+}
+_CASES = "accusative|dative|genitive"
+_LABEL = re.compile(r"^\(([^)]*)\)")
+_BRACKET = re.compile(r"\[([^\]]*)\]")
+_PREP_CASE = re.compile(rf"^(\w+)\s*\(\+\s*({_CASES})\)$")
+_BARE_CASE = re.compile(rf"^\+?\s*({_CASES})$")
+_LABEL_CASE = re.compile(rf"\+\s*({_CASES})|with ({_CASES})")
+
+
+def verb_patterns(raw: str | None, tags: list[str], gloss: str) -> list[tuple[bool, str | None, str | None, str]]:
+    raw = raw or ""
+    m = _LABEL.match(raw)
+    label = m.group(1).lower() if m else ""
+    reflexive = "reflexive" in tags or re.search(r"\breflexive\b", label) is not None
+    short = gloss.strip()
+    if len(short) > 80:
+        short = short[:77] + "…"
+    out: list[tuple[bool, str | None, str | None, str]] = []
+
+    def add(p):
+        if p not in out:
+            out.append(p)
+
+    for b in _BRACKET.finditer(raw):
+        body = b.group(1).strip()
+        if body.startswith("with"):
+            body = body[4:].strip()
+        for part in [x.strip() for x in re.split(r"\s+or\s+|;|,", body) if x.strip()]:
+            pm = _PREP_CASE.match(part)
+            if pm:
+                if pm.group(1).lower() in VERB_PREPS:
+                    add((reflexive, pm.group(1).lower(), pm.group(2), short))
+                continue
+            cm = _BARE_CASE.match(part)
+            if cm:
+                add((reflexive, None, cm.group(1), short))
+            elif part.lower() in VERB_PREPS:
+                add((reflexive, part.lower(), None, short))
+    if not out:
+        lm = _LABEL_CASE.search(label)
+        if lm:
+            add((reflexive, None, lm.group(1) or lm.group(2), short))
+    if not out and reflexive:
+        add((True, None, None, short))
+    return out
+
+
 def sense_rows(e: dict) -> list[tuple[int, str, str | None, str | None, str | None]]:
     rows = []
     for i, s in enumerate((e.get("senses") or [])[:MAX_SENSES]):
@@ -494,6 +551,11 @@ class Builder:
                          (eid, lang, word, normalize(word), pos, entry_gender(e), first_ipa(e),
                           entry_plural(forms, lang)))
         self.con.executemany("INSERT INTO sense VALUES (?,?,?,?,?,?)", [(eid, *r) for r in senses])
+        if lang == "de" and pos == "verb":
+            for i, sd in enumerate((e.get("senses") or [])[:MAX_SENSES]):
+                gloss = "; ".join(sd.get("glosses") or [])
+                for refl, prep, case, g in verb_patterns((sd.get("raw_glosses") or [None])[0], sd.get("tags") or [], gloss):
+                    self.con.execute("INSERT INTO verb_pattern VALUES (?,?,?,?,?,?)", (eid, i, int(refl), prep, case, g))
         if forms:
             self.con.executemany("INSERT INTO form VALUES (?,?,?)", [(eid, f, t) for f, t in forms])
         ety, syns = etymology_text(e), synonym_list(e)
@@ -603,7 +665,7 @@ def build_from_raw(args: argparse.Namespace, b: "Builder") -> list[str]:
 def build(args: argparse.Namespace) -> None:
     con = sqlite3.connect(args.out)
     con.executescript("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;")
-    for t in ("meta", "concept", "translation", "entry", "sense", "form", "extra", "zh"):
+    for t in ("meta", "concept", "translation", "entry", "sense", "form", "extra", "verb_pattern", "zh"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
     con.executescript(SCHEMA)
 
