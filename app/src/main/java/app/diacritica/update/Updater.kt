@@ -30,7 +30,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 
-/** A published app release: tag v0.3.<version>, where version is the build's versionCode. */
+/** A published app release: tag v<line>.<version> (v1.0.N, earlier v0.3.N), where version is the build's versionCode. */
 data class AppRelease(val version: Int, val tag: String, val apkUrl: String, val bytes: Long, val shaUrl: String?, val notesUrl: String)
 
 sealed interface UpdateState {
@@ -86,7 +86,7 @@ class Updater(private val context: Context) {
         }
     }
 
-    /** The newest app release (tags v0.3.N with an .apk), skipping data-pack releases. */
+    /** The newest app release (tags vX.Y.N with an .apk; N decides), skipping data-pack releases. */
     private fun latest(): AppRelease? {
         val conn = (URL("https://api.github.com/repos/$REPO/releases?per_page=15").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000; readTimeout = 20_000
@@ -226,7 +226,7 @@ class Updater(private val context: Context) {
             return md.digest().joinToString("") { "%02x".format(it) }
         }
 
-        /** Version number from a tag: "v0.3.27" → 27. Null for other tags (data-packs…). */
+        /** Version number from a tag: "v1.0.107" → 107 ("v0.3.27" → 27). Null for other tags (data-packs…). */
         fun versionOf(tag: String): Int? = Regex("^v\\d+\\.\\d+\\.(\\d+)$").find(tag)?.groupValues?.get(1)?.toIntOrNull()
 
         fun parseReleases(arr: JsonArray): List<AppRelease> = arr.mapNotNull { el ->

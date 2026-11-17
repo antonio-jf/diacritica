@@ -51,6 +51,18 @@ data class WordPopup(
     val matchLang: Lang? = null,
 )
 
+/** "Explain" for a Reader sentence: Gemini's breakdown, cached as a note under the story. */
+data class ReaderExplain(
+    val idx: Int,
+    val lang: Lang,
+    val sentence: String,
+    val loading: Boolean = true,
+    val breakdown: app.diacritica.mybooks.Breakdown? = null,
+    val error: String? = null,
+    val lessons: Set<String> = emptySet(),
+    val message: String? = null,
+)
+
 data class ShelfItem(val story: Story, val titles: Map<Lang, String>)
 
 data class ReaderUiState(
@@ -62,6 +74,7 @@ data class ReaderUiState(
     val importing: Pair<Int, Int>? = null,
     val error: String? = null,
     val message: String? = null,
+    val explain: ReaderExplain? = null,
 )
 
 /** The Classics tab: public-domain books in two languages (data pack or bundled). */
@@ -324,6 +337,80 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, error = null) }
+
+    // ------------------------------------------------------------------ Explain (breakdown of a sentence)
+
+    private val lessonJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    private val lessonList = kotlinx.serialization.builtins.ListSerializer(app.diacritica.tests.Lesson.serializer())
+
+    /**
+     * Breaks down sentence [idx] in [lang]: the cached breakdown if there is one (stored as a note under −storyId
+     * in the bookshelf database), else one Gemini request with the neighbouring sentences as context.
+     */
+    fun explain(idx: Int, lang: Lang) {
+        val story = _state.value.story ?: return
+        val sentence = story.sentences.getOrNull(idx)?.get(lang)?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        _state.update { it.copy(explain = ReaderExplain(idx, lang, sentence)) }
+        viewModelScope.launch {
+            val noteKey = -story.story.id
+            val cached = runCatching { c.bookshelf.noteFor(noteKey, sentence) }.getOrNull()
+            app.diacritica.mybooks.Breakdown.decode(cached?.breakdown)?.let { b ->
+                _state.update { st -> st.copy(explain = st.explain?.takeIf { it.sentence == sentence }?.copy(loading = false, breakdown = b, lessons = lessonTitles(cached))) }
+                return@launch
+            }
+            val s = c.settings.settings.first()
+            val err = when {
+                s.geminiKey.isBlank() -> "Explanations are written by Gemini: add a key in Settings › Rehearse."
+                !c.online.isOnline() -> "You're offline. Explanations need the internet."
+                else -> null
+            }
+            if (err != null) { _state.update { st -> st.copy(explain = st.explain?.copy(loading = false, error = err)) }; return@launch }
+            val context = (idx - 1..idx + 1).mapNotNull { story.sentences.getOrNull(it)?.get(lang) }.joinToString(if (lang == Lang.ZH) "" else " ")
+            try {
+                val b = app.diacritica.mybooks.Breakdown.request(c.gemini, s.geminiKey, s.geminiModel, sentence, lang, story.title(Lang.EN), context)
+                c.bookshelf.upsertNote(noteKey, 0, idx, sentence) { it.copy(breakdown = app.diacritica.mybooks.Breakdown.encode(b)) }
+                _state.update { st -> st.copy(explain = st.explain?.takeIf { it.sentence == sentence }?.copy(loading = false, breakdown = b)) }
+            } catch (e: Exception) {
+                _state.update { st -> st.copy(explain = st.explain?.copy(loading = false, error = e.message ?: "The explanation failed. Try again.")) }
+            }
+        }
+    }
+
+    fun dismissExplain() = _state.update { it.copy(explain = null) }
+
+    private fun lessonTitles(n: app.diacritica.mybooks.BookNote?): Set<String> =
+        n?.lessons?.let { runCatching { lessonJson.decodeFromString(lessonList, it).map { l -> l.title }.toSet() }.getOrNull() }.orEmpty()
+
+    /** A grammar point from the explanation becomes a lesson in Grammar › Lessons, linked to the story. */
+    fun makeLesson(point: app.diacritica.mybooks.GrammarPoint) {
+        val e = _state.value.explain ?: return
+        val b = e.breakdown ?: return
+        val story = _state.value.story ?: return
+        viewModelScope.launch {
+            val lesson = b.lesson(point, e.lang, story.title(Lang.EN), e.sentence)
+            c.bookshelf.upsertNote(-story.story.id, 0, e.idx, e.sentence) { n ->
+                val list = n.lessons?.let { runCatching { lessonJson.decodeFromString(lessonList, it) }.getOrNull() }.orEmpty()
+                n.copy(lessons = lessonJson.encodeToString(lessonList, list.filter { it.title != lesson.title } + lesson))
+            }
+            _state.update { st -> st.copy(explain = st.explain?.copy(lessons = st.explain.lessons + point.title, message = "Added to Grammar › Lessons.")) }
+        }
+    }
+
+    /** A word from the explanation, saved with the sentence as its context. */
+    fun saveVocab(v: app.diacritica.mybooks.VocabItem) {
+        val e = _state.value.explain ?: return
+        viewModelScope.launch {
+            val key = "${e.lang.code}:${v.word}"
+            if (key in savedKeys.value) c.removeSavedWord(e.lang.code, v.word)
+            else {
+                val s = c.settings.settings.first()
+                c.userDb.saved().save(SavedWord(lang = e.lang.code, word = v.word, note = e.sentence))
+                c.review.ensureCards(e.lang, v.word, s.activeLanguages, s.script)
+            }
+        }
+    }
+
+    fun clearExplainMessage() = _state.update { st -> st.copy(explain = st.explain?.copy(message = null)) }
 
     /** Writes a new story with Gemini and opens it. */
     /**

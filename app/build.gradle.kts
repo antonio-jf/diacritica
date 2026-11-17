@@ -56,7 +56,9 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = commitCount
-        versionName = "0.3.$commitCount"
+        // 1.0 is the first stable line (2026-11-16). The last number stays the commit count: the in-app updater
+        // compares it, so it must keep growing across lines (0.3.105 → 1.0.107 …).
+        versionName = "1.0.$commitCount"
     }
 
     buildTypes {

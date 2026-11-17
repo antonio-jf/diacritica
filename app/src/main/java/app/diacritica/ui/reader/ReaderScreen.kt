@@ -538,10 +538,17 @@ private fun StoryView(
         st.highlighted?.let { idx ->
             Hairline()
             Row(
-                Modifier.fillMaxWidth().background(c.surface).padding(horizontal = 8.dp, vertical = 2.dp),
+                Modifier.fillMaxWidth().background(c.surface).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("${idx + 1} / $n", style = captionStyle(c.ink), modifier = Modifier.padding(start = 8.dp).weight(1f))
+                Text("${idx + 1} / $n", style = captionStyle(c.ink), modifier = Modifier.padding(start = 8.dp, end = 4.dp))
+                // Explain the language you're learning (the one that isn't English or Spanish), when there is one.
+                val learning = listOf(a, b).firstOrNull { it != Lang.EN && it != Lang.ES } ?: a
+                TextButton(onClick = { vm.explain(idx, learning) }) {
+                    Icon(PolyIcons.Explain, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Explain", color = c.accent)
+                }
                 PolyIconButton(PolyIcons.Up, "Previous sentence", onClick = { if (idx > 0) vm.highlight(idx - 1) })
                 PolyIconButton(PolyIcons.Down, "Next sentence", onClick = { if (idx < n - 1) vm.highlight(idx + 1) })
                 TextButton(onClick = { vm.speak(a, env.text(idx, a)) }) { Text("▶ ${a.short}", color = c.accent) }
@@ -553,6 +560,28 @@ private fun StoryView(
         st.message?.let {
             LaunchedEffect(it) { kotlinx.coroutines.delay(1800); vm.clearMessage() }
             Text(it, style = captionStyle(c.success), modifier = Modifier.fillMaxWidth().background(c.surface).padding(horizontal = 16.dp, vertical = 6.dp))
+        }
+    }
+
+    st.explain?.let { e ->
+        val saved by vm.savedKeys.collectAsStateWithLifecycle()
+        ModalBottomSheet(onDismissRequest = vm::dismissExplain, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = c.ground) {
+            LaunchedEffect(e.message) { if (e.message != null) { kotlinx.coroutines.delay(2500); vm.clearExplainMessage() } }
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 20.dp).navigationBarsPadding()) {
+                Text(e.sentence, style = bodyStyle(size = 17.sp).copy(fontFamily = Diacritica.fonts.reading))
+                Gap(10.dp)
+                // Which side of the story to explain.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(a, b).distinct().forEach { l -> PolyChip("Explain ${l.short}", l == e.lang, { if (l != e.lang) vm.explain(e.idx, l) }) }
+                }
+                Gap(12.dp)
+                e.error?.let { Text(it, style = bodyStyle(c.warning)); Gap(8.dp) }
+                app.diacritica.ui.books.BreakdownBody(
+                    e.breakdown, e.loading, e.error != null, e.lang, saved, e.lessons,
+                    onRetry = { vm.explain(e.idx, e.lang) }, onSaveVocab = vm::saveVocab, onMakeLesson = vm::makeLesson,
+                )
+                e.message?.let { Gap(10.dp); Text(it, style = captionStyle(c.accent)) }
+            }
         }
     }
 

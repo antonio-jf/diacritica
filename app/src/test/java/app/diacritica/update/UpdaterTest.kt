@@ -14,6 +14,20 @@ class UpdaterTest {
         assertNull(Updater.versionOf("v0.3"))
     }
 
+    /** The stable line (1.0) keeps the build number last, so phones on 0.3.x still see it as newer. */
+    @Test fun stableLineIsNewerThan03() {
+        val arr = Json.parseToJsonElement(
+            """[
+              {"tag_name": "v1.0.107", "draft": false, "html_url": "h", "assets": [{"name": "diacritica-1.0.107.apk", "size": 1, "browser_download_url": "new"}]},
+              {"tag_name": "v0.3.105", "draft": false, "html_url": "h", "assets": [{"name": "diacritica-0.3.105.apk", "size": 1, "browser_download_url": "old"}]}
+            ]""",
+        ) as JsonArray
+        val newest = Updater.parseReleases(arr).maxBy { it.version }
+        assertEquals(107, newest.version)
+        assertEquals("v1.0.107", newest.tag)
+        assertEquals(true, (Updater.versionOf("v1.0.107") ?: 0) > (Updater.versionOf("v0.3.105") ?: 0))
+    }
+
     @Test fun parsesReleasesSkippingDataPacks() {
         val arr = Json.parseToJsonElement(
             """[

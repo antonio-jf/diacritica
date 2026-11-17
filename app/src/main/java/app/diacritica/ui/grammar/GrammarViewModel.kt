@@ -59,7 +59,7 @@ class GrammarViewModel(private val c: AppContainer) : ViewModel() {
                 }
                 val lessons = attempts.flatMap { a ->
                     a.review!!.lessons.map { LessonEntry(it, a.id, a.title, a.submittedAt ?: a.startedAt, 1) }
-                } + runCatching { c.bookshelf.lessons() }.getOrDefault(emptyList()).map { (lesson, note, title) ->
+                } + runCatching { c.bookshelf.lessons { id -> c.stories.load(id)?.title(Lang.EN) } }.getOrDefault(emptyList()).map { (lesson, note, title) ->
                     // Lessons made from a book passage: a negative id tells the practice button there's no test behind it.
                     LessonEntry(lesson, -note.id, "“$title”", note.createdAt, 1)
                 }
