@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -215,12 +218,12 @@ fun BookReaderScreen(
             Modifier.weight(1f).fillMaxWidth()
                 // With text selected, a tap anywhere on the page (a word or blank space) just clears the selection.
                 .pointerInput(Unit) {
-                    androidx.compose.foundation.gestures.awaitEachGesture {
-                        val down = androidx.compose.foundation.gestures.awaitFirstDown(
+                    awaitEachGesture {
+                        val down = awaitFirstDown(
                             requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
                         )
                         if (toolbar.request == null) return@awaitEachGesture
-                        val up = androidx.compose.foundation.gestures.waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                        val up = waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                             ?: return@awaitEachGesture
                         val moved = (up.position - down.position).getDistance()
                         if (moved < viewConfiguration.touchSlop && up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
