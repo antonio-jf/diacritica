@@ -73,6 +73,11 @@ class GrammarViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    private val active = MutableStateFlow<List<Lang>>(Lang.entries.toList())
+    init { viewModelScope.launch { c.settings.settings.collect { s -> active.value = s.activeLanguages.ifEmpty { Lang.entries.toList() } } } }
+    /** Your languages, for Ask for a lesson. */
+    val activeLangs: StateFlow<List<Lang>> = active.asStateFlow()
+
     fun setFilter(l: Lang?) = _state.update { it.copy(filter = l) }
     fun clearMessage() = _state.update { it.copy(message = null) }
 

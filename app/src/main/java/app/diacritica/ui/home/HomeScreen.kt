@@ -63,7 +63,7 @@ import java.util.Calendar
 import java.util.Date
 
 /** The parts of the app Home links to. */
-enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS }
+enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS, VOCABULARY }
 
 @Composable
 fun HomeScreen(
@@ -176,6 +176,8 @@ fun HomeScreen(
                     "Import your own EPUBs and read them with the dictionary a tap away."),
                 Tile(PolyIcons.Check, "Tests", HomeSection.TESTS, "8 sentences, scored",
                     "Translate 8 sentences into your languages and get a score, corrections and lessons for your mistakes."),
+                Tile(PolyIcons.Cards, "Vocabulary", HomeSection.VOCABULARY, "Word sets by topic",
+                    "Word sets by topic (fruits, colours, professions, places, actions…) with a mini test for each."),
                 Tile(PolyIcons.Book, "Grammar", HomeSection.GRAMMAR, "Weak points and lessons",
                     "Your weak points from Rehearse and Tests, all your lessons, and practice aimed at each."),
                 Tile(PolyIcons.Translate, "Translate", HomeSection.TRANSLATE, "Into all your languages",

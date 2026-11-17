@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+- Books: with text selected, tapping anywhere on the page (a word or blank space) clears the selection.
+- Vocabulary: 25 word sets by topic (food, people, things, places, nature, actions, time, health and hobbies) in all six languages, with articles and pinyin. Listen, add words to Review, and finish each set with a mini test (choose or type; typed answers checked for the article and accents, Mandarin in characters or pinyin).
 - German verbs show how they're used: reflexive *sich*, prepositions and the case they take (e.g. *sich freuen auf + Akk.*).
 - Separate size for Chinese characters in the Reader and Books text (Settings → Appearance), on top of the general text size. Menus and the rest of the app keep the normal size.
-- Full grammar lessons: Gemini expands any lesson into a complete one, with how it's formed, each use with annotated examples, common mistakes, a comparison with English and Spanish, a tip and graded practice. Kept once written; lessons made from a passage are expanded automatically.
+- Full grammar lessons: Gemini expands any lesson into a complete one, with how it's formed, each use with annotated examples, common mistakes, a comparison with English and Spanish, a tip and graded practice. Kept once written, in their own tab (Grammar › Full lessons), each opening as a page; lessons made from a passage are expanded automatically.
+- Ask for a lesson (Grammar › Full lessons): describe a word, a Chinese character or a structure, and Gemini writes a full lesson on it.
+- Reader: Rehearse on a sentence asks which language to rehearse from, any of your languages; ones the story isn't written in are translated first.
 - Lessons from test reviews and passage breakdowns are longer, with more examples.
 
 ## 1.0 — first stable version (2026-11-16)

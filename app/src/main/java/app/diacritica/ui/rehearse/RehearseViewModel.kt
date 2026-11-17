@@ -109,9 +109,22 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
             try {
                 _state.update { RehearseUiState(loading = true, roundsDone = it.roundsDone) }
                 val s = c.settings.settings.first()
-                val (group, _) = loadGroup(storyGroupId(storyId, idx)) ?: run { next(); return@launch }
+                val (loaded, _) = loadGroup(storyGroupId(storyId, idx)) ?: run { next(); return@launch }
                 val title = c.stories.load(storyId)?.title(Lang.EN) ?: "your reading"
-                show(Pick(group, "From “$title”", promptLangs = listOf(promptLang).filter { it in group.texts.keys }.ifEmpty { null }), s)
+                // A language the story isn't written in: translate the sentence into it first.
+                var notice: String? = null
+                val group = if (promptLang in loaded.texts.keys) loaded else {
+                    val from = listOf(Lang.EN, Lang.ES).firstOrNull { it in loaded.texts.keys } ?: loaded.texts.keys.first()
+                    val text = loaded.texts.getValue(from).first()
+                    val viaGemini = if (s.geminiKey.isNotBlank() && c.online.isOnline()) {
+                        runCatching { c.gemini.translate(s.geminiKey, s.geminiModel, from, text, listOf(promptLang))[promptLang] }.getOrNull()
+                    } else null
+                    val translated = viaGemini?.takeIf { it.isNotBlank() }
+                        ?: runCatching { c.translator.translate(text, from, promptLang) }.getOrNull()?.takeIf { it.isNotBlank() }
+                    if (translated != null) loaded.copy(texts = loaded.texts + (promptLang to listOf(translated)))
+                    else { notice = "Couldn't translate the sentence into ${promptLang.englishName}, so it's shown in ${from.englishName}."; loaded }
+                }
+                show(Pick(group, "From “$title”", promptLangs = listOf(promptLang).filter { it in group.texts.keys }.ifEmpty { null }, notice = notice, chosenPrompt = promptLang), s)
             } finally {
                 external = false
             }
@@ -131,6 +144,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val notice: String? = null,
         /** All references were written by Gemini. */
         val aiWritten: Boolean = false,
+        /** The prompt language was picked for this sentence (Reader › Rehearse from): it beats the toolbar's "From". */
+        val chosenPrompt: Lang? = null,
     )
 
     private val recentIds = ArrayDeque<Long>()
@@ -451,7 +466,8 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
         val available = allowed.filter { pl -> (p.targets ?: practiceLangs).any { it != pl } }
         val ordered = if (p.targets == null && practiceLangs.size == 1) available.sortedBy { it !in setOf(Lang.EN, Lang.ES) } else available
         // "Translate from" fixed in the toolbar wins over the path's own choice when the sentence has that language.
-        val from = fromLang(s)?.takeIf { it in group.texts.keys && it != p.practice?.first }
+        val from = p.chosenPrompt?.takeIf { it in group.texts.keys }
+            ?: fromLang(s)?.takeIf { it in group.texts.keys && it != p.practice?.first }
         val promptLang = from
             ?: (if (p.targets == null && practiceLangs.size == 1) ordered.firstOrNull() else ordered.getOrNull(rotation++ % ordered.size.coerceAtLeast(1)))
             ?: group.texts.keys.firstOrNull() ?: Lang.EN

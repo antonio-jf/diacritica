@@ -64,6 +64,7 @@ internal enum class Tab(val route: String, val label: String, val icon: ImageVec
     REVIEW("review", "Review", PolyIcons.Cards),
     TESTS("tests", "Tests", PolyIcons.Quiz),
     GRAMMAR("grammar", "Grammar", PolyIcons.Grammar),
+    VOCABULARY("vocabulary", "Vocabulary", PolyIcons.Cards),
     TRANSLATE("translate", "Translate", PolyIcons.Translate),
     PROGRESS("progress", "Progress", PolyIcons.Chart),
     LIBRARY("library", "Library", PolyIcons.Library);
@@ -87,6 +88,7 @@ fun AppRoot(
     testsVm: app.diacritica.ui.tests.TestsViewModel,
     grammarVm: app.diacritica.ui.grammar.GrammarViewModel,
     booksVm: app.diacritica.ui.books.BooksViewModel,
+    vocabVm: app.diacritica.ui.vocab.VocabularyViewModel,
     undo: app.diacritica.undo.UndoManager,
     sharedText: String?,
 ) {
@@ -135,6 +137,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.PROGRESS -> openSection(Tab.PROGRESS)
                                     app.diacritica.ui.home.HomeSection.TESTS -> openSection(Tab.TESTS)
                                     app.diacritica.ui.home.HomeSection.GRAMMAR -> openSection(Tab.GRAMMAR)
+                                    app.diacritica.ui.home.HomeSection.VOCABULARY -> openSection(Tab.VOCABULARY)
                                     app.diacritica.ui.home.HomeSection.BOOKS -> openSection(Tab.BOOKS)
                                 }
                             },
@@ -211,6 +214,7 @@ fun AppRoot(
                             onOpenTests = { nav.navigate("tests") },
                         )
                     }
+                    composable("vocabulary") { app.diacritica.ui.vocab.VocabularyScreen(vocabVm, onBack = { nav.popBackStack() }) }
                     composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
                         app.diacritica.ui.translate.TranslateScreen(

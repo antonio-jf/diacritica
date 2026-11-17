@@ -21,6 +21,12 @@ import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
+import app.diacritica.grammar.LessonWriter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +81,21 @@ fun GrammarScreen(
     val c = Diacritica.colors
     val pad = Diacritica.spacing.screen
     val st by vm.state.collectAsStateWithLifecycle()
+    val fullLessons by vm.lessons.full.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.refresh() }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var openKey by rememberSaveable { mutableStateOf<String?>(null) }
+    // A lesson's practice: from its test if it came from one, otherwise into the lesson's language.
+    val practise: (Lesson) -> Unit = { l ->
+        val key = LessonWriter.key(l)
+        onPractiseLesson(l, st.lessons.firstOrNull { LessonWriter.key(it.lesson) == key }?.attemptId ?: -1L)
+    }
+
+    openKey?.let { fullLessons[it] }?.let { l ->
+        BackHandler { openKey = null }
+        FullLessonPage(l, onBack = { openKey = null }, onSpeak = vm::speak, onPractise = practise)
+        return
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -83,18 +103,44 @@ fun GrammarScreen(
             ScreenHeader("Grammar", Modifier.weight(1f))
         }
         Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GrammarTabs(listOf("Overview", "Full lessons · ${fullLessons.size}"), tab, { tab = it })
+            if (st.loading) { Text("Looking through your answers…", style = captionStyle()); return@Column }
+
+            val fullLangs = fullLessons.values.mapNotNull { it.lang }.distinct()
+            val langs = if (tab == 0) st.langs else st.langs.filter { it in fullLangs } + fullLangs.filter { it !in st.langs }
+            if (langs.size > 1) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    PolyChip("All", st.filter == null, { vm.setFilter(null) })
+                    langs.forEach { l -> PolyChip(l.nativeName, st.filter == l, { vm.setFilter(l) }) }
+                }
+            }
+
+            if (tab == 1) {
+                val asking by vm.lessons.asking.collectAsStateWithLifecycle()
+                // Open a lesson you asked for as soon as it's written.
+                LaunchedEffect(asking.done) { asking.done?.let { openKey = it; vm.lessons.consumeAsked() } }
+                val myLangs by vm.activeLangs.collectAsStateWithLifecycle()
+                AskLessonCard(myLangs, st.filter, vm.lessons)
+                val list = fullLessons.entries.filter { st.filter == null || it.value.lang == st.filter }
+                    .sortedWith(compareBy({ it.value.lang?.ordinal ?: 99 }, { it.value.title.lowercase() }))
+                if (list.isEmpty()) {
+                    PolySurface(Modifier.fillMaxWidth()) {
+                        Text(
+                            "No full lessons yet. Ask for one above, or open a lesson in Overview and tap Write full lesson: Gemini writes a complete one " +
+                                "(how it's formed, each use with examples, common mistakes, English and Spanish compared). " +
+                                "Lessons you make from a passage in Books or the Reader are written automatically.",
+                            style = bodyStyle(size = 14.sp),
+                        )
+                    }
+                }
+                list.forEach { (key, l) -> FullLessonRow(l) { openKey = key } }
+                return@Column
+            }
+
             Text(
                 "What you keep getting wrong in Rehearse and Tests, the lessons your test reviews wrote, and practice aimed at each point.",
                 style = bodyStyle(c.inkMuted, 14.sp),
             )
-            if (st.loading) { Text("Looking through your answers…", style = captionStyle()); return@Column }
-
-            if (st.langs.size > 1) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PolyChip("All", st.filter == null, { vm.setFilter(null) })
-                    st.langs.forEach { l -> PolyChip(l.nativeName, st.filter == l, { vm.setFilter(l) }) }
-                }
-            }
             st.message?.let { Text(it, style = bodyStyle(c.error, 14.sp)) }
 
             // ------------------------------------------------ weak points
@@ -126,20 +172,21 @@ fun GrammarScreen(
             if (lessons.isNotEmpty()) {
                 Gap(4.dp)
                 SectionLabel("Your lessons · ${lessons.size}")
-                lessons.forEach { e -> LessonRow(e, vm, onPractiseLesson) }
+                lessons.forEach { e -> LessonRow(e, vm, onPractiseLesson) { full -> openKey = LessonWriter.key(full) } }
             }
         }
     }
 }
 
 @Composable
-private fun LessonRow(e: LessonEntry, vm: GrammarViewModel, onPractiseLesson: (Lesson, Long) -> Unit) {
+private fun LessonRow(e: LessonEntry, vm: GrammarViewModel, onPractiseLesson: (Lesson, Long) -> Unit, onOpenFull: (Lesson) -> Unit) {
     val date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(e.at))
     LessonCard(
         e.lesson, onSpeak = vm::speak, onPractise = { onPractiseLesson(it, e.attemptId) },
         source = "${e.testTitle} · $date" + if (e.times > 1) " · came up ${e.times} times" else "",
         startOpen = false,
         library = vm.lessons,
+        onOpenFull = onOpenFull,
     )
 }
 

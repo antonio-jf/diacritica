@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -209,8 +212,28 @@ fun BookReaderScreen(
         var drag by remember { mutableFloatStateOf(0f) }
         val chapterNow by rememberUpdatedState(st.chapter)
         val chapterCount by rememberUpdatedState(st.chapters.size)
+        // Bumping this rebuilds the selection container, which drops the selection.
+        var selectionEpoch by remember { androidx.compose.runtime.mutableIntStateOf(0) }
         Box(
-            Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) {
+            Modifier.weight(1f).fillMaxWidth()
+                // With text selected, a tap anywhere on the page (a word or blank space) just clears the selection.
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                        )
+                        if (toolbar.request == null) return@awaitEachGesture
+                        val up = waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                            ?: return@awaitEachGesture
+                        val moved = (up.position - down.position).getDistance()
+                        if (moved < viewConfiguration.touchSlop && up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
+                            up.consume()
+                            toolbar.hide()
+                            selectionEpoch++
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
                         when {
@@ -228,7 +251,7 @@ fun BookReaderScreen(
         androidx.compose.runtime.CompositionLocalProvider(
             androidx.compose.ui.platform.LocalTextToolbar provides toolbar,
             androidx.compose.ui.platform.LocalClipboardManager provides clipboard,
-        ) { androidx.compose.foundation.text.selection.SelectionContainer {
+        ) { androidx.compose.runtime.key(selectionEpoch) { androidx.compose.foundation.text.selection.SelectionContainer {
         LazyColumn(
             Modifier.fillMaxSize().graphicsLayer {
                 translationX = drag * 0.45f
@@ -256,7 +279,7 @@ fun BookReaderScreen(
                 }
             }
         }
-        } }
+        } } }
         // The app's selection toolbar, next to the selected text.
         toolbar.request?.let { r ->
             val gap = with(density) { 8.dp.roundToPx() }

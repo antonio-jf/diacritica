@@ -556,7 +556,21 @@ private fun StoryView(
                 PolyIconButton(PolyIcons.Down, "Next sentence", onClick = { if (idx < n - 1) vm.highlight(idx + 1) })
                 TextButton(onClick = { vm.speak(a, env.text(idx, a)) }) { Text("▶ ${a.short}", color = c.accent) }
                 TextButton(onClick = { vm.speak(b, env.text(idx, b)) }) { Text("▶ ${b.short}", color = c.accent) }
-                PolyIconButton(PolyIcons.Pencil, "Rehearse this sentence", onClick = { onRehearse(story.story.id, idx, a) })
+                // Rehearse: pick the language the sentence is shown in (any language; missing ones are translated).
+                Box {
+                    var pickFrom by remember { mutableStateOf(false) }
+                    PolyIconButton(PolyIcons.Pencil, "Rehearse this sentence", onClick = { pickFrom = true })
+                    androidx.compose.material3.DropdownMenu(expanded = pickFrom, onDismissRequest = { pickFrom = false }) {
+                        Text("Rehearse from", style = captionStyle(), modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                        (listOf(a, b) + Lang.entries.filter { it != a && it != b }).forEach { l ->
+                            app.diacritica.ui.components.ChoiceMenuItem(
+                                l.englishName, selected = false,
+                                onClick = { pickFrom = false; onRehearse(story.story.id, idx, l) },
+                                note = if (l == a || l == b) "in this story" else "translated",
+                            )
+                        }
+                    }
+                }
                 PolyIconButton(PolyIcons.Cards, "Add sentence to Review", onClick = { vm.addSentenceToReview(idx, a, b) })
             }
         }

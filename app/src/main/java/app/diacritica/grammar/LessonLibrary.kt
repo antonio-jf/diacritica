@@ -38,6 +38,35 @@ class LessonLibrary(
     private val _errors = MutableStateFlow<Map<String, String>>(emptyMap())
     val errors: StateFlow<Map<String, String>> = _errors.asStateFlow()
 
+    /** A lesson you asked for: being written, the error if it failed, and the key of the last one written. */
+    data class Asking(val busy: Boolean = false, val error: String? = null, val done: String? = null)
+    private val _asking = MutableStateFlow(Asking())
+    val asking: StateFlow<Asking> = _asking.asStateFlow()
+
+    /** Writes a full lesson on whatever you described (a word, a character, a structure) in [lang]. */
+    fun ask(request: String, lang: app.diacritica.data.Lang) {
+        if (request.isBlank() || _asking.value.busy) return
+        _asking.value = Asking(busy = true)
+        scope.launch {
+            val s = settings.settings.first()
+            val result = when {
+                s.geminiKey.isBlank() -> Result.failure(GeminiClient.GeminiException("Lessons are written by Gemini: add your API key in Settings."))
+                !isOnline() -> Result.failure(GeminiClient.GeminiException("You're offline. Connect to ask for a lesson."))
+                else -> runCatching { LessonWriter.ask(gemini, s.geminiKey, s.geminiModel, request, lang, s.storyLevel, s.storyHsk) }
+            }
+            result.onSuccess { l ->
+                val key = LessonWriter.key(l)
+                runCatching { bookshelf.saveFullLesson(key, json.encodeToString(Lesson.serializer(), l)) }
+                _full.update { it + (key to l) }
+                _asking.value = Asking(done = key)
+            }.onFailure { e ->
+                _asking.value = Asking(error = (e as? GeminiClient.GeminiException)?.message ?: "Couldn't write the lesson. Try again.")
+            }
+        }
+    }
+
+    fun consumeAsked() = _asking.update { it.copy(done = null) }
+
     @Volatile private var loaded = false
 
     fun load() {

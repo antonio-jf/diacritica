@@ -1,0 +1,412 @@
+@ fruits | Fruits | Food and drink
+apple	la pomme	der Apfel	la mela	la manzana	苹果	píngguǒ
+banana	la banane	die Banane	la banana	el plátano	香蕉	xiāngjiāo
+orange	l'orange (f)	die Orange	l'arancia (f)	la naranja	橙子	chéngzi
+grapes	le raisin	die Weintrauben	l'uva (f)	las uvas	葡萄	pútao
+strawberry	la fraise	die Erdbeere	la fragola	la fresa	草莓	cǎoméi
+pear	la poire	die Birne	la pera	la pera	梨	lí
+peach	la pêche	der Pfirsich	la pesca	el melocotón	桃子	táozi
+lemon	le citron	die Zitrone	il limone	el limón	柠檬	níngméng
+watermelon	la pastèque	die Wassermelone	l'anguria (f)	la sandía	西瓜	xīguā
+cherry	la cerise	die Kirsche	la ciliegia	la cereza	樱桃	yīngtáo
+pineapple	l'ananas (m)	die Ananas	l'ananas (m)	la piña	菠萝	bōluó
+mango	la mangue	die Mango	il mango	el mango	芒果	mángguǒ
+plum	la prune	die Pflaume	la prugna	la ciruela	李子	lǐzi
+apricot	l'abricot (m)	die Aprikose	l'albicocca (f)	el albaricoque	杏	xìng
+raspberry	la framboise	die Himbeere	il lampone	la frambuesa	树莓	shùméi
+melon	le melon	die Melone	il melone	el melón	甜瓜	tiánguā
+@ vegetables | Vegetables | Food and drink
+potato	la pomme de terre	die Kartoffel	la patata	la patata	土豆	tǔdòu
+tomato	la tomate	die Tomate	il pomodoro	el tomate	西红柿	xīhóngshì
+carrot	la carotte	die Karotte	la carota	la zanahoria	胡萝卜	húluóbo
+onion	l'oignon (m)	die Zwiebel	la cipolla	la cebolla	洋葱	yángcōng
+garlic	l'ail (m)	der Knoblauch	l'aglio (m)	el ajo	大蒜	dàsuàn
+lettuce	la laitue	der Salat	la lattuga	la lechuga	生菜	shēngcài
+cucumber	le concombre	die Gurke	il cetriolo	el pepino	黄瓜	huángguā
+pepper (vegetable)	le poivron	die Paprika	il peperone	el pimiento	甜椒	tiánjiāo
+cabbage	le chou	der Kohl	il cavolo	la col	白菜	báicài
+broccoli	le brocoli	der Brokkoli	i broccoli	el brócoli	西兰花	xīlánhuā
+spinach	les épinards	der Spinat	gli spinaci	las espinacas	菠菜	bōcài
+mushroom	le champignon	der Pilz	il fungo	el champiñón	蘑菇	mógu
+corn	le maïs	der Mais	il mais	el maíz	玉米	yùmǐ
+peas	les petits pois	die Erbsen	i piselli	los guisantes	豌豆	wāndòu
+green beans	les haricots verts	die grünen Bohnen	i fagiolini	las judías verdes	四季豆	sìjìdòu
+aubergine	l'aubergine (f)	die Aubergine	la melanzana	la berenjena	茄子	qiézi
+@ food | Food | Food and drink
+bread	le pain	das Brot	il pane	el pan	面包	miànbāo
+rice	le riz	der Reis	il riso	el arroz	米饭	mǐfàn
+meat	la viande	das Fleisch	la carne	la carne	肉	ròu
+chicken (meat)	le poulet	das Hähnchen	il pollo	el pollo	鸡肉	jīròu
+fish	le poisson	der Fisch	il pesce	el pescado	鱼	yú
+egg	l'œuf (m)	das Ei	l'uovo (m)	el huevo	鸡蛋	jīdàn
+cheese	le fromage	der Käse	il formaggio	el queso	奶酪	nǎilào
+butter	le beurre	die Butter	il burro	la mantequilla	黄油	huángyóu
+sugar	le sucre	der Zucker	lo zucchero	el azúcar	糖	táng
+salt	le sel	das Salz	il sale	la sal	盐	yán
+pepper (spice)	le poivre	der Pfeffer	il pepe	la pimienta	胡椒	hújiāo
+soup	la soupe	die Suppe	la zuppa	la sopa	汤	tāng
+cake	le gâteau	der Kuchen	la torta	el pastel	蛋糕	dàngāo
+pasta, noodles	les pâtes	die Nudeln	la pasta	la pasta	面条	miàntiáo
+chocolate	le chocolat	die Schokolade	il cioccolato	el chocolate	巧克力	qiǎokèlì
+ice cream	la glace	das Eis	il gelato	el helado	冰淇淋	bīngqílín
+@ table | Drinks and the table | Food and drink
+water	l'eau (f)	das Wasser	l'acqua (f)	el agua (f)	水	shuǐ
+coffee	le café	der Kaffee	il caffè	el café	咖啡	kāfēi
+tea	le thé	der Tee	il tè	el té	茶	chá
+milk	le lait	die Milch	il latte	la leche	牛奶	niúnǎi
+juice	le jus	der Saft	il succo	el zumo	果汁	guǒzhī
+beer	la bière	das Bier	la birra	la cerveza	啤酒	píjiǔ
+wine	le vin	der Wein	il vino	el vino	葡萄酒	pútaojiǔ
+glass	le verre	das Glas	il bicchiere	el vaso	玻璃杯	bōlibēi
+cup	la tasse	die Tasse	la tazza	la taza	杯子	bēizi
+bottle	la bouteille	die Flasche	la bottiglia	la botella	瓶子	píngzi
+plate	l'assiette (f)	der Teller	il piatto	el plato	盘子	pánzi
+fork	la fourchette	die Gabel	la forchetta	el tenedor	叉子	chāzi
+knife	le couteau	das Messer	il coltello	el cuchillo	刀	dāo
+spoon	la cuillère	der Löffel	il cucchiaio	la cuchara	勺子	sháozi
+chopsticks	les baguettes	die Essstäbchen	le bacchette	los palillos	筷子	kuàizi
+the bill	l'addition (f)	die Rechnung	il conto	la cuenta	账单	zhàngdān
+@ family | Family | People
+mother	la mère	die Mutter	la madre	la madre	妈妈	māma
+father	le père	der Vater	il padre	el padre	爸爸	bàba
+parents	les parents	die Eltern	i genitori	los padres	父母	fùmǔ
+sister	la sœur	die Schwester	la sorella	la hermana	姐姐 / 妹妹	jiějie / mèimei
+brother	le frère	der Bruder	il fratello	el hermano	哥哥 / 弟弟	gēge / dìdi
+son	le fils	der Sohn	il figlio	el hijo	儿子	érzi
+daughter	la fille	die Tochter	la figlia	la hija	女儿	nǚ'ér
+grandmother	la grand-mère	die Großmutter	la nonna	la abuela	奶奶 / 外婆	nǎinai / wàipó
+grandfather	le grand-père	der Großvater	il nonno	el abuelo	爷爷 / 外公	yéye / wàigōng
+aunt	la tante	die Tante	la zia	la tía	阿姨	āyí
+uncle	l'oncle (m)	der Onkel	lo zio	el tío	叔叔	shūshu
+cousin	le cousin / la cousine	der Cousin / die Cousine	il cugino / la cugina	el primo / la prima	表兄弟 / 表姐妹	biǎoxiōngdì / biǎojiěmèi
+husband	le mari	der Ehemann	il marito	el marido	丈夫	zhàngfu
+wife	la femme	die Ehefrau	la moglie	la esposa	妻子	qīzi
+baby	le bébé	das Baby	il neonato	el bebé	婴儿	yīng'ér
+children	les enfants	die Kinder	i bambini	los niños	孩子	háizi
+@ body | The body | People
+head	la tête	der Kopf	la testa	la cabeza	头	tóu
+hair	les cheveux	die Haare	i capelli	el pelo	头发	tóufa
+face	le visage	das Gesicht	il viso	la cara	脸	liǎn
+eye	l'œil (m)	das Auge	l'occhio (m)	el ojo	眼睛	yǎnjing
+ear	l'oreille (f)	das Ohr	l'orecchio (m)	la oreja	耳朵	ěrduo
+nose	le nez	die Nase	il naso	la nariz	鼻子	bízi
+mouth	la bouche	der Mund	la bocca	la boca	嘴	zuǐ
+tooth	la dent	der Zahn	il dente	el diente	牙齿	yáchǐ
+neck	le cou	der Hals	il collo	el cuello	脖子	bózi
+arm	le bras	der Arm	il braccio	el brazo	胳膊	gēbo
+hand	la main	die Hand	la mano	la mano	手	shǒu
+finger	le doigt	der Finger	il dito	el dedo	手指	shǒuzhǐ
+leg	la jambe	das Bein	la gamba	la pierna	腿	tuǐ
+foot	le pied	der Fuß	il piede	el pie	脚	jiǎo
+back	le dos	der Rücken	la schiena	la espalda	背	bèi
+heart	le cœur	das Herz	il cuore	el corazón	心脏	xīnzàng
+@ professions | Professions | People
+doctor	le médecin	der Arzt / die Ärztin	il medico	el médico / la médica	医生	yīshēng
+nurse	l'infirmier / l'infirmière	der Krankenpfleger / die Krankenschwester	l'infermiere / l'infermiera	el enfermero / la enfermera	护士	hùshi
+teacher	le professeur / la professeure	der Lehrer / die Lehrerin	l'insegnante (m/f)	el profesor / la profesora	老师	lǎoshī
+student	l'étudiant / l'étudiante	der Student / die Studentin	lo studente / la studentessa	el estudiante / la estudiante	学生	xuésheng
+lawyer	l'avocat / l'avocate	der Anwalt / die Anwältin	l'avvocato (m)	el abogado / la abogada	律师	lǜshī
+engineer	l'ingénieur / l'ingénieure	der Ingenieur / die Ingenieurin	l'ingegnere (m)	el ingeniero / la ingeniera	工程师	gōngchéngshī
+cook	le cuisinier / la cuisinière	der Koch / die Köchin	il cuoco / la cuoca	el cocinero / la cocinera	厨师	chúshī
+waiter	le serveur / la serveuse	der Kellner / die Kellnerin	il cameriere / la cameriera	el camarero / la camarera	服务员	fúwùyuán
+police officer	le policier / la policière	der Polizist / die Polizistin	il poliziotto / la poliziotta	el policía / la policía	警察	jǐngchá
+firefighter	le pompier	der Feuerwehrmann / die Feuerwehrfrau	il pompiere	el bombero / la bombera	消防员	xiāofángyuán
+farmer	l'agriculteur / l'agricultrice	der Bauer / die Bäuerin	il contadino / la contadina	el agricultor / la agricultora	农民	nóngmín
+driver	le chauffeur	der Fahrer / die Fahrerin	l'autista (m/f)	el conductor / la conductora	司机	sījī
+shop assistant	le vendeur / la vendeuse	der Verkäufer / die Verkäuferin	il commesso / la commessa	el dependiente / la dependienta	售货员	shòuhuòyuán
+journalist	le journaliste / la journaliste	der Journalist / die Journalistin	il giornalista / la giornalista	el periodista / la periodista	记者	jìzhě
+musician	le musicien / la musicienne	der Musiker / die Musikerin	il musicista / la musicista	el músico / la música	音乐家	yīnyuèjiā
+programmer	le programmeur / la programmeuse	der Programmierer / die Programmiererin	il programmatore / la programmatrice	el programador / la programadora	程序员	chéngxùyuán
+@ feelings | Feelings | People
+happy	heureux / heureuse	glücklich	felice	feliz	高兴	gāoxìng
+sad	triste	traurig	triste	triste	难过	nánguò
+angry	en colère	wütend	arrabbiato / arrabbiata	enfadado / enfadada	生气	shēngqì
+tired	fatigué / fatiguée	müde	stanco / stanca	cansado / cansada	累	lèi
+scared	effrayé / effrayée	ängstlich	spaventato / spaventata	asustado / asustada	害怕	hàipà
+surprised	surpris / surprise	überrascht	sorpreso / sorpresa	sorprendido / sorprendida	惊讶	jīngyà
+busy	occupé / occupée	beschäftigt	occupato / occupata	ocupado / ocupada	忙	máng
+nervous	nerveux / nerveuse	nervös	nervoso / nervosa	nervioso / nerviosa	紧张	jǐnzhāng
+calm	calme	ruhig	calmo / calma	tranquilo / tranquila	平静	píngjìng
+worried	inquiet / inquiète	besorgt	preoccupato / preoccupata	preocupado / preocupada	担心	dānxīn
+proud	fier / fière	stolz	orgoglioso / orgogliosa	orgulloso / orgullosa	骄傲	jiāo'ào
+excited	enthousiaste	aufgeregt	emozionato / emozionata	emocionado / emocionada	兴奋	xīngfèn
+lonely	seul / seule	einsam	solo / sola	solo / sola	孤独	gūdú
+relaxed	détendu / détendue	entspannt	rilassato / rilassata	relajado / relajada	放松	fàngsōng
+disappointed	déçu / déçue	enttäuscht	deluso / delusa	decepcionado / decepcionada	失望	shīwàng
+embarrassed	gêné / gênée	verlegen	imbarazzato / imbarazzata	avergonzado / avergonzada	尴尬	gāngà
+@ clothes | Clothes | Things
+shirt	la chemise	das Hemd	la camicia	la camisa	衬衫	chènshān
+T-shirt	le t-shirt	das T-Shirt	la maglietta	la camiseta	T恤	T xù
+trousers	le pantalon	die Hose	i pantaloni	los pantalones	裤子	kùzi
+skirt	la jupe	der Rock	la gonna	la falda	裙子	qúnzi
+dress	la robe	das Kleid	il vestito	el vestido	连衣裙	liányīqún
+jacket	la veste	die Jacke	la giacca	la chaqueta	夹克	jiákè
+coat	le manteau	der Mantel	il cappotto	el abrigo	大衣	dàyī
+sweater	le pull	der Pullover	il maglione	el jersey	毛衣	máoyī
+shoes	les chaussures	die Schuhe	le scarpe	los zapatos	鞋	xié
+boots	les bottes	die Stiefel	gli stivali	las botas	靴子	xuēzi
+socks	les chaussettes	die Socken	i calzini	los calcetines	袜子	wàzi
+hat	le chapeau	der Hut	il cappello	el sombrero	帽子	màozi
+scarf	l'écharpe (f)	der Schal	la sciarpa	la bufanda	围巾	wéijīn
+gloves	les gants	die Handschuhe	i guanti	los guantes	手套	shǒutào
+belt	la ceinture	der Gürtel	la cintura	el cinturón	腰带	yāodài
+glasses	les lunettes	die Brille	gli occhiali	las gafas	眼镜	yǎnjìng
+@ house | At home | Things
+house	la maison	das Haus	la casa	la casa	房子	fángzi
+flat, apartment	l'appartement (m)	die Wohnung	l'appartamento (m)	el piso	公寓	gōngyù
+room	la pièce	das Zimmer	la stanza	la habitación	房间	fángjiān
+kitchen	la cuisine	die Küche	la cucina	la cocina	厨房	chúfáng
+bathroom	la salle de bain	das Badezimmer	il bagno	el baño	浴室	yùshì
+bedroom	la chambre	das Schlafzimmer	la camera da letto	el dormitorio	卧室	wòshì
+living room	le salon	das Wohnzimmer	il soggiorno	el salón	客厅	kètīng
+door	la porte	die Tür	la porta	la puerta	门	mén
+window	la fenêtre	das Fenster	la finestra	la ventana	窗户	chuānghu
+stairs	l'escalier (m)	die Treppe	le scale	la escalera	楼梯	lóutī
+table	la table	der Tisch	il tavolo	la mesa	桌子	zhuōzi
+chair	la chaise	der Stuhl	la sedia	la silla	椅子	yǐzi
+bed	le lit	das Bett	il letto	la cama	床	chuáng
+sofa	le canapé	das Sofa	il divano	el sofá	沙发	shāfā
+wardrobe	l'armoire (f)	der Kleiderschrank	l'armadio (m)	el armario	衣柜	yīguì
+lamp	la lampe	die Lampe	la lampada	la lámpara	灯	dēng
+@ work-school | Work and school | Things
+office	le bureau	das Büro	l'ufficio (m)	la oficina	办公室	bàngōngshì
+computer	l'ordinateur (m)	der Computer	il computer	el ordenador	电脑	diànnǎo
+phone	le téléphone	das Telefon	il telefono	el teléfono	电话	diànhuà
+email	l'e-mail (m)	die E-Mail	l'e-mail (f)	el correo electrónico	电子邮件	diànzǐ yóujiàn
+meeting	la réunion	die Besprechung	la riunione	la reunión	会议	huìyì
+boss	le chef / la cheffe	der Chef / die Chefin	il capo	el jefe / la jefa	老板	lǎobǎn
+colleague	le collègue / la collègue	der Kollege / die Kollegin	il collega / la collega	el compañero / la compañera	同事	tóngshì
+job, work	le travail	die Arbeit	il lavoro	el trabajo	工作	gōngzuò
+salary	le salaire	das Gehalt	lo stipendio	el sueldo	工资	gōngzī
+book	le livre	das Buch	il libro	el libro	书	shū
+notebook	le cahier	das Heft	il quaderno	el cuaderno	本子	běnzi
+pen	le stylo	der Kugelschreiber	la penna	el bolígrafo	笔	bǐ
+pencil	le crayon	der Bleistift	la matita	el lápiz	铅笔	qiānbǐ
+exam	l'examen (m)	die Prüfung	l'esame (m)	el examen	考试	kǎoshì
+homework	les devoirs	die Hausaufgaben	i compiti	los deberes	作业	zuòyè
+class, lesson	le cours	der Unterricht	la lezione	la clase	课	kè
+@ colors | Colours | Describing
+red	rouge	rot	rosso	rojo	红色	hóngsè
+blue	bleu	blau	blu	azul	蓝色	lánsè
+green	vert	grün	verde	verde	绿色	lǜsè
+yellow	jaune	gelb	giallo	amarillo	黄色	huángsè
+black	noir	schwarz	nero	negro	黑色	hēisè
+white	blanc	weiß	bianco	blanco	白色	báisè
+orange	orange	orange	arancione	naranja	橙色	chéngsè
+purple	violet	lila	viola	morado	紫色	zǐsè
+pink	rose	rosa	rosa	rosa	粉色	fěnsè
+brown	marron	braun	marrone	marrón	棕色	zōngsè
+grey	gris	grau	grigio	gris	灰色	huīsè
+gold	doré	golden	dorato	dorado	金色	jīnsè
+silver	argenté	silbern	argentato	plateado	银色	yínsè
+beige	beige	beige	beige	beige	米色	mǐsè
+dark	foncé	dunkel	scuro	oscuro	深	shēn
+light	clair	hell	chiaro	claro	浅	qiǎn
+@ adjectives | Describing things | Describing
+big	grand	groß	grande	grande	大	dà
+small	petit	klein	piccolo	pequeño	小	xiǎo
+long	long	lang	lungo	largo	长	cháng
+short	court	kurz	corto	corto	短	duǎn
+new	nouveau	neu	nuovo	nuevo	新	xīn
+old	vieux	alt	vecchio	viejo	旧 / 老	jiù / lǎo
+young	jeune	jung	giovane	joven	年轻	niánqīng
+good	bon	gut	buono	bueno	好	hǎo
+bad	mauvais	schlecht	cattivo	malo	坏	huài
+easy	facile	einfach	facile	fácil	容易	róngyì
+difficult	difficile	schwierig	difficile	difícil	难	nán
+cheap	bon marché	billig	economico	barato	便宜	piányi
+expensive	cher	teuer	caro	caro	贵	guì
+hot	chaud	heiß	caldo	caliente	热	rè
+cold	froid	kalt	freddo	frío	冷	lěng
+beautiful	beau	schön	bello	bonito	漂亮	piàoliang
+@ town | In town | Places and travel
+bank	la banque	die Bank	la banca	el banco	银行	yínháng
+post office	la poste	die Post	l'ufficio postale (m)	la oficina de correos	邮局	yóujú
+supermarket	le supermarché	der Supermarkt	il supermercato	el supermercado	超市	chāoshì
+pharmacy	la pharmacie	die Apotheke	la farmacia	la farmacia	药店	yàodiàn
+hospital	l'hôpital (m)	das Krankenhaus	l'ospedale (m)	el hospital	医院	yīyuàn
+school	l'école (f)	die Schule	la scuola	la escuela	学校	xuéxiào
+library	la bibliothèque	die Bibliothek	la biblioteca	la biblioteca	图书馆	túshūguǎn
+restaurant	le restaurant	das Restaurant	il ristorante	el restaurante	餐厅	cāntīng
+hotel	l'hôtel (m)	das Hotel	l'albergo (m)	el hotel	酒店	jiǔdiàn
+train station	la gare	der Bahnhof	la stazione	la estación de tren	火车站	huǒchēzhàn
+airport	l'aéroport (m)	der Flughafen	l'aeroporto (m)	el aeropuerto	机场	jīchǎng
+museum	le musée	das Museum	il museo	el museo	博物馆	bówùguǎn
+park	le parc	der Park	il parco	el parque	公园	gōngyuán
+market	le marché	der Markt	il mercato	el mercado	市场	shìchǎng
+bakery	la boulangerie	die Bäckerei	il panificio	la panadería	面包店	miànbāodiàn
+cinema	le cinéma	das Kino	il cinema	el cine	电影院	diànyǐngyuàn
+@ transport | Getting around | Places and travel
+car	la voiture	das Auto	la macchina	el coche	汽车	qìchē
+bus	le bus	der Bus	l'autobus (m)	el autobús	公交车	gōngjiāochē
+train	le train	der Zug	il treno	el tren	火车	huǒchē
+plane	l'avion (m)	das Flugzeug	l'aereo (m)	el avión	飞机	fēijī
+bicycle	le vélo	das Fahrrad	la bicicletta	la bicicleta	自行车	zìxíngchē
+motorbike	la moto	das Motorrad	la moto	la moto	摩托车	mótuōchē
+boat	le bateau	das Boot	la barca	el barco	船	chuán
+taxi	le taxi	das Taxi	il taxi	el taxi	出租车	chūzūchē
+underground, metro	le métro	die U-Bahn	la metropolitana	el metro	地铁	dìtiě
+lorry, truck	le camion	der Lastwagen	il camion	el camión	卡车	kǎchē
+tram	le tramway	die Straßenbahn	il tram	el tranvía	有轨电车	yǒuguǐ diànchē
+ticket	le billet	die Fahrkarte	il biglietto	el billete	票	piào
+platform	le quai	der Bahnsteig	il binario	el andén	站台	zhàntái
+street	la rue	die Straße	la strada	la calle	街道	jiēdào
+traffic lights	le feu	die Ampel	il semaforo	el semáforo	红绿灯	hónglǜdēng
+petrol station	la station-service	die Tankstelle	il distributore di benzina	la gasolinera	加油站	jiāyóuzhàn
+@ travel | Travel | Places and travel
+trip	le voyage	die Reise	il viaggio	el viaje	旅行	lǚxíng
+holidays	les vacances	der Urlaub	le vacanze	las vacaciones	假期	jiàqī
+suitcase	la valise	der Koffer	la valigia	la maleta	行李箱	xínglixiāng
+passport	le passeport	der Reisepass	il passaporto	el pasaporte	护照	hùzhào
+map	la carte	die Karte	la mappa	el mapa	地图	dìtú
+tourist	le touriste / la touriste	der Tourist / die Touristin	il turista / la turista	el turista / la turista	游客	yóukè
+reservation	la réservation	die Reservierung	la prenotazione	la reserva	预订	yùdìng
+key	la clé	der Schlüssel	la chiave	la llave	钥匙	yàoshi
+money	l'argent (m)	das Geld	i soldi	el dinero	钱	qián
+credit card	la carte bancaire	die Kreditkarte	la carta di credito	la tarjeta de crédito	信用卡	xìnyòngkǎ
+border	la frontière	die Grenze	il confine	la frontera	边境	biānjìng
+flight	le vol	der Flug	il volo	el vuelo	航班	hángbān
+departure	le départ	die Abfahrt	la partenza	la salida	出发	chūfā
+arrival	l'arrivée (f)	die Ankunft	l'arrivo (m)	la llegada	到达	dàodá
+souvenir	le souvenir	das Andenken	il souvenir	el recuerdo	纪念品	jìniànpǐn
+guidebook	le guide	der Reiseführer	la guida	la guía	旅游指南	lǚyóu zhǐnán
+@ animals | Animals | Nature
+dog	le chien	der Hund	il cane	el perro	狗	gǒu
+cat	le chat	die Katze	il gatto	el gato	猫	māo
+horse	le cheval	das Pferd	il cavallo	el caballo	马	mǎ
+cow	la vache	die Kuh	la mucca	la vaca	牛	niú
+pig	le cochon	das Schwein	il maiale	el cerdo	猪	zhū
+sheep	le mouton	das Schaf	la pecora	la oveja	羊	yáng
+bird	l'oiseau (m)	der Vogel	l'uccello (m)	el pájaro	鸟	niǎo
+mouse	la souris	die Maus	il topo	el ratón	老鼠	lǎoshǔ
+rabbit	le lapin	das Kaninchen	il coniglio	el conejo	兔子	tùzi
+duck	le canard	die Ente	l'anatra (f)	el pato	鸭子	yāzi
+bear	l'ours (m)	der Bär	l'orso (m)	el oso	熊	xióng
+lion	le lion	der Löwe	il leone	el león	狮子	shīzi
+tiger	le tigre	der Tiger	la tigre	el tigre	老虎	lǎohǔ
+elephant	l'éléphant (m)	der Elefant	l'elefante (m)	el elefante	大象	dàxiàng
+monkey	le singe	der Affe	la scimmia	el mono	猴子	hóuzi
+snake	le serpent	die Schlange	il serpente	la serpiente	蛇	shé
+@ nature | Weather and nature | Nature
+sun	le soleil	die Sonne	il sole	el sol	太阳	tàiyáng
+rain	la pluie	der Regen	la pioggia	la lluvia	雨	yǔ
+snow	la neige	der Schnee	la neve	la nieve	雪	xuě
+wind	le vent	der Wind	il vento	el viento	风	fēng
+cloud	le nuage	die Wolke	la nuvola	la nube	云	yún
+storm	l'orage (m)	das Gewitter	il temporale	la tormenta	暴风雨	bàofēngyǔ
+fog	le brouillard	der Nebel	la nebbia	la niebla	雾	wù
+sky	le ciel	der Himmel	il cielo	el cielo	天空	tiānkōng
+sea	la mer	das Meer	il mare	el mar	海	hǎi
+river	la rivière	der Fluss	il fiume	el río	河	hé
+mountain	la montagne	der Berg	la montagna	la montaña	山	shān
+lake	le lac	der See	il lago	el lago	湖	hú
+forest	la forêt	der Wald	il bosco	el bosque	森林	sēnlín
+tree	l'arbre (m)	der Baum	l'albero (m)	el árbol	树	shù
+flower	la fleur	die Blume	il fiore	la flor	花	huā
+beach	la plage	der Strand	la spiaggia	la playa	海滩	hǎitān
+@ everyday-verbs | Everyday actions | Actions
+to eat	manger	essen	mangiare	comer	吃	chī
+to drink	boire	trinken	bere	beber	喝	hē
+to sleep	dormir	schlafen	dormire	dormir	睡觉	shuìjiào
+to wake up	se réveiller	aufwachen	svegliarsi	despertarse	醒	xǐng
+to work	travailler	arbeiten	lavorare	trabajar	工作	gōngzuò
+to read	lire	lesen	leggere	leer	读	dú
+to write	écrire	schreiben	scrivere	escribir	写	xiě
+to speak	parler	sprechen	parlare	hablar	说	shuō
+to listen	écouter	zuhören	ascoltare	escuchar	听	tīng
+to watch, to look at	regarder	anschauen	guardare	mirar	看	kàn
+to walk	marcher	zu Fuß gehen	camminare	caminar	走路	zǒulù
+to run	courir	laufen	correre	correr	跑	pǎo
+to buy	acheter	kaufen	comprare	comprar	买	mǎi
+to cook	cuisiner	kochen	cucinare	cocinar	做饭	zuòfàn
+to wash	laver	waschen	lavare	lavar	洗	xǐ
+to open	ouvrir	öffnen	aprire	abrir	打开	dǎkāi
+@ verbs-moving | Coming, going, asking | Actions
+to go	aller	gehen	andare	ir	去	qù
+to come	venir	kommen	venire	venir	来	lái
+to leave	partir	weggehen	partire	irse	离开	líkāi
+to arrive	arriver	ankommen	arrivare	llegar	到达	dàodá
+to come in	entrer	hereinkommen	entrare	entrar	进	jìn
+to come back	revenir	zurückkommen	tornare	volver	回来	huílai
+to wait	attendre	warten	aspettare	esperar	等	děng
+to look for	chercher	suchen	cercare	buscar	找	zhǎo
+to find	trouver	finden	trovare	encontrar	找到	zhǎodào
+to ask	demander	fragen	chiedere	preguntar	问	wèn
+to answer	répondre	antworten	rispondere	responder	回答	huídá
+to call (phone)	appeler	anrufen	chiamare	llamar	打电话	dǎ diànhuà
+to help	aider	helfen	aiutare	ayudar	帮助	bāngzhù
+to give	donner	geben	dare	dar	给	gěi
+to take	prendre	nehmen	prendere	tomar	拿	ná
+to bring	apporter	bringen	portare	traer	带来	dàilai
+@ time | Time | Time
+day	le jour	der Tag	il giorno	el día	天	tiān
+week	la semaine	die Woche	la settimana	la semana	星期	xīngqī
+month	le mois	der Monat	il mese	el mes	月	yuè
+year	l'année (f)	das Jahr	l'anno (m)	el año	年	nián
+weekend	le week-end	das Wochenende	il fine settimana	el fin de semana	周末	zhōumò
+morning	le matin	der Morgen	la mattina	la mañana	早上	zǎoshang
+afternoon	l'après-midi (m)	der Nachmittag	il pomeriggio	la tarde	下午	xiàwǔ
+night	la nuit	die Nacht	la notte	la noche	晚上	wǎnshang
+today	aujourd'hui	heute	oggi	hoy	今天	jīntiān
+tomorrow	demain	morgen	domani	mañana	明天	míngtiān
+yesterday	hier	gestern	ieri	ayer	昨天	zuótiān
+hour	l'heure (f)	die Stunde	l'ora (f)	la hora	小时	xiǎoshí
+minute	la minute	die Minute	il minuto	el minuto	分钟	fēnzhōng
+now	maintenant	jetzt	adesso	ahora	现在	xiànzài
+early	tôt	früh	presto	temprano	早	zǎo
+late	tard	spät	tardi	tarde	晚	wǎn
+@ days | Days of the week | Time
+Monday	lundi	Montag	lunedì	lunes	星期一	xīngqīyī
+Tuesday	mardi	Dienstag	martedì	martes	星期二	xīngqī'èr
+Wednesday	mercredi	Mittwoch	mercoledì	miércoles	星期三	xīngqīsān
+Thursday	jeudi	Donnerstag	giovedì	jueves	星期四	xīngqīsì
+Friday	vendredi	Freitag	venerdì	viernes	星期五	xīngqīwǔ
+Saturday	samedi	Samstag	sabato	sábado	星期六	xīngqīliù
+Sunday	dimanche	Sonntag	domenica	domingo	星期天 / 星期日	xīngqītiān / xīngqīrì
+@ months | Months | Time
+January	janvier	Januar	gennaio	enero	一月	yīyuè
+February	février	Februar	febbraio	febrero	二月	èryuè
+March	mars	März	marzo	marzo	三月	sānyuè
+April	avril	April	aprile	abril	四月	sìyuè
+May	mai	Mai	maggio	mayo	五月	wǔyuè
+June	juin	Juni	giugno	junio	六月	liùyuè
+July	juillet	Juli	luglio	julio	七月	qīyuè
+August	août	August	agosto	agosto	八月	bāyuè
+September	septembre	September	settembre	septiembre	九月	jiǔyuè
+October	octobre	Oktober	ottobre	octubre	十月	shíyuè
+November	novembre	November	novembre	noviembre	十一月	shíyīyuè
+December	décembre	Dezember	dicembre	diciembre	十二月	shí'èryuè
+@ health | At the doctor's | Health and free time
+pain	la douleur	der Schmerz	il dolore	el dolor	疼痛	téngtòng
+fever	la fièvre	das Fieber	la febbre	la fiebre	发烧	fāshāo
+a cold	le rhume	die Erkältung	il raffreddore	el resfriado	感冒	gǎnmào
+cough	la toux	der Husten	la tosse	la tos	咳嗽	késou
+headache	le mal de tête	die Kopfschmerzen	il mal di testa	el dolor de cabeza	头疼	tóuténg
+medicine	le médicament	das Medikament	la medicina	el medicamento	药	yào
+pill	le comprimé	die Tablette	la pastiglia	la pastilla	药片	yàopiàn
+appointment	le rendez-vous	der Termin	l'appuntamento (m)	la cita	预约	yùyuē
+prescription	l'ordonnance (f)	das Rezept	la ricetta	la receta	处方	chǔfāng
+allergy	l'allergie (f)	die Allergie	l'allergia (f)	la alergia	过敏	guòmǐn
+blood	le sang	das Blut	il sangue	la sangre	血	xuè
+injury	la blessure	die Verletzung	la ferita	la herida	伤	shāng
+ill, sick	malade	krank	malato	enfermo	生病	shēngbìng
+healthy	en bonne santé	gesund	sano	sano	健康	jiànkāng
+emergency	l'urgence (f)	der Notfall	l'emergenza (f)	la urgencia	急诊	jízhěn
+ambulance	l'ambulance (f)	der Krankenwagen	l'ambulanza (f)	la ambulancia	救护车	jiùhùchē
+@ hobbies | Sports and hobbies | Health and free time
+football	le football	der Fußball	il calcio	el fútbol	足球	zúqiú
+basketball	le basket	der Basketball	la pallacanestro	el baloncesto	篮球	lánqiú
+tennis	le tennis	das Tennis	il tennis	el tenis	网球	wǎngqiú
+swimming	la natation	das Schwimmen	il nuoto	la natación	游泳	yóuyǒng
+cycling	le cyclisme	das Radfahren	il ciclismo	el ciclismo	骑自行车	qí zìxíngchē
+hiking	la randonnée	das Wandern	l'escursionismo (m)	el senderismo	徒步	túbù
+skiing	le ski	das Skifahren	lo sci	el esquí	滑雪	huáxuě
+dancing	la danse	das Tanzen	la danza	el baile	跳舞	tiàowǔ
+painting	la peinture	die Malerei	la pittura	la pintura	画画	huàhuà
+photography	la photographie	die Fotografie	la fotografia	la fotografía	摄影	shèyǐng
+chess	les échecs	das Schach	gli scacchi	el ajedrez	国际象棋	guójì xiàngqí
+guitar	la guitare	die Gitarre	la chitarra	la guitarra	吉他	jítā
+piano	le piano	das Klavier	il pianoforte	el piano	钢琴	gāngqín
+game	le jeu	das Spiel	il gioco	el juego	游戏	yóuxì
+team	l'équipe (f)	die Mannschaft	la squadra	el equipo	队	duì
+match	le match	das Match	la partita	el partido	比赛	bǐsài
