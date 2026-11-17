@@ -101,11 +101,11 @@ fun PolyTokens.materialScheme(): ColorScheme {
 @Composable
 fun DiacriticaTheme(settings: AppSettings, content: @Composable () -> Unit) {
     val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors)
-    DiacriticaTheme(tokens, settings.textScale, content = content)
+    DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, content = content)
 }
 
 @Composable
-fun DiacriticaTheme(tokens: PolyTokens, textScale: Float = 1f, systemBars: Boolean = true, content: @Composable () -> Unit) {
+fun DiacriticaTheme(tokens: PolyTokens, textScale: Float = 1f, hanScale: Float = 1f, systemBars: Boolean = true, content: @Composable () -> Unit) {
     val density = LocalDensity.current
     val scaled = remember(density, textScale) { Density(density.density, density.fontScale * textScale) }
     val typography = remember(tokens) {
@@ -133,7 +133,7 @@ fun DiacriticaTheme(tokens: PolyTokens, textScale: Float = 1f, systemBars: Boole
             }
         }
     }
-    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled) {
+    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled, LocalHanScale provides hanScale) {
         MaterialTheme(colorScheme = tokens.materialScheme(), typography = typography, content = content)
     }
 }

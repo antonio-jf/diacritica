@@ -1,5 +1,6 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.ui.theme.hanTransformation
 import app.diacritica.ui.components.textScaled
 import app.diacritica.ui.components.MenuSection
 import app.diacritica.ui.components.ToggleMenuItem
@@ -56,7 +57,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -395,6 +396,7 @@ private fun TopicField(value: String, onChange: (String) -> Unit, placeholder: S
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true,
             textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent),
+            visualTransformation = hanTransformation(),
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -1199,6 +1201,7 @@ private fun FromYourText(vm: ReaderViewModel, st: ReaderUiState, settings: AppSe
         androidx.compose.foundation.text.BasicTextField(
             value = text, onValueChange = { text = it.take(TextImport.MAX_CHARS) },
             textStyle = bodyStyle(size = 15.sp), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            visualTransformation = hanTransformation(),
             decorationBox = { inner ->
                 Box(Modifier.fillMaxWidth().heightIn(min = 140.dp).clip(shape).background(c.surface).border(1.dp, c.line, shape).padding(12.dp)) {
                     if (text.isEmpty()) Text("Paste the text here…", style = bodyStyle(c.inkMuted, 15.sp))

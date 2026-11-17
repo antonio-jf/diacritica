@@ -30,7 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +109,11 @@ fun SettingsScreen(
             item {
                 Setting("Text size", "${(s.textScale * 100).toInt()}%") {
                     Slider(value = s.textScale, onValueChange = vm::setTextScale, valueRange = 0.85f..1.4f, steps = 10)
+                }
+            }
+            if (Lang.ZH in s.activeLanguages) item {
+                Setting("Chinese characters", "${(s.hanScale * 100).toInt()}%  ·  汉字") {
+                    Slider(value = s.hanScale, onValueChange = vm::setHanScale, valueRange = 1f..1.6f, steps = 11)
                 }
             }
             item { SwitchRow("Language colors", "Each language gets its own color", s.languageColors, vm::setLanguageColors) }

@@ -70,6 +70,8 @@ data class AppSettings(
     val mode: ThemeMode = ThemeMode.SYSTEM,
     val accent: AccentChoice = AccentChoice.THEME,
     val textScale: Float = 1f,
+    /** Extra size for Chinese characters, on top of [textScale]. */
+    val hanScale: Float = 1.15f,
     val languageColors: Boolean = false,
     val languageOrder: List<Lang> = Lang.defaultOrder,
     val enabled: Set<Lang> = Lang.defaultOrder.toSet(),
@@ -148,6 +150,7 @@ class SettingsRepository(private val context: Context) {
         val mode = stringPreferencesKey("mode")
         val accent = stringPreferencesKey("accent")
         val textScale = floatPreferencesKey("text_scale")
+        val hanScale = floatPreferencesKey("han_scale")
         val languageColors = booleanPreferencesKey("language_colors")
         val order = stringPreferencesKey("language_order")
         val enabled = stringPreferencesKey("languages_enabled")
@@ -204,6 +207,7 @@ class SettingsRepository(private val context: Context) {
             mode = enumOr(p[K.mode], d.mode),
             accent = enumOr(p[K.accent], d.accent),
             textScale = p[K.textScale] ?: d.textScale,
+            hanScale = p[K.hanScale] ?: d.hanScale,
             languageColors = p[K.languageColors] ?: d.languageColors,
             languageOrder = order,
             enabled = p[K.enabled]?.split(',')?.mapNotNull { Lang.fromCode(it) }?.toSet()?.ifEmpty { null } ?: d.enabled,
@@ -264,6 +268,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setMode(v: ThemeMode) = context.dataStore.edit { it[K.mode] = v.name }
     suspend fun setAccent(v: AccentChoice) = context.dataStore.edit { it[K.accent] = v.name }
     suspend fun setTextScale(v: Float) = context.dataStore.edit { it[K.textScale] = v }
+    suspend fun setHanScale(v: Float) = context.dataStore.edit { it[K.hanScale] = v }
     suspend fun setLanguageColors(v: Boolean) = context.dataStore.edit { it[K.languageColors] = v }
     suspend fun setLanguageOrder(v: List<Lang>) = context.dataStore.edit { it[K.order] = v.joinToString(",") { l -> l.code } }
     suspend fun setEnabled(v: Set<Lang>) = context.dataStore.edit { it[K.enabled] = v.joinToString(",") { l -> l.code } }

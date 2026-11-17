@@ -1,5 +1,6 @@
 package app.diacritica.ui.home
 
+import app.diacritica.ui.theme.hanTransformation
 import androidx.compose.foundation.layout.BoxWithConstraints
 import app.diacritica.ui.settings.UpdatePanel
 import androidx.compose.foundation.BorderStroke
@@ -27,7 +28,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -280,6 +281,7 @@ private fun SearchBox(onSearch: (String) -> Unit) {
             BasicTextField(
                 value = q, onValueChange = { q = it }, singleLine = true,
                 textStyle = bodyStyle(size = 16.sp), cursorBrush = SolidColor(c.accent),
+                visualTransformation = hanTransformation(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
                 keyboardActions = KeyboardActions(onSearch = { if (q.isNotBlank()) { onSearch(q.trim()); q = "" } }),
                 modifier = Modifier.fillMaxWidth(),

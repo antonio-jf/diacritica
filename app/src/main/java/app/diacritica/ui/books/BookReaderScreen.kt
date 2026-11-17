@@ -2,6 +2,7 @@
 
 package app.diacritica.ui.books
 
+import app.diacritica.ui.theme.hanTransformation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -33,7 +34,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -566,6 +567,7 @@ private fun SearchSheet(vm: BooksViewModel, results: List<app.diacritica.mybooks
             if (q.isEmpty()) Text("A word or phrase", style = bodyStyle(c.inkMuted))
             BasicTextField(
                 q, { q = it }, singleLine = true, textStyle = bodyStyle(), cursorBrush = SolidColor(c.accent),
+                visualTransformation = hanTransformation(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { vm.search(q) }),
                 modifier = Modifier.fillMaxWidth(),

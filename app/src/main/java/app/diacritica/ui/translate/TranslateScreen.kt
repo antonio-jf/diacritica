@@ -1,5 +1,7 @@
 package app.diacritica.ui.translate
 
+import app.diacritica.ui.theme.hanTransformation
+import app.diacritica.ui.theme.roomyForHan
 import app.diacritica.ui.components.ChoiceMenuItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -24,7 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -183,7 +185,8 @@ private fun InputBox(value: String, onChange: (String) -> Unit, onClear: () -> U
         if (value.isEmpty()) Text("Type or paste text in any of your languages…", style = bodyStyle(c.inkMuted, 17.sp))
         BasicTextField(
             value = value, onValueChange = onChange,
-            textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp),
+            textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
+            visualTransformation = hanTransformation(),
             cursorBrush = SolidColor(c.accent),
             modifier = Modifier.fillMaxWidth().padding(end = 40.dp).heightIn(min = 96.dp).semantics { contentDescription = "Text to translate" },
         )

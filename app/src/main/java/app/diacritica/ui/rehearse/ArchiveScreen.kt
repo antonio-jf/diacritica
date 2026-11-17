@@ -1,5 +1,6 @@
 package app.diacritica.ui.rehearse
 
+import app.diacritica.ui.theme.hanTransformation
 import app.diacritica.ui.components.PolyButton
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.size
@@ -19,7 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -96,6 +97,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
         if (value.isEmpty()) Text("Search sentences, answers, explanations…", style = bodyStyle(c.inkMuted))
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true, textStyle = bodyStyle(),
+            visualTransformation = hanTransformation(),
             cursorBrush = SolidColor(c.accent),
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search archive" },
         )

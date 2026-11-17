@@ -2,6 +2,8 @@
 
 package app.diacritica.ui.tests
 
+import app.diacritica.ui.theme.hanTransformation
+import app.diacritica.ui.theme.roomyForHan
 import app.diacritica.ui.components.textScaled
 import app.diacritica.tests.TestRequest
 import app.diacritica.tests.TestGenerator
@@ -31,7 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -335,7 +337,8 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, o
             if (value.isEmpty()) Text("In ${lang.englishName}…", style = bodyStyle(c.inkMuted, 17.sp))
             BasicTextField(
                 value = value, onValueChange = onChange,
-                textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp),
+                textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
+                visualTransformation = hanTransformation(),
                 cursorBrush = SolidColor(c.accent),
                 modifier = Modifier.fillMaxWidth().padding(end = if (onHandwriting != null) 40.dp else 0.dp).heightIn(min = 28.dp)
                     .semantics { contentDescription = "Answer in ${lang.englishName}" },

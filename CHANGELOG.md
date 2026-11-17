@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- German verbs show how they're used: reflexive *sich*, prepositions and the case they take (e.g. *sich freuen auf + Akk.*).
+- Separate size for Chinese characters (Settings → Appearance), on top of the general text size. Applies everywhere, including what you type.
+
 ## 1.0 — first stable version (2026-11-16)
 
 Releases are tagged `v1.0.<build>`; the build number keeps counting from the 0.3 line, so the in-app updater offers 1.0 to phones on 0.3.x.
