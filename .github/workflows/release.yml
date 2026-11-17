@@ -1,5 +1,5 @@
 # Every push to main (a merged PR) builds a signed APK, runs the unit tests and publishes it
-# as a GitHub Release, tagged v0.3.<commit count>. Run it by hand from the Actions tab too.
+# as a GitHub Release, tagged v1.0.<commit count> (the stable line; 0.3.x before 2026-11-16). Run it by hand from the Actions tab too.
 #
 # Needs four repository secrets (Settings › Secrets and variables › Actions):
 #   DIACRITICA_KEYSTORE_BASE64   the release keystore (.jks), base64-encoded
@@ -65,7 +65,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="0.3.$(git rev-list --count HEAD)"
+          # Keep in step with versionName in app/build.gradle.kts. The last number must keep growing (the updater compares it).
+          VERSION="1.0.$(git rev-list --count HEAD)"
           APK="diacritica-$VERSION.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           sha256sum "$APK" > "$APK.sha256"
