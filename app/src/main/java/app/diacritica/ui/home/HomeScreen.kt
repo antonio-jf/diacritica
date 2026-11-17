@@ -1,5 +1,6 @@
 package app.diacritica.ui.home
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import app.diacritica.ui.settings.UpdatePanel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -166,44 +167,58 @@ fun HomeScreen(
                 )
             }
 
-            // ------------------------------------------------ Tests
-            SectionCard(PolyIcons.Check, "Tests", onClick = { onOpen(HomeSection.TESTS) }) {
-                Text("Translate 8 sentences into your languages and get a score, corrections and lessons for your mistakes.", style = bodyStyle())
-            }
-
-            // ------------------------------------------------ Grammar
-            SectionCard(PolyIcons.Book, "Grammar", onClick = { onOpen(HomeSection.GRAMMAR) }) {
-                Text("Your weak points from Rehearse and Tests, all your lessons, and practice aimed at each.", style = bodyStyle())
-            }
-
-            // ------------------------------------------------ Translate
-            SectionCard(PolyIcons.Translate, "Translate", onClick = { onOpen(HomeSection.TRANSLATE) }) {
-                Text("Paste a sentence or a paragraph and get it in all your languages at once. Works offline.", style = bodyStyle())
-            }
-
-            // ------------------------------------------------ Progress
-            SectionCard(PolyIcons.Chart, "Progress", onClick = { onOpen(HomeSection.PROGRESS) }) {
-                Text("Accuracy per language, your most common mistakes, Review recall and how much you've read.", style = bodyStyle())
-            }
-
-            // ------------------------------------------------ Library
-            SectionCard(PolyIcons.Library, "Library", onClick = { onOpen(HomeSection.LIBRARY) }) {
-                Text(
-                    "${st.savedCount} saved " + (if (st.savedCount == 1) "word" else "words") + " · search history · Rehearse archive",
-                    style = bodyStyle(),
-                )
-            }
-
-            // ------------------------------------------------ Dictionary (browse)
-            SectionCard(PolyIcons.Search, "Dictionary", onClick = { onOpen(HomeSection.DICTIONARY) }) {
-                Text(
-                    settings.activeLanguages.joinToString("  ·  ") { it.nativeName },
-                    style = bodyStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis,
-                )
+            // ------------------------------------------------ The other sections
+            // Phones: a two-column grid of compact tiles. Tablets (or very large text on a phone): one row each,
+            // with a longer description.
+            val tiles = listOf(
+                Tile(PolyIcons.Check, "Tests", HomeSection.TESTS, "8 sentences, scored",
+                    "Translate 8 sentences into your languages and get a score, corrections and lessons for your mistakes."),
+                Tile(PolyIcons.Book, "Grammar", HomeSection.GRAMMAR, "Weak points and lessons",
+                    "Your weak points from Rehearse and Tests, all your lessons, and practice aimed at each."),
+                Tile(PolyIcons.Translate, "Translate", HomeSection.TRANSLATE, "Into all your languages",
+                    "Paste a sentence or a paragraph and get it in all your languages at once. Works offline."),
+                Tile(PolyIcons.Chart, "Progress", HomeSection.PROGRESS, "Accuracy and mistakes",
+                    "Accuracy per language, your most common mistakes, Review recall and how much you've read."),
+                Tile(PolyIcons.Library, "Library", HomeSection.LIBRARY,
+                    "${st.savedCount} saved " + (if (st.savedCount == 1) "word" else "words"),
+                    "${st.savedCount} saved " + (if (st.savedCount == 1) "word" else "words") + " · search history · Rehearse archive"),
+                Tile(PolyIcons.Search, "Dictionary", HomeSection.DICTIONARY,
+                    settings.activeLanguages.joinToString(" ") { it.short },
+                    settings.activeLanguages.joinToString("  ·  ") { it.nativeName }),
+            )
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+                // Two columns while each tile still gets ~150dp of "normal-size text" width.
+                val grid = maxWidth < 600.dp && maxWidth / fontScale >= 300.dp
+                if (grid) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tiles.chunked(2).forEach { pair ->
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                pair.forEach { t ->
+                                    SectionCard(t.icon, t.title, Modifier.weight(1f).fillMaxHeight(), onClick = { onOpen(t.section) }) {
+                                        Text(t.short, style = captionStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tiles.forEach { t ->
+                            SectionCard(t.icon, t.title, onClick = { onOpen(t.section) }) {
+                                Text(t.long, style = bodyStyle(), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
+
+/** A home-screen section: short text for the phone grid, long text for one-per-row (tablets). */
+private data class Tile(val icon: ImageVector, val title: String, val section: HomeSection, val short: String, val long: String)
 
 private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
     in 5..11 -> "Good morning"
