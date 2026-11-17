@@ -131,15 +131,19 @@ fun RehearseScreen(
             PolyIconButton(PolyIcons.Archive, "Rehearse archive", onOpenArchive, tint = Diacritica.colors.inkMuted)
             PolyIconButton(PolyIcons.Settings, "Rehearse settings", onOpenRehearseSettings, tint = Diacritica.colors.inkMuted)
         }
-        // One tidy row: practice path, grammar focus (Grammar path only) and the languages you answer in.
+        // The round's setup reads like a sentence of quiet text menus: the path stands out, the rest follows.
         FlowRow(
-            Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.padding(horizontal = Diacritica.spacing.screen - 6.dp).padding(bottom = 4.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             PathPicker(settings.rehearsePath, onPick = vm::setPath)
-            if (settings.rehearsePath == RehearsePath.GRAMMAR) FocusPicker(settings, onPick = vm::setGrammarFocus)
+            if (settings.rehearsePath == RehearsePath.GRAMMAR) { Dot(); FocusPicker(settings, onPick = vm::setGrammarFocus) }
+        }
+        FlowRow(Modifier.padding(horizontal = Diacritica.spacing.screen - 6.dp).padding(bottom = 6.dp)) {
             LengthPicker(settings.rehearseLength, settings.rehearsePath, onPick = vm::setLength)
+            Dot()
             FromPicker(settings, onPick = vm::setFrom)
+            Dot()
             LanguagePicker(settings, onToggle = vm::toggleRehearseLang)
         }
         handsFree?.let { status ->
@@ -207,7 +211,7 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
     val c = Diacritica.colors
     var open by remember { mutableStateOf(false) }
     Box {
-        DropChip(current.label) { open = true }
+        DropChip(current.label, emphasized = true) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
             RehearsePath.entries.forEach { p ->
                 DropdownMenuItem(
@@ -272,7 +276,7 @@ private fun LanguagePicker(settings: AppSettings, onToggle: (Lang) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val chosen = settings.activeLanguages.filter { it in settings.rehearseLanguages }
     Box {
-        DropChip(if (chosen.isEmpty()) "To…" else "To " + chosen.joinToString(" · ") { it.short }) { open = true }
+        DropChip(if (chosen.isEmpty()) "Into…" else "Into " + chosen.joinToString(" ") { it.short }) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
             MenuSection("Answer in")
             settings.activeLanguages.forEach { l ->
@@ -306,17 +310,26 @@ private fun FocusPicker(settings: AppSettings, onPick: (String) -> Unit) {
 
 /** An outlined button with a ▾, styled like the chips. */
 @Composable
-private fun DropChip(text: String, onClick: () -> Unit) {
+private fun DropChip(text: String, emphasized: Boolean = false, onClick: () -> Unit) {
     val c = Diacritica.colors
-    val shape = RoundedCornerShape(Diacritica.shapes.chip)
+    // A text menu, not a box: the label and a small chevron.
     Row(
-        Modifier.clip(shape).background(c.surface).border(1.dp, c.ink.copy(alpha = 0.28f), shape)
-            .clickable(onClick = onClick).padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, style = bodyStyle(size = 13.sp), maxLines = 1)
-        Icon(PolyIcons.ChevronDown, contentDescription = null, tint = c.inkMuted, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+        Text(
+            text,
+            style = if (emphasized) bodyStyle(c.accent, 17.sp).copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) else bodyStyle(c.inkMuted, 14.sp),
+            maxLines = 1,
+        )
+        Icon(PolyIcons.ChevronDown, contentDescription = null, tint = if (emphasized) c.accent else c.inkMuted, modifier = Modifier.padding(start = 2.dp).size(if (emphasized) 18.dp else 14.dp))
     }
+}
+
+/** A quiet separator between text menus. */
+@Composable
+private fun Dot() {
+    Text("·", style = bodyStyle(Diacritica.colors.inkMuted, 14.sp), modifier = Modifier.padding(vertical = 6.dp))
 }
 
 @Composable

@@ -45,7 +45,8 @@ object Themes {
         altAccents = listOf(c(0x8C3B2E) to c(0xE5A397), c(0x2F6B4F) to c(0x8FD1B0)),
         fonts = PolyFonts(display = Fonts.sourceSerif, body = Fonts.inter, label = Fonts.inter, reading = Fonts.sourceSerif),
         type = PolyType(title = 26.sp, headword = 21.sp, capsLabels = true, exampleItalic = true, titleWeight = 600, headwordWeight = 500),
-        shapes = PolyShapes(card = 2.dp, chip = 2.dp, button = 2.dp, field = 0.dp),
+        // Soft corners and pill controls; the old 2dp corners made everything look boxed.
+        shapes = PolyShapes(card = 14.dp, chip = 20.dp, button = 24.dp, field = 12.dp),
         spacing = PolySpacing(screen = 20.dp, row = 14.dp, gap = 10.dp),
         surfaceStyle = SurfaceStyle.HAIRLINE,
         heavyRules = false,
@@ -75,7 +76,7 @@ object Themes {
         altAccents = listOf(c(0x0B6BA8) to c(0x4FB3F2), c(0x6C3FC4) to c(0xB48CF2)),
         fonts = PolyFonts(display = Fonts.plexSans, body = Fonts.plexSans, label = Fonts.plexMono, reading = Fonts.plexSans),
         type = PolyType(title = 22.sp, headword = 20.sp, capsLabels = true, labelTracking = 0.3.sp, exampleItalic = false, titleWeight = 600, headwordWeight = 600),
-        shapes = PolyShapes(card = 12.dp, chip = 8.dp, button = 10.dp, field = 12.dp),
+        shapes = PolyShapes(card = 12.dp, chip = 20.dp, button = 24.dp, field = 12.dp),
         spacing = PolySpacing(screen = 16.dp, row = 12.dp, gap = 8.dp),
         surfaceStyle = SurfaceStyle.BORDERED,
         heavyRules = false,
