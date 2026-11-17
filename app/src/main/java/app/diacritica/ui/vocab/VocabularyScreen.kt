@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
@@ -95,11 +96,11 @@ fun VocabularyScreen(vm: VocabularyViewModel, onBack: () -> Unit) {
 private fun LangPickers(vm: VocabularyViewModel, st: VocabUiState) {
     Text("Learning", style = captionStyle())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        st.langs.forEach { l -> PolyChip(l.nativeName, st.lang == l, { vm.setLang(l) }) }
+        st.langs.forEach { l -> PolyChip(l.short, st.lang == l, { vm.setLang(l) }) }
     }
     Text("Shown in", style = captionStyle())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        (listOf(Lang.EN, Lang.ES) + st.langs).distinct().filter { it != st.lang }.forEach { l -> PolyChip(l.nativeName, st.from == l, { vm.setFrom(l) }) }
+        (listOf(Lang.EN, Lang.ES) + st.langs).distinct().filter { it != st.lang }.forEach { l -> PolyChip(l.short, st.from == l, { vm.setFrom(l) }) }
     }
 }
 
@@ -184,6 +185,9 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
     val pad = Diacritica.spacing.screen
     val saved by vm.savedKeys.collectAsStateWithLifecycle()
     var mode by rememberSaveable { mutableStateOf(QuizMode.CHOOSE) }
+    // Your other languages, under each word when it's opened.
+    val others = st.langs.filter { it != st.lang && it != st.from }
+    var allOpen by rememberSaveable(set.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PolyIconButton(PolyIcons.Back, "Back", { vm.open(null) }, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
@@ -204,11 +208,23 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
         }
         Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (set.custom) Text("Written by Gemini for you. Double-check anything that looks odd in the dictionary.", style = captionStyle())
-            Text("${set.words.size} words in ${st.lang.englishName}, shown in ${st.from.englishName}. Tap ☆ to add a word to Review.", style = captionStyle())
+            Text(
+                "${set.words.size} words in ${st.lang.englishName}, shown in ${st.from.englishName}. Tap ☆ to add a word to Review" +
+                    if (others.isNotEmpty()) ", or a word to see it in ${others.joinToString(", ") { it.short }}." else ".",
+                style = captionStyle(),
+            )
+            if (others.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    PolyChip("All languages", allOpen, { allOpen = !allOpen })
+                }
+            }
             Gap(4.dp)
             set.words.forEach { w ->
                 val key = "${st.lang.code}:${VocabCheck.headword(w.form(st.lang), st.lang)}"
-                WordRow(w, st.lang, st.from, key in saved, onSpeak = { vm.speak(st.lang, spoken(w.form(st.lang))) }, onSave = { vm.toggleSaved(w) })
+                WordRow(
+                    w, st.lang, st.from, others, allOpen, key in saved,
+                    onSpeak = { l -> vm.speak(l, spoken(w.form(l))) }, onSave = { vm.toggleSaved(w) },
+                )
             }
             Gap(14.dp)
             val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
@@ -232,16 +248,46 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
 }
 
 @Composable
-private fun WordRow(w: VocabWord, lang: Lang, from: Lang, saved: Boolean, onSpeak: () -> Unit, onSave: () -> Unit) {
+private fun WordRow(
+    w: VocabWord, lang: Lang, from: Lang, others: List<Lang>, allOpen: Boolean, saved: Boolean,
+    onSpeak: (Lang) -> Unit, onSave: () -> Unit,
+) {
     val c = Diacritica.colors
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(w.form(lang), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = if (lang == Lang.ZH) 20.sp else 17.sp, color = c.ink))
-            if (lang == Lang.ZH) Text(w.pinyin, style = captionStyle(c.accent))
-            Text(w.form(from) + if (from == Lang.ZH) "  ${w.pinyin}" else "", style = captionStyle())
+    var open by rememberSaveable(w.form(Lang.EN)) { mutableStateOf(false) }
+    val shown = open || allOpen
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                .clickable(enabled = others.isNotEmpty()) { open = !open }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(w.form(lang), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = if (lang == Lang.ZH) 20.sp else 17.sp, color = c.ink))
+                if (lang == Lang.ZH) Text(w.pinyin, style = captionStyle(c.accent))
+                Text(w.form(from) + if (from == Lang.ZH) "  ${w.pinyin}" else "", style = captionStyle())
+            }
+            if (others.isNotEmpty()) {
+                androidx.compose.material3.Icon(
+                    PolyIcons.ChevronDown, if (shown) "Hide other languages" else "Show other languages", tint = c.inkMuted,
+                    modifier = Modifier.padding(horizontal = 4.dp).width(16.dp).graphicsLayer { rotationZ = if (shown) 180f else 0f },
+                )
+            }
+            PolyIconButton(PolyIcons.Speaker, "Listen", { onSpeak(lang) }, tint = c.inkMuted)
+            PolyIconButton(if (saved) PolyIcons.StarFilled else PolyIcons.Star, if (saved) "Remove from Review" else "Add to Review", onSave, tint = if (saved) c.accent else c.inkMuted)
         }
-        PolyIconButton(PolyIcons.Speaker, "Listen", onSpeak, tint = c.inkMuted)
-        PolyIconButton(if (saved) PolyIcons.StarFilled else PolyIcons.Star, if (saved) "Remove from Review" else "Add to Review", onSave, tint = if (saved) c.accent else c.inkMuted)
+        if (shown && others.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(c.surface).padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                others.forEach { l ->
+                    Row(Modifier.fillMaxWidth().clickable { onSpeak(l) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(l.short, style = captionStyle(c.accent), modifier = Modifier.width(36.dp))
+                        Text(w.form(l) + if (l == Lang.ZH) "  ${w.pinyin}" else "", style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
     }
 }
 
