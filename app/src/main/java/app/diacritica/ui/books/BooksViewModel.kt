@@ -55,6 +55,8 @@ data class BookReaderState(
     val jump: Int = 0,
     val loading: Boolean = true,
     val searchResults: List<BookSearchHit>? = null,
+    /** A short confirmation shown above the bottom of the page. */
+    val message: String? = null,
 )
 
 /** Selected text: a character range [start, end) in one paragraph of the current chapter. */
@@ -193,6 +195,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun closeSearch() = _reader.update { it.copy(searchResults = null) }
+    fun clearReaderMessage() = _reader.update { it.copy(message = null) }
 
     fun setText(size: Int? = null, spacing: Float? = null, serif: Boolean? = null) {
         viewModelScope.launch { c.settings.setBookText(size, spacing, serif) }
@@ -385,7 +388,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             c.bookshelf.upsertNote(book.id, sel.chapter, sel.paragraph, text) { it }
             _selection.value = null
-            _library.update { it.copy(message = "Passage saved to this book's notes.") }
+            _reader.update { it.copy(message = "Passage saved to this book's notes.") }
         }
     }
 

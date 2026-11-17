@@ -174,6 +174,7 @@ fun AppRoot(
                             booksVm, s, entry.arguments?.getLong("id") ?: 0L,
                             onBack = { nav.popBackStack() },
                             onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") },
+                            onRehearse = { text, l, source, en -> rehearseVm.rehearseText(text, l, source, en); nav.goTo(Tab.REHEARSE) },
                         )
                     }
                     composable("rehearse-settings") {
