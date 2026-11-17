@@ -218,8 +218,7 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
             var start = it.first()
             var end = it.next()
             while (end != java.text.BreakIterator.DONE) {
-                // A closing quote the splitter left at the start (« Oui. » Il…), or an opening one at the end.
-                out += flat.substring(start, end).trim().trimStart('»', '”', '’', ')', ']', ' ').trimEnd('«', '“', '‘', '(', '[', ' ').trim()
+                out += cleanSentence(flat.substring(start, end))
                 start = end; end = it.next()
             }
             return out.filter { s ->
@@ -227,6 +226,10 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
                 if (lang == Lang.ZH) size in 4..60 else size in 3..35
             }
         }
+
+        /** Trims a closing quote the splitter left at the start (« Oui. » Il…) or an opening one at the end. */
+        internal fun cleanSentence(s: String): String =
+            s.trim().trimStart('»', '”', '’', ')', ']', ' ').trimEnd('«', '“', '‘', '(', '[', ' ').trim()
 
         fun countWords(text: String, lang: Lang): Int =
             if (lang == Lang.ZH) text.count { TextNorm.containsHan(it.toString()) }

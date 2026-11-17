@@ -17,8 +17,13 @@ class BookshelfLogicTest {
     }
 
     @Test fun sentencesForRehearseSkipFragments() {
-        val s = Bookshelf.splitSentences("« Oui. » Il était une fois un vieux pêcheur. Il vivait seul près de la mer.", Lang.FR)
+        val s = Bookshelf.splitSentences("Oui. Il était une fois un vieux pêcheur. Il vivait seul près de la mer.", Lang.FR)
         assertEquals(listOf("Il était une fois un vieux pêcheur.", "Il vivait seul près de la mer."), s)
+    }
+
+    @Test fun strayQuotesAreTrimmed() {
+        assertEquals("Il vivait près de la mer.", Bookshelf.cleanSentence(" » Il vivait près de la mer. «"))
+        assertEquals("« Oui », dit-il.", Bookshelf.cleanSentence("« Oui », dit-il."))
     }
 
     @Test fun chineseSentencesByCharacters() {
