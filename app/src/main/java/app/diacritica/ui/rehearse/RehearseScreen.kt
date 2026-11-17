@@ -2,6 +2,8 @@
 
 package app.diacritica.ui.rehearse
 
+import app.diacritica.ui.theme.hanTransformation
+import app.diacritica.ui.theme.roomyForHan
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.DisposableEffect
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,7 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -383,7 +385,8 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, h
             if (value.isEmpty()) Text("Your ${lang.englishName} translation…", style = bodyStyle(c.inkMuted, 17.sp))
             BasicTextField(
                 value = value, onValueChange = onChange,
-                textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp),
+                textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
+                visualTransformation = hanTransformation(),
                 cursorBrush = SolidColor(c.accent),
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 26.dp).semantics { contentDescription = "${lang.englishName} answer" },

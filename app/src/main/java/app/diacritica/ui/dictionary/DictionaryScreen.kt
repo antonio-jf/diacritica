@@ -2,6 +2,7 @@
 
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.theme.hanTransformation
 import androidx.compose.foundation.layout.FlowRow
 import app.diacritica.ui.components.MenuSection
 import app.diacritica.ui.components.ChoiceMenuItem
@@ -35,7 +36,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Text
+import app.diacritica.ui.components.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -216,6 +217,7 @@ private fun SearchField(
                     onValueChange = onQueryChange,
                     singleLine = true,
                     textStyle = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 22.sp, color = c.ink, fontWeight = FontWeight(Diacritica.type.headwordWeight)),
+                    visualTransformation = hanTransformation(),
                     cursorBrush = SolidColor(c.accent),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
                     keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
