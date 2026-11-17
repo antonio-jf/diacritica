@@ -120,7 +120,8 @@ fun BookReaderScreen(
     var search by remember { mutableStateOf(false) }
     var textMenu by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize()) {
+    // The app's bottom bar is hidden while reading, so this screen keeps clear of Android's navigation bar itself.
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
         // ---------------------------------------------------------- top bar
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             PolyIconButton(PolyIcons.Back, "Back", onBack, tint = c.ink)
@@ -205,7 +206,10 @@ fun BookReaderScreen(
             Text(msg, style = captionStyle(c.accent), modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp))
         }
         if (selection != null) {
-            SelectionBar(vm, vm.selectedText())
+            SelectionBar(vm, vm.selectedText(), onRehearse = { text ->
+                vm.clearSelection()
+                onRehearse(text, lang, "From “${book.title}”", null)
+            })
             return@Column
         }
         // ---------------------------------------------------------- progress line
