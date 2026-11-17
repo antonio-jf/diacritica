@@ -1,5 +1,6 @@
 package app.diacritica
 
+import app.diacritica.mybooks.Bookshelf
 import app.diacritica.backup.BackupManager
 import app.diacritica.backup.AutoBackup
 import app.diacritica.translate.OnDeviceTranslator
@@ -42,7 +43,7 @@ class AppContainer(app: Application) {
     val translator = OnDeviceTranslator()
     val books = BooksRepository(app)
     /** Your own imported EPUBs (the Books section); [books] is the Classics pack. */
-    val bookshelf = app.diacritica.mybooks.Bookshelf(app) { text -> translator.detect(text) }
+    val bookshelf = Bookshelf(app) { text -> translator.detect(text) }
     val packs = PackManager(app, dictionaryDb, sentences, corpora, books)
     val gemini = GeminiClient()
     val stories = StoryRepository(userDb, gemini)
