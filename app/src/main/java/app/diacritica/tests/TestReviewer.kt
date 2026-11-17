@@ -40,8 +40,9 @@ object TestReviewer {
         - summary: 2–4 sentences: what the learner did well and the main things to work on, per language where it differs.
         - lessons: 1–4 short grammar lessons for the most important RECURRING or serious problems you saw (none if everything was right;
           then one lesson that takes them a step further on the test's focus). Each lesson:
-          title; lang (code); why (which sentences showed it, e.g. "Sentences 2 and 5"); explanation (the rule in 3–6 sentences, with
-          the contrast that trips learners up); 3 examples with English translations; 2 new English sentences to practise it.
+          title; lang (code); why (which sentences showed it, e.g. "Sentences 2 and 5"); explanation (4–8 sentences: when it's used,
+          how it's formed, and the contrast that trips learners up, including how English or Spanish differ); 4 examples with
+          English translations, covering different forms or uses; 3 new English sentences to practise it.
         Formatting inside strings: plain sentences; you may mark key words with **bold** or *italics*; no headings, lists or tables.
     """.trimIndent()
 

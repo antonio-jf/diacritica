@@ -3,7 +3,9 @@
 ## Unreleased
 
 - German verbs show how they're used: reflexive *sich*, prepositions and the case they take (e.g. *sich freuen auf + Akk.*).
-- Separate size for Chinese characters (Settings → Appearance), on top of the general text size. Applies everywhere, including what you type.
+- Separate size for Chinese characters in the Reader and Books text (Settings → Appearance), on top of the general text size. Menus and the rest of the app keep the normal size.
+- Full grammar lessons: Gemini expands any lesson into a complete one, with how it's formed, each use with annotated examples, common mistakes, a comparison with English and Spanish, a tip and graded practice. Kept once written; lessons made from a passage are expanded automatically.
+- Lessons from test reviews and passage breakdowns are longer, with more examples.
 
 ## 1.0 — first stable version (2026-11-16)
 

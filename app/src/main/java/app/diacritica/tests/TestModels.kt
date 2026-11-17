@@ -52,7 +52,22 @@ object TestBank {
 enum class AttemptStatus { DRAFT, PENDING, REVIEWED }
 
 @Serializable
-data class LessonExample(val text: String, val translation: String)
+data class LessonExample(
+    val text: String,
+    val translation: String,
+    /** Pinyin for Mandarin examples. */
+    val reading: String = "",
+    /** Why the example is built the way it is. */
+    val note: String = "",
+)
+
+/** One use, form or exception of a lesson's point, with its own examples. */
+@Serializable
+data class LessonSection(val heading: String, val text: String, val examples: List<LessonExample> = emptyList())
+
+/** A typical mistake: what learners write, what's right, and why. */
+@Serializable
+data class LessonPitfall(val wrong: String, val right: String, val note: String = "")
 
 /** A short grammar lesson aimed at a mistake the learner made. */
 @Serializable
@@ -65,6 +80,16 @@ data class Lesson(
     val examples: List<LessonExample> = emptyList(),
     /** English sentences to practise the point (they can be sent to Rehearse later). */
     val practice: List<String> = emptyList(),
+    // The full lesson ("Full lesson" in the app), written by [app.diacritica.grammar.LessonWriter]:
+    /** How the structure is built, one formula per line. */
+    val pattern: String = "",
+    val sections: List<LessonSection> = emptyList(),
+    val pitfalls: List<LessonPitfall> = emptyList(),
+    /** How English and Spanish say the same thing, and where that helps or misleads. */
+    val contrast: String = "",
+    /** A rule of thumb to remember it by. */
+    val tip: String = "",
+    val full: Boolean = false,
 )
 
 /** The review of one answer: [item] is the sentence index (0-based). */

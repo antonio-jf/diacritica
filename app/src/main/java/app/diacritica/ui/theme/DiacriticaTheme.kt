@@ -133,7 +133,7 @@ fun DiacriticaTheme(tokens: PolyTokens, textScale: Float = 1f, hanScale: Float =
             }
         }
     }
-    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled, LocalHanScale provides hanScale) {
+    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled, LocalReadingHanScale provides hanScale) {
         MaterialTheme(colorScheme = tokens.materialScheme(), typography = typography, content = content)
     }
 }

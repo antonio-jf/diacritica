@@ -93,7 +93,7 @@ data class Breakdown(
                 "(e.g. \"subject\", \"verb, passé simple\", \"aspect particle: completed action\", \"measure word for flat objects\").")
             appendLine("- grammar: the 1–4 most useful grammar points in the passage for this learner, most important first. For each: " +
                 "title (short, e.g. \"了 for completed actions\"); pattern (the structure in ${lang.englishName}); inPassage (the exact words " +
-                "showing it); explanation (3–6 sentences); examples: 2–3 new sentences in ${lang.englishName} with English translations; " +
+                "showing it); explanation (4–7 sentences: what it expresses, how it is formed, and how English or Spanish differ); examples: 3 new sentences in ${lang.englishName} with English translations; " +
                 "practice: 4 new English sentences that make the learner use the point when translating into ${lang.englishName}.")
             appendLine("- vocabulary: up to 6 words or expressions worth learning from the passage (not the most basic ones), " +
                 "with reading" + (if (lang == Lang.ZH) " (pinyin)" else " (empty)") + ", meaning, and an optional note (register, usage, false friend).")

@@ -393,6 +393,9 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
                 n.copy(lessons = lessonJson.encodeToString(lessonList, list.filter { it.title != lesson.title } + lesson))
             }
             _state.update { st -> st.copy(explain = st.explain?.copy(lessons = st.explain.lessons + point.title, message = "Added to Grammar › Lessons.")) }
+            // The full lesson (sections, examples, mistakes) is written in the background and kept.
+            c.lessons.load()
+            c.lessons.write(lesson, quiet = true)
         }
     }
 

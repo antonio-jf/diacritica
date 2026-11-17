@@ -112,7 +112,7 @@ fun SettingsScreen(
                 }
             }
             if (Lang.ZH in s.activeLanguages) item {
-                Setting("Chinese characters", "${(s.hanScale * 100).toInt()}%  ·  汉字") {
+                Setting("Chinese characters in Reader and Books", "${(s.hanScale * 100).toInt()}%  ·  汉字") {
                     Slider(value = s.hanScale, onValueChange = vm::setHanScale, valueRange = 1f..1.6f, steps = 11)
                 }
             }

@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -408,7 +409,7 @@ private fun ResultView(vm: TestsViewModel, a: TestAttempt, t: TestSet, reviewing
             if (r.lessons.isNotEmpty()) {
                 SectionLabel(if (r.lessons.size == 1) "Your lesson" else "Your lessons")
                 Text("They're also kept on the Grammar page (Home › Grammar).", style = captionStyle())
-                r.lessons.forEach { lesson -> LessonCard(lesson, onSpeak = vm::speak, onPractise = { vm.practise(lesson, a) }) }
+                r.lessons.forEach { lesson -> LessonCard(lesson, onSpeak = vm::speak, onPractise = { vm.practise(it, a) }, library = vm.lessons) }
             }
 
             // ------------------------------------------------ answers
@@ -444,44 +445,113 @@ private fun LangScore(lang: Lang, score: Int) {
 internal fun LessonCard(
     lesson: Lesson,
     onSpeak: (Lang, String) -> Unit,
-    onPractise: () -> Unit,
+    onPractise: (Lesson) -> Unit,
     source: String? = null,
     startOpen: Boolean = true,
+    library: app.diacritica.grammar.LessonLibrary? = null,
 ) {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp))
     var open by rememberSaveable(lesson.title) { mutableStateOf(startOpen) }
+    val key = remember(lesson) { app.diacritica.grammar.LessonWriter.key(lesson) }
+    val fullMap = library?.full?.collectAsState()?.value.orEmpty()
+    val writing = library?.writing?.collectAsState()?.value.orEmpty()
+    val errors = library?.errors?.collectAsState()?.value.orEmpty()
+    val l = fullMap[key] ?: lesson
+    val exampleStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 16.sp, color = c.ink, lineHeight = 22.sp)
+
+    @Composable
+    fun Example(e: app.diacritica.tests.LessonExample) {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(InlineMarkdown.render(e.text, c.ink), style = exampleStyle)
+                if (e.reading.isNotBlank()) Text(e.reading, style = captionStyle(c.accent))
+                if (e.translation.isNotBlank()) Text(e.translation, style = captionStyle())
+                if (e.note.isNotBlank()) Text(InlineMarkdown.render(e.note, c.inkMuted), style = bodyStyle(c.inkMuted, 13.sp).copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic))
+            }
+            l.lang?.let { lg -> PolyIconButton(PolyIcons.Speaker, "Play", { onSpeak(lg, InlineMarkdown.render(e.text).text) }) }
+        }
+    }
+
     Column(
         Modifier.fillMaxWidth().clip(shape).background(c.accentSoft.copy(alpha = 0.45f)).border(1.dp, c.accent.copy(alpha = 0.5f), shape).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(Modifier.fillMaxWidth().clickable { open = !open }, verticalAlignment = Alignment.CenterVertically) {
-            lesson.lang?.let { LangBadge(it); Spacer(Modifier.width(8.dp)) }
-            Text(lesson.title, style = titleStyle().copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+            l.lang?.let { LangBadge(it); Spacer(Modifier.width(8.dp)) }
+            Text(l.title, style = titleStyle().copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
             Icon(PolyIcons.ChevronDown, if (open) "Collapse" else "Expand", tint = c.inkMuted, modifier = Modifier.size(18.dp))
         }
-        source?.let { Text(it, style = captionStyle()) }
+        source?.let { Text(it + if (l.full) " · full lesson" else "", style = captionStyle()) }
         if (!open) return@Column
-        if (lesson.why.isNotBlank()) Text(lesson.why, style = captionStyle(c.accent))
-        Text(InlineMarkdown.render(lesson.explanation, c.ink), style = bodyStyle(size = 15.sp))
-        if (lesson.examples.isNotEmpty()) {
+        if (l.why.isNotBlank()) Text(l.why, style = captionStyle(c.accent))
+        Text(InlineMarkdown.render(l.explanation, c.ink), style = bodyStyle(size = 15.sp))
+        if (l.pattern.isNotBlank()) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(c.surface).padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                SectionLabel("Form")
+                l.pattern.lines().filter { it.isNotBlank() }.forEach { Text(InlineMarkdown.render(it.trim(), c.ink), style = bodyStyle(size = 15.sp).copy(fontWeight = FontWeight.Medium)) }
+            }
+        }
+        if (l.sections.isEmpty() && l.examples.isNotEmpty()) {
             Gap(2.dp)
-            lesson.examples.forEach { e ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(InlineMarkdown.render(e.text, c.ink), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 16.sp, color = c.ink))
-                        if (e.translation.isNotBlank()) Text(e.translation, style = captionStyle())
-                    }
-                    lesson.lang?.let { l -> PolyIconButton(PolyIcons.Speaker, "Play", { onSpeak(l, InlineMarkdown.render(e.text).text) }) }
+            l.examples.forEach { Example(it) }
+        }
+        l.sections.forEach { sec ->
+            Gap(6.dp)
+            Text(sec.heading, style = titleStyle().copy(fontSize = 16.sp))
+            Text(InlineMarkdown.render(sec.text, c.ink), style = bodyStyle(size = 15.sp))
+            sec.examples.forEach { Example(it) }
+        }
+        if (l.sections.isNotEmpty() && l.examples.isNotEmpty()) {
+            Gap(6.dp)
+            SectionLabel("More examples")
+            l.examples.forEach { Example(it) }
+        }
+        if (l.pitfalls.isNotEmpty()) {
+            Gap(6.dp)
+            SectionLabel("Common mistakes")
+            l.pitfalls.forEach { p ->
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(c.surface).padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(buildAnnotatedString {
+                        withStyle(SpanStyle(color = c.error, textDecoration = TextDecoration.LineThrough)) { append(InlineMarkdown.render(p.wrong).text) }
+                        append("  →  ")
+                        withStyle(SpanStyle(color = c.success, fontWeight = FontWeight.SemiBold)) { append(InlineMarkdown.render(p.right).text) }
+                    }, style = bodyStyle(size = 15.sp))
+                    if (p.note.isNotBlank()) Text(InlineMarkdown.render(p.note, c.ink), style = bodyStyle(size = 14.sp))
                 }
             }
         }
-        if (lesson.practice.isNotEmpty()) {
-            Gap(2.dp)
-            SectionLabel("Try these")
-            lesson.practice.forEach { p -> Text("• $p", style = bodyStyle(size = 14.sp)) }
+        if (l.contrast.isNotBlank()) {
+            Gap(6.dp)
+            SectionLabel("Compared with English and Spanish")
+            Text(InlineMarkdown.render(l.contrast, c.ink), style = bodyStyle(size = 15.sp))
+        }
+        if (l.tip.isNotBlank()) {
             Gap(4.dp)
-            PolyButton("Practise as a mini test", onPractise, primary = false)
+            Text(InlineMarkdown.render("**Tip:** " + l.tip, c.ink), style = bodyStyle(size = 15.sp))
+        }
+        if (library != null && !l.full) {
+            Gap(4.dp)
+            val busy = key in writing
+            PolyButton(if (busy) "Writing the full lesson…" else "Full lesson", { library.write(lesson) }, enabled = !busy)
+            Text(
+                "Gemini expands this into a complete lesson: how it's formed, each use with examples, common mistakes, and how it compares with English and Spanish.",
+                style = captionStyle(),
+            )
+            errors[key]?.let { Text(it, style = captionStyle(c.error)) }
+        }
+        if (l.practice.isNotEmpty()) {
+            Gap(6.dp)
+            SectionLabel("Try these")
+            l.practice.forEach { p -> Text("• $p", style = bodyStyle(size = 14.sp)) }
+            Gap(4.dp)
+            PolyButton("Practise as a mini test", { onPractise(l) }, primary = false)
         }
     }
 }

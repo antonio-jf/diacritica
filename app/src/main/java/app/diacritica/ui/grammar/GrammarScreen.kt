@@ -136,9 +136,10 @@ fun GrammarScreen(
 private fun LessonRow(e: LessonEntry, vm: GrammarViewModel, onPractiseLesson: (Lesson, Long) -> Unit) {
     val date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(e.at))
     LessonCard(
-        e.lesson, onSpeak = vm::speak, onPractise = { onPractiseLesson(e.lesson, e.attemptId) },
+        e.lesson, onSpeak = vm::speak, onPractise = { onPractiseLesson(it, e.attemptId) },
         source = "${e.testTitle} · $date" + if (e.times > 1) " · came up ${e.times} times" else "",
         startOpen = false,
+        library = vm.lessons,
     )
 }
 
