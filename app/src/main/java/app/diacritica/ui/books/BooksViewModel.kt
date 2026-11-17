@@ -60,7 +60,7 @@ data class BookReaderState(
 )
 
 /** Selected text: a character range [start, end) in one paragraph of the current chapter. */
-data class Selection(val chapter: Int, val paragraph: Int, val start: Int, val end: Int)
+data class Selection(val chapter: Int, val paragraph: Int, val start: Int, val end: Int, val text: String? = null)
 
 /** The passage panel: a translation or a breakdown of the selected (or a saved) passage. */
 data class PassagePanel(
@@ -346,8 +346,24 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
 
     fun clearSelection() { _selection.value = null }
 
+    /**
+     * Text chosen with the normal Android selection (handles): remembered with the paragraph it starts in, so notes,
+     * highlights and breakdowns know where it is. Spanning paragraphs is fine; it's placed at the first one.
+     */
+    fun useText(text: String) {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        val st = _reader.value
+        val first = t.lineSequence().first().trim()
+        val idx = st.paragraphs.indexOfFirst { it.text.contains(first) }.coerceAtLeast(0)
+        val start = st.paragraphs.getOrNull(idx)?.text?.indexOf(first)?.coerceAtLeast(0) ?: 0
+        _word.value = null
+        _selection.value = Selection(st.chapter, idx, start, start + first.length, t)
+    }
+
     fun selectedText(): String? {
         val sel = _selection.value ?: return null
+        sel.text?.let { return it }
         val p = _reader.value.paragraphs.getOrNull(sel.paragraph)?.text ?: return null
         return p.substring(sel.start.coerceIn(0, p.length), sel.end.coerceIn(0, p.length)).trim().takeIf { it.isNotEmpty() }
     }

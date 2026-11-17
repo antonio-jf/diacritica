@@ -163,10 +163,17 @@ fun PolyButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     val fg = if (primary) (if (Diacritica.tokens.heavyRules) c.ground else c.onAccent) else c.ink
     Box(
         modifier
-            .heightIn(min = 48.dp)
+            .heightIn(min = 44.dp)
             .clip(shape)
             .background(bg)
-            .then(if (!primary) Modifier.border(BorderStroke(if (Diacritica.tokens.heavyRules) 2.dp else 1.dp, if (Diacritica.tokens.heavyRules) c.rule else c.ink.copy(alpha = 0.6f)), shape) else Modifier)
+            // Secondary: a soft tonal fill instead of an outline (the newspaper theme keeps its heavy rule).
+            .then(
+                when {
+                    primary -> Modifier
+                    Diacritica.tokens.heavyRules -> Modifier.border(BorderStroke(2.dp, c.rule), shape)
+                    else -> Modifier.background(c.ink.copy(alpha = if (c.isDark) 0.10f else 0.06f))
+                },
+            )
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
@@ -198,7 +205,7 @@ fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         color = when {
             selected && style == SurfaceStyle.TONAL -> c.onAccent
-            selected && style == SurfaceStyle.BORDERED -> c.accent
+            selected && style == SurfaceStyle.BORDERED -> c.onAccentSoft
             selected && style == SurfaceStyle.RULED -> c.ground
             selected -> c.onAccentSoft
             // Unselected chips stay in full ink so they read as buttons, not disabled text.
@@ -206,14 +213,13 @@ fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
         },
     )
     val m = when (style) {
-        // Paper: an outlined box, filled with the soft accent when selected, so every option is clearly a button.
-        SurfaceStyle.HAIRLINE -> modifier.clip(shape).background(if (selected) c.accentSoft else c.surface)
-            .border(if (selected) 1.5.dp else 1.dp, if (selected) c.accent else c.ink.copy(alpha = 0.28f), shape)
-            .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp)
+        // Paper: a soft pill, tinted with the accent when selected. No outlines: the fill alone reads as a button.
+        SurfaceStyle.HAIRLINE -> modifier.clip(shape).background(if (selected) c.accentSoft else c.ink.copy(alpha = if (c.isDark) 0.10f else 0.06f))
+            .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp)
         SurfaceStyle.TONAL -> modifier.clip(shape).background(if (selected) c.accent else c.surface)
             .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp)
-        SurfaceStyle.BORDERED -> modifier.clip(shape).border(1.dp, if (selected) c.accent else c.line, shape)
-            .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp)
+        SurfaceStyle.BORDERED -> modifier.clip(shape).background(if (selected) c.accentSoft else c.ink.copy(alpha = if (c.isDark) 0.10f else 0.06f))
+            .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp)
         SurfaceStyle.RULED -> modifier.background(if (selected) c.ink else Color.Transparent).border(if (selected) 0.dp else 1.dp, c.line)
             .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp)
     }

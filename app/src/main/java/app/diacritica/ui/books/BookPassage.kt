@@ -135,12 +135,32 @@ internal fun PassageSheet(
         p.message?.let { Gap(10.dp); Text(it, style = captionStyle(c.accent)) }
         Gap(16.dp)
         Hairline()
-        Gap(12.dp)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PolyButton("Rehearse this", onClick = { onRehearse(p.passage, p.breakdown?.translation) })
-            PolyButton(if (p.highlighted) "Remove highlight" else "Highlight", onClick = { vm.setHighlight(!p.highlighted) }, primary = false)
-            PolyButton("Go to passage", onClick = { onGoTo(p.chapter, p.paragraph) }, primary = false)
-            PolyButton("Copy", onClick = { clipboard.setText(AnnotatedString(p.passage)) }, primary = false)
+        Gap(4.dp)
+        // Quiet icon + label actions instead of a block of boxed buttons.
+        ActionRow(
+            listOf(
+                ToolbarAction(PolyIcons.Pencil, "Rehearse") { onRehearse(p.passage, p.breakdown?.translation) },
+                ToolbarAction(PolyIcons.Marker, if (p.highlighted) "Unhighlight" else "Highlight") { vm.setHighlight(!p.highlighted) },
+                ToolbarAction(PolyIcons.Book, "Go to text") { onGoTo(p.chapter, p.paragraph) },
+                ToolbarAction(PolyIcons.Copy, "Copy") { clipboard.setText(AnnotatedString(p.passage)) },
+            ),
+        )
+    }
+}
+
+/** A row of icon + label actions on the page background: the light alternative to boxed buttons. */
+@Composable
+internal fun ActionRow(actions: List<ToolbarAction>) {
+    val c = Diacritica.colors
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        actions.forEach { a ->
+            Column(
+                Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = a.onClick).padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                androidx.compose.material3.Icon(a.icon, contentDescription = null, tint = c.accent, modifier = Modifier.padding(bottom = 3.dp).then(Modifier))
+                Text(a.label, style = captionStyle(c.ink), maxLines = 1)
+            }
         }
     }
 }
