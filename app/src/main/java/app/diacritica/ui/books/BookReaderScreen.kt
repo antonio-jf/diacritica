@@ -370,7 +370,7 @@ private fun Paragraph(
     val m = Modifier.fillMaxWidth().padding(top = if (p.heading) 18.dp else 0.dp, bottom = if (p.heading) 12.dp else (size.value * 0.7f).dp)
     val onSelect: (IntRange) -> Unit = { r -> if (!r.isEmpty()) vm.select(p.idx, r.first, r.last + 1) }
     val onAdjust: (IntRange) -> Unit = { r -> if (!r.isEmpty()) vm.adjust(p.idx, r.first, r.last + 1) }
-    if (lang == Lang.ZH) ZhParagraph(p.text, pStyle, marks, settings, vm, mark, m, selected, selecting, onSelect, onAdjust, hl)
+    if (lang == Lang.ZH) app.diacritica.ui.theme.ReadingText { ZhParagraph(p.text, pStyle, marks, settings, vm, mark, m, selected, selecting, onSelect, onAdjust, hl) }
     else PlainParagraph(p.text, lang, pStyle, marks, mark, m, selected, selecting, onSelect, onAdjust, hl) { w, offset -> vm.lookUp(w, sentenceAround(p.text, offset, lang)) }
 }
 

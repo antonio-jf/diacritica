@@ -91,6 +91,10 @@ data class BookMark(
 @Entity(tableName = "book_read", primaryKeys = ["bookId", "day"])
 data class BookRead(val bookId: Long, val day: Long, val lang: String, val words: Int)
 
+/** A full Grammar lesson, written once by Gemini and kept. [key] is [app.diacritica.grammar.LessonWriter.key]. */
+@Entity(tableName = "lesson_full")
+data class FullLesson(@PrimaryKey val key: String, val json: String, val at: Long = System.currentTimeMillis())
+
 data class LangWords(val lang: String, val words: Int)
 
 data class BookSearchHit(val chapter: Int, val idx: Int, val text: String)
@@ -138,6 +142,12 @@ interface BookshelfDao {
 
     @Query("DELETE FROM book_note WHERE bookId = :id")
     suspend fun deleteNotes(id: Long)
+
+    @Query("SELECT * FROM lesson_full")
+    suspend fun fullLessons(): List<FullLesson>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveFullLesson(l: FullLesson)
 
     @Query("SELECT * FROM book WHERE openedAt IS NOT NULL")
     suspend fun openedBooks(): List<MyBook>
@@ -208,15 +218,15 @@ interface BookshelfDao {
  * text, and the daily backup copies the user database. Re-import the EPUB to get a book back on a new phone.
  */
 @Database(
-    entities = [MyBook::class, BookChapter::class, BookParagraph::class, BookNote::class, BookMark::class, BookRead::class],
-    version = 3, exportSchema = false,
+    entities = [MyBook::class, BookChapter::class, BookParagraph::class, BookNote::class, BookMark::class, BookRead::class, FullLesson::class],
+    version = 4, exportSchema = false,
 )
 abstract class BookshelfDatabase : RoomDatabase() {
     abstract fun dao(): BookshelfDao
 
     companion object {
         fun create(context: Context): BookshelfDatabase =
-            Room.databaseBuilder(context, BookshelfDatabase::class.java, "bookshelf.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            Room.databaseBuilder(context, BookshelfDatabase::class.java, "bookshelf.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
         /** v2: notes on passages (breakdowns, translations, lessons). Must match [BookNote] exactly. */
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
@@ -227,6 +237,13 @@ abstract class BookshelfDatabase : RoomDatabase() {
                         "`breakdown` TEXT, `lessons` TEXT, `createdAt` INTEGER NOT NULL)",
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_book_note_bookId` ON `book_note` (`bookId`)")
+            }
+        }
+
+        /** v4: full Grammar lessons. Must match [FullLesson] exactly. */
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `lesson_full` (`key` TEXT NOT NULL, `json` TEXT NOT NULL, `at` INTEGER NOT NULL, PRIMARY KEY(`key`))")
             }
         }
 

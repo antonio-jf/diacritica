@@ -11,6 +11,15 @@ import androidx.compose.ui.unit.em
 /** How much larger Chinese characters are drawn than the text around them (1 = same size). */
 val LocalHanScale = staticCompositionLocalOf { 1f }
 
+/** The "Chinese characters" setting. Only the reading text of the Reader and Books uses it (see [ReadingText]). */
+val LocalReadingHanScale = staticCompositionLocalOf { 1f }
+
+/** Draws [content] with Chinese characters at the reading size: for book and story text only, not menus. */
+@androidx.compose.runtime.Composable
+fun ReadingText(content: @androidx.compose.runtime.Composable () -> Unit) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalHanScale provides LocalReadingHanScale.current, content = content)
+}
+
 object Han {
     /** CJK ideographs plus CJK and fullwidth punctuation, so a Chinese sentence scales as one piece. */
     fun isHan(cp: Int): Boolean =

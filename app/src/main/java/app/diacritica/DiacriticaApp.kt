@@ -1,6 +1,7 @@
 package app.diacritica
 
 import app.diacritica.mybooks.Bookshelf
+import app.diacritica.grammar.LessonLibrary
 import app.diacritica.backup.BackupManager
 import app.diacritica.backup.AutoBackup
 import app.diacritica.translate.OnDeviceTranslator
@@ -50,6 +51,7 @@ class AppContainer(app: Application) {
     val backup = BackupManager(app, userDb)
     val autoBackup = AutoBackup(app)
     val tests = TestStore(app)
+    val lessons by lazy { LessonLibrary(bookshelf, gemini, settings) { online.isOnline() } }
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
 }
 

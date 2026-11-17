@@ -37,6 +37,8 @@ data class GrammarUiState(
 )
 
 class GrammarViewModel(private val c: AppContainer) : ViewModel() {
+    /** Full lessons, shared with the other screens. */
+    val lessons = c.lessons.also { it.load() }
     private val _state = MutableStateFlow(GrammarUiState())
     val state: StateFlow<GrammarUiState> = _state.asStateFlow()
     private val json = Json { ignoreUnknownKeys = true }

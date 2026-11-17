@@ -782,6 +782,11 @@ private fun FollowHighlight(idx: Int?, vararg states: LazyListState) {
 
 @Composable
 private fun Sentence(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, modifier: Modifier, muted: Boolean = false) {
+    app.diacritica.ui.theme.ReadingText { SentenceText(env, idx, lang, size, modifier, muted) }
+}
+
+@Composable
+private fun SentenceText(env: SentenceEnv, idx: Int, lang: Lang, size: TextUnit, modifier: Modifier, muted: Boolean) {
     val c = Diacritica.colors
     val text = env.text(idx, lang)
     val style = TextStyle(

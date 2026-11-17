@@ -58,6 +58,9 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
      * Lessons made from book passages, for the Grammar section: (lesson, note, title). Notes with a negative
      * bookId belong to Reader stories (−storyId); [storyTitle] names them.
      */
+    suspend fun fullLessons(): List<FullLesson> = dao.fullLessons()
+    suspend fun saveFullLesson(key: String, json: String) = dao.saveFullLesson(FullLesson(key, json))
+
     suspend fun lessons(storyTitle: suspend (Long) -> String? = { null }): List<Triple<app.diacritica.tests.Lesson, BookNote, String>> {
         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
         val titles = HashMap<Long, String>()

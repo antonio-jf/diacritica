@@ -507,6 +507,9 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
                 n.copy(lessons = lessonJson.encodeToString(lessonList, list.filter { it.title != lesson.title } + lesson))
             }
             _panel.update { it?.copy(lessons = it.lessons + point.title, message = "Added to Grammar › Lessons.") }
+            // The full lesson (sections, examples, mistakes) is written in the background and kept.
+            c.lessons.load()
+            c.lessons.write(lesson, quiet = true)
         }
     }
 

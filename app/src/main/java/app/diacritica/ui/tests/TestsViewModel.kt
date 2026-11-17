@@ -41,6 +41,8 @@ data class TestsUiState(
 )
 
 class TestsViewModel(private val c: AppContainer) : ViewModel() {
+    /** Full lessons, shared with the other screens. */
+    val lessons = c.lessons.also { it.load() }
     private val _state = MutableStateFlow(TestsUiState())
     val state: StateFlow<TestsUiState> = _state.asStateFlow()
     val attempts: StateFlow<List<TestAttempt>> = c.tests.attempts
