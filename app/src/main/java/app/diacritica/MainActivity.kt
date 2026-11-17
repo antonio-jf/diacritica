@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
     private val testsVm: app.diacritica.ui.tests.TestsViewModel by viewModels { appViewModelFactory(container) }
     private val grammarVm: app.diacritica.ui.grammar.GrammarViewModel by viewModels { appViewModelFactory(container) }
     private val booksVm: app.diacritica.ui.books.BooksViewModel by viewModels { appViewModelFactory(container) }
+    private val vocabVm: app.diacritica.ui.vocab.VocabularyViewModel by viewModels { appViewModelFactory(container) }
     private val progressVm: app.diacritica.ui.progress.ProgressViewModel by viewModels { appViewModelFactory(container) }
     private val packsVm: app.diacritica.ui.packs.DataPacksViewModel by viewModels { appViewModelFactory(container) }
 
@@ -36,7 +37,7 @@ class MainActivity : ComponentActivity() {
         sharedText.value = intent.processText()
         // Looks for a newer release on GitHub at most once a day (and resumes an update download).
         container.updater.check()
-        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, container.undo, sharedText.value) }
+        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, vocabVm, container.undo, sharedText.value) }
     }
 
     override fun onNewIntent(intent: Intent) {
