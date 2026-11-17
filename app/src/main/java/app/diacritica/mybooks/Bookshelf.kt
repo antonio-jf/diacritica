@@ -218,7 +218,8 @@ class Bookshelf(private val context: Context, private val detect: suspend (Strin
             var start = it.first()
             var end = it.next()
             while (end != java.text.BreakIterator.DONE) {
-                out += flat.substring(start, end).trim()
+                // A closing quote the splitter left at the start (« Oui. » Il…), or an opening one at the end.
+                out += flat.substring(start, end).trim().trimStart('»', '”', '’', ')', ']', ' ').trimEnd('«', '“', '‘', '(', '[', ' ').trim()
                 start = end; end = it.next()
             }
             return out.filter { s ->
