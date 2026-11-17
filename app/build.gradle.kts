@@ -119,6 +119,7 @@ dependencies {
     implementation(libs.mlkit.digital.ink)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.documentfile)
+    implementation(libs.jsoup)
     implementation(libs.kotlinx.coroutines.play.services)
     debugImplementation(libs.androidx.compose.ui.tooling)
 

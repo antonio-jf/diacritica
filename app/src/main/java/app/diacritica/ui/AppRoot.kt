@@ -59,6 +59,7 @@ internal enum class Tab(val route: String, val label: String, val icon: ImageVec
     HOME("home", "Home", PolyIcons.Home),
     DICTIONARY("dictionary", "Dictionary", PolyIcons.Search),
     READER("reader", "Reader", PolyIcons.Book),
+    BOOKS("books", "Books", PolyIcons.Books),
     REHEARSE("rehearse", "Rehearse", PolyIcons.Pencil),
     REVIEW("review", "Review", PolyIcons.Cards),
     TESTS("tests", "Tests", PolyIcons.Quiz),
@@ -85,6 +86,7 @@ fun AppRoot(
     packsVm: app.diacritica.ui.packs.DataPacksViewModel,
     testsVm: app.diacritica.ui.tests.TestsViewModel,
     grammarVm: app.diacritica.ui.grammar.GrammarViewModel,
+    booksVm: app.diacritica.ui.books.BooksViewModel,
     undo: app.diacritica.undo.UndoManager,
     sharedText: String?,
 ) {
@@ -133,6 +135,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.PROGRESS -> openSection(Tab.PROGRESS)
                                     app.diacritica.ui.home.HomeSection.TESTS -> openSection(Tab.TESTS)
                                     app.diacritica.ui.home.HomeSection.GRAMMAR -> openSection(Tab.GRAMMAR)
+                                    app.diacritica.ui.home.HomeSection.BOOKS -> openSection(Tab.BOOKS)
                                 }
                             },
                         )
@@ -157,6 +160,20 @@ fun AppRoot(
                             readerVm, s, onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") },
                             onRehearse = { id, idx, l -> rehearseVm.rehearseStorySentence(id, idx, l); nav.goTo(Tab.REHEARSE) },
                             onOpenDataPacks = { nav.navigate("packs") },
+                        )
+                    }
+                    composable(Tab.BOOKS.route) {
+                        app.diacritica.ui.books.BooksScreen(
+                            booksVm,
+                            onBack = if (Tab.BOOKS in barTabs) null else ({ nav.popBackStack() }),
+                            onOpen = { id -> nav.navigate("book/$id") },
+                        )
+                    }
+                    composable("book/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                        app.diacritica.ui.books.BookReaderScreen(
+                            booksVm, s, entry.arguments?.getLong("id") ?: 0L,
+                            onBack = { nav.popBackStack() },
+                            onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") },
                         )
                     }
                     composable("rehearse-settings") {
@@ -219,12 +236,14 @@ fun AppRoot(
             val current = Tab.byRoute(route)?.takeIf { it in bar } ?: when {
                 route?.startsWith("detail") == true -> Tab.DICTIONARY.takeIf { it in bar } ?: Tab.HOME
                 route?.startsWith("archive") == true || route == "rehearse-settings" -> Tab.REHEARSE.takeIf { it in bar } ?: Tab.HOME
+                route?.startsWith("book/") == true -> Tab.BOOKS.takeIf { it in bar } ?: Tab.HOME
                 route != null -> Tab.HOME
                 else -> null
             }
             val offer by undo.offer.collectAsStateWithLifecycle()
             offer?.let { o -> UndoBar(o.message, onUndo = undo::undo, onDismiss = undo::dismiss) }
-            BottomNav(items = bar, current = current) {
+            // Reading a book: the whole screen is the page.
+            if (route?.startsWith("book/") != true) BottomNav(items = bar, current = current) {
                 nav.goTo(it)
             }
         }

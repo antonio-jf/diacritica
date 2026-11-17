@@ -62,7 +62,7 @@ import java.util.Calendar
 import java.util.Date
 
 /** The parts of the app Home links to. */
-enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR }
+enum class HomeSection { DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS }
 
 @Composable
 fun HomeScreen(
@@ -171,6 +171,8 @@ fun HomeScreen(
             // Phones: a two-column grid of compact tiles. Tablets (or very large text on a phone): one row each,
             // with a longer description.
             val tiles = listOf(
+                Tile(PolyIcons.Books, "Books", HomeSection.BOOKS, "Your own EPUBs",
+                    "Import your own EPUBs and read them with the dictionary a tap away."),
                 Tile(PolyIcons.Check, "Tests", HomeSection.TESTS, "8 sentences, scored",
                     "Translate 8 sentences into your languages and get a score, corrections and lessons for your mistakes."),
                 Tile(PolyIcons.Book, "Grammar", HomeSection.GRAMMAR, "Weak points and lessons",

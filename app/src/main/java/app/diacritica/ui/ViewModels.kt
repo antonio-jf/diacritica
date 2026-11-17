@@ -394,5 +394,6 @@ fun appViewModelFactory(c: AppContainer): ViewModelProvider.Factory = viewModelF
     initializer { app.diacritica.ui.progress.ProgressViewModel(c) }
     initializer { app.diacritica.ui.tests.TestsViewModel(c) }
     initializer { app.diacritica.ui.grammar.GrammarViewModel(c) }
+    initializer { app.diacritica.ui.books.BooksViewModel(c) }
     initializer { app.diacritica.ui.packs.DataPacksViewModel(c, this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!) }
 }
