@@ -84,7 +84,7 @@ fun ProgressScreen(vm: ProgressViewModel, onBack: () -> Unit) {
                 )
                 Gap(8.dp)
                 if (st.accuracy.isEmpty()) {
-                    Text("No rounds or tests in this period yet.", style = captionStyle())
+                    Text("No rounds or tests in this period yet. Check a Rehearse round or take a Test, and your accuracy per language shows here.", style = captionStyle())
                 } else {
                     st.accuracy.forEach { a ->
                         LangBar(

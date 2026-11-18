@@ -76,7 +76,55 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     /** True while a sentence sent from elsewhere (the Reader) is being loaded, so opening Rehearse doesn't replace it. */
     private var external = false
 
-    fun ensureStarted() { if (!external && _state.value.group == null && !_state.value.empty) next() }
+    fun ensureStarted() {
+        if (external || _state.value.group != null || _state.value.empty) return
+        // Android closed the app while you were typing: bring back the same sentence with your answers.
+        val draft = c.drafts.getString(DRAFT_KEY, null) ?: return next()
+        external = true
+        viewModelScope.launch {
+            try {
+                if (!runCatching { restoreDraft(draft) }.getOrDefault(false)) { clearDraft(); next() }
+            } finally {
+                external = false
+            }
+        }
+    }
+
+    private suspend fun restoreDraft(json: String): Boolean {
+        val o = org.json.JSONObject(json)
+        val id = o.getLong("group")
+        val prompt = Lang.fromCode(o.getString("prompt")) ?: return false
+        val targets = o.getJSONArray("targets").let { a -> (0 until a.length()).mapNotNull { Lang.fromCode(a.getString(it)) } }
+        val answersJson = o.getJSONObject("answers")
+        val answers = answersJson.keys().asSequence().mapNotNull { k -> Lang.fromCode(k)?.let { it to answersJson.getString(k) } }.toMap()
+        val (group, note) = loadGroup(id) ?: return false
+        if (prompt !in group.texts.keys) return false
+        val s = c.settings.settings.first()
+        show(
+            Pick(
+                group, o.optString("source", "Tatoeba"), promptLangs = listOf(prompt), targets = targets.ifEmpty { null },
+                note = note ?: o.optString("note").ifBlank { null }, chosenPrompt = prompt,
+            ),
+            s,
+        )
+        _state.update { st -> if (st.group?.id == id) st.copy(answers = st.answers + answers.filterKeys { it in st.targets }) else st }
+        return true
+    }
+
+    /** Saves the sentence and what you've typed so far; cleared once the round is checked or skipped. */
+    private fun saveDraft(st: RehearseUiState) {
+        val g = st.group ?: return
+        val p = st.promptLang ?: return
+        if (st.submitted || st.answers.values.all { it.isBlank() }) { clearDraft(); return }
+        val o = org.json.JSONObject()
+            .put("group", g.id).put("prompt", p.code)
+            .put("targets", org.json.JSONArray(st.targets.map { it.code }))
+            .put("answers", org.json.JSONObject(st.answers.mapKeys { it.key.code }))
+            .put("source", st.source).put("note", st.note ?: "")
+        c.drafts.edit().putString(DRAFT_KEY, o.toString()).apply()
+    }
+
+    private fun clearDraft() { c.drafts.edit().remove(DRAFT_KEY).apply() }
 
     /**
      * "Rehearse this sentence" from the Reader: the story's sentence becomes the prompt in [promptLang]; the
@@ -157,6 +205,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Loads a new sentence from the current path; the prompt language rotates through your languages. */
     fun next() {
+        clearDraft()
         viewModelScope.launch {
             _state.update { RehearseUiState(loading = true, roundsDone = it.roundsDone) }
             val s = c.settings.settings.first()
@@ -581,12 +630,16 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     }
 
 
-    fun setAnswer(lang: Lang, text: String) = _state.update { it.copy(answers = it.answers + (lang to text)) }
+    fun setAnswer(lang: Lang, text: String) {
+        _state.update { it.copy(answers = it.answers + (lang to text)) }
+        saveDraft(_state.value)
+    }
 
     fun submit() {
         val st = _state.value
         if (st.submitted) return
         val group = st.group ?: return
+        clearDraft()
         viewModelScope.launch {
             val s = c.settings.settings.first()
             // 1) Instant offline check.
@@ -836,6 +889,7 @@ class RehearseViewModel(private val c: AppContainer) : ViewModel() {
     suspend fun pinyinOf(text: String): String = runCatching { c.dictionary.pinyinOf(text) }.getOrDefault("")
 
     companion object {
+        private const val DRAFT_KEY = "rehearse"
         /** Ids of Gemini-written sentences are -(time in ms), so they never collide with story ids. */
         private const val GENERATED_BASE = 1_000_000_000_000L
         private const val STORY_STRIDE = 10_000L

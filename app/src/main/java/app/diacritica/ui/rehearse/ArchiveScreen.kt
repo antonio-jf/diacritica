@@ -75,11 +75,10 @@ fun ArchiveScreen(vm: RehearseViewModel, onBack: () -> Unit, onOpen: (Long) -> U
             SearchBox(query, vm::setArchiveSearch)
         }
         if (rounds.isEmpty()) item {
-            Text(
-                if (query.isBlank()) "Rounds you check in Rehearse are saved here, with your answers and all the feedback."
-                else "Nothing matches “$query”.",
-                style = captionStyle(), modifier = Modifier.padding(20.dp),
-            )
+            if (query.isBlank()) app.diacritica.ui.components.EmptyHint(
+                "No rounds yet",
+                "Rounds you check in Rehearse are saved here, with your answers and all the feedback, so you can reread or recheck them.",
+            ) else Text("Nothing matches “$query”.", style = captionStyle(), modifier = Modifier.padding(20.dp))
         }
         items(rounds, key = { it.id }) { r -> val f = vm.decode(r); RoundRow(r, f, vm.needsAiCheck(f), fmt) { onOpen(r.id) } }
         item { Gap(24.dp) }

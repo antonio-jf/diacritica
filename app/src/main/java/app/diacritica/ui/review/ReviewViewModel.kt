@@ -33,6 +33,8 @@ class ReviewViewModel(private val c: AppContainer) : ViewModel() {
     val state: StateFlow<ReviewUiState> = _state.asStateFlow()
 
     private val dao = c.userDb.cards()
+    /** The shared word sheet ("Word details" on a revealed card). */
+    val lookup = app.diacritica.ui.components.WordLookup(c, viewModelScope, source = "Review")
     val dueCount = dao.dueCount(System.currentTimeMillis()).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val newCount = dao.newCount().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val total = dao.total().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)

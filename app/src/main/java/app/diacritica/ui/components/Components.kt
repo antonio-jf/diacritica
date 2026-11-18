@@ -248,3 +248,47 @@ fun ScreenHeader(title: String, modifier: Modifier = Modifier, trailing: @Compos
 
 @Composable
 fun Gap(h: Dp) = Spacer(Modifier.height(h))
+
+/**
+ * What an empty list or screen is for and how it fills up: a short title, one line of explanation and,
+ * optionally, a button that starts filling it.
+ */
+@Composable
+fun EmptyHint(title: String, body: String, modifier: Modifier = Modifier, action: String? = null, onAction: (() -> Unit)? = null) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = Diacritica.spacing.screen, vertical = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(title, style = bodyStyle().copy(fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+        Text(body, style = captionStyle().copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+        if (action != null && onAction != null) {
+            Spacer(Modifier.height(6.dp))
+            PolyButton(action, onAction, primary = false)
+        }
+    }
+}
+
+/**
+ * "Offline: Gemini paths need a connection." A quiet one-line notice with an optional Retry, used wherever
+ * something needs the internet so the offline state looks and works the same everywhere.
+ */
+@Composable
+fun OfflineNotice(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
+    val c = Diacritica.colors
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(12.dp))).background(c.surface)
+            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(PolyIcons.CloudOff, contentDescription = null, tint = c.inkMuted, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = captionStyle(c.ink), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+        if (onRetry != null) {
+            Text(
+                "Retry", style = captionStyle(c.accent).copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button, onClick = onRetry).padding(horizontal = 10.dp, vertical = 10.dp),
+            )
+        }
+    }
+}

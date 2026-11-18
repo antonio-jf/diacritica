@@ -3,6 +3,7 @@ package app.diacritica.ui.vocab
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.diacritica.ui.components.WordLookup
 import app.diacritica.AppContainer
 import app.diacritica.data.Lang
 import app.diacritica.data.ScriptPreference
@@ -75,6 +76,8 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     val state: StateFlow<VocabUiState> = _state.asStateFlow()
     private val app = context.applicationContext
     private val custom = CustomVocabStore(java.io.File(context.filesDir, "vocab/custom.json"))
+    /** The shared word sheet ("Details" under a word). */
+    val lookup = WordLookup(c, viewModelScope, source = "Vocabulary")
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -227,7 +230,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
         val s = c.settings.settings.first()
         val word = VocabCheck.headword(w.form(lang), lang)
         val title = _state.value.open?.let { set(it)?.title } ?: "Vocabulary"
-        c.userDb.saved().save(SavedWord(lang = lang.code, word = word, note = "$title · ${w.form(Lang.EN)}"))
+        c.userDb.saved().save(SavedWord(lang = lang.code, word = word, note = "$title · ${w.form(Lang.EN)}", deck = "Vocabulary"))
         runCatching { c.review.ensureCards(lang, word, s.activeLanguages, s.script) }
     }
 

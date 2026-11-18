@@ -71,8 +71,10 @@ import app.diacritica.vocab.VocabWord
 private fun spoken(s: String) = VocabCheck.alternatives(s).firstOrNull().orEmpty().replace(Regex("\\s*\\((m|f|m/f)\\)$"), "")
 
 @Composable
-fun VocabularyScreen(vm: VocabularyViewModel, onBack: () -> Unit) {
+fun VocabularyScreen(vm: VocabularyViewModel, onBack: () -> Unit, onOpenWord: ((Lang, String) -> Unit)? = null) {
     val st by vm.state.collectAsStateWithLifecycle()
+    // Tap "Details" under a word: the shared word sheet (same as Reader and Books).
+    app.diacritica.ui.components.WordLookupSheet(vm.lookup, onOpenDictionary = onOpenWord)
     val quiz = st.quiz
     val open = st.open?.let { vm.set(it) }
     when {
@@ -224,6 +226,7 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
                 WordRow(
                     w, st.lang, st.from, others, allOpen, key in saved,
                     onSpeak = { l -> vm.speak(l, spoken(w.form(l))) }, onSave = { vm.toggleSaved(w) },
+                    onDetails = { vm.lookup.open(VocabCheck.headword(w.form(st.lang), st.lang), st.lang) },
                 )
             }
             Gap(14.dp)
@@ -250,7 +253,7 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
 @Composable
 private fun WordRow(
     w: VocabWord, lang: Lang, from: Lang, others: List<Lang>, allOpen: Boolean, saved: Boolean,
-    onSpeak: (Lang) -> Unit, onSave: () -> Unit,
+    onSpeak: (Lang) -> Unit, onSave: () -> Unit, onDetails: () -> Unit,
 ) {
     val c = Diacritica.colors
     var open by rememberSaveable(w.form(Lang.EN)) { mutableStateOf(false) }
@@ -258,7 +261,7 @@ private fun WordRow(
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                .clickable(enabled = others.isNotEmpty()) { open = !open }.padding(vertical = 4.dp),
+                .clickable { open = !open }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -266,7 +269,7 @@ private fun WordRow(
                 if (lang == Lang.ZH) Text(w.pinyin, style = captionStyle(c.accent))
                 Text(w.form(from) + if (from == Lang.ZH) "  ${w.pinyin}" else "", style = captionStyle())
             }
-            if (others.isNotEmpty()) {
+            run {
                 androidx.compose.material3.Icon(
                     PolyIcons.ChevronDown, if (shown) "Hide other languages" else "Show other languages", tint = c.inkMuted,
                     modifier = Modifier.padding(horizontal = 4.dp).width(16.dp).graphicsLayer { rotationZ = if (shown) 180f else 0f },
@@ -275,7 +278,7 @@ private fun WordRow(
             PolyIconButton(PolyIcons.Speaker, "Listen", { onSpeak(lang) }, tint = c.inkMuted)
             PolyIconButton(if (saved) PolyIcons.StarFilled else PolyIcons.Star, if (saved) "Remove from Review" else "Add to Review", onSave, tint = if (saved) c.accent else c.inkMuted)
         }
-        if (shown && others.isNotEmpty()) {
+        if (shown) {
             Column(
                 Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(c.surface).padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -286,6 +289,10 @@ private fun WordRow(
                         Text(w.form(l) + if (l == Lang.ZH) "  ${w.pinyin}" else "", style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
                     }
                 }
+                Text(
+                    "Details ›", style = captionStyle(c.accent),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onDetails).padding(vertical = 6.dp),
+                )
             }
         }
     }
@@ -342,7 +349,7 @@ private fun QuizView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet, q
                     BasicTextField(
                         value = q.input, onValueChange = vm::setInput, singleLine = true, enabled = q.answered == null,
                         textStyle = bodyStyle(size = 17.sp), cursorBrush = SolidColor(c.accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, autoCorrectEnabled = false),
+                        keyboardOptions = app.diacritica.ui.components.keyboardFor(st.lang, KeyboardOptions(imeAction = ImeAction.Done, autoCorrectEnabled = false)),
                         keyboardActions = KeyboardActions(onDone = { if (q.answered == null && q.input.isNotBlank()) vm.answer(q.input) else if (q.answered != null) vm.next() }),
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )

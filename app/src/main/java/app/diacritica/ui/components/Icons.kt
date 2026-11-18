@@ -73,5 +73,9 @@ object PolyIcons {
     /** An open book: the Books section (your EPUBs). */
     val Books = stroke("books", "M3 6.5c3-1.6 6-1.6 9 0V19c-3-1.6-6-1.6-9 0z", "M12 6.5c3-1.6 6-1.6 9 0V19c-3-1.6-6-1.6-9 0z")
     val TextSize = stroke("text-size", "M4 18l4.5-12L13 18", "M5.7 14h5.6", "M15 18l3-8 3 8", "M16 15.5h4")
+    val CloudOff = stroke("cloud-off", "M7 18h10.5a3.5 3.5 0 0 0 .8-6.9A5.5 5.5 0 0 0 8.2 9.2 4.4 4.4 0 0 0 7 18z", "M4 4l16 16")
+    val Grip = stroke("grip", "M9 6h.01", "M15 6h.01", "M9 12h.01", "M15 12h.01", "M9 18h.01", "M15 18h.01", width = 2.6f)
+    val Eye = stroke("eye", "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z", "M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 0 1 0 -5z")
+    val EyeOff = stroke("eye-off", "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z", "M4 4l16 16")
     val Toc = stroke("toc", "M9 6h11", "M9 12h11", "M9 18h11", "M4.5 6h.01", "M4.5 12h.01", "M4.5 18h.01")
 }

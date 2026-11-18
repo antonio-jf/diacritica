@@ -91,7 +91,7 @@ fun TranslateScreen(
                 else "Gemini: more natural, needs internet and your key.",
                 style = captionStyle(),
             )
-            InputBox(st.input, vm::setInput, onClear = vm::clear)
+            InputBox(st.input, vm::setInput, onClear = vm::clear, lang = st.source)
             if (showPad) {
                 HandwritingPad(
                     before = st.input,
@@ -174,7 +174,7 @@ private fun ActionLink(text: String, enabled: Boolean = true, onClick: () -> Uni
 }
 
 @Composable
-private fun InputBox(value: String, onChange: (String) -> Unit, onClear: () -> Unit) {
+private fun InputBox(value: String, onChange: (String) -> Unit, onClear: () -> Unit, lang: Lang? = null) {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(14.dp))
     Box(
@@ -188,6 +188,7 @@ private fun InputBox(value: String, onChange: (String) -> Unit, onClear: () -> U
             textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
             visualTransformation = hanTransformation(),
             cursorBrush = SolidColor(c.accent),
+            keyboardOptions = app.diacritica.ui.components.keyboardFor(lang),
             modifier = Modifier.fillMaxWidth().padding(end = 40.dp).heightIn(min = 96.dp).semantics { contentDescription = "Text to translate" },
         )
         if (value.isNotEmpty()) {

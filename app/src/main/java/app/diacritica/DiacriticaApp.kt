@@ -53,6 +53,8 @@ class AppContainer(app: Application) {
     val tests = TestStore(app)
     val lessons by lazy { LessonLibrary(bookshelf, gemini, settings) { online.isOnline() } }
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
+    /** Work in progress that should survive Android closing the app in the background (Rehearse answers). */
+    val drafts: android.content.SharedPreferences = app.getSharedPreferences("drafts", android.content.Context.MODE_PRIVATE)
 }
 
 class DiacriticaApp : Application() {

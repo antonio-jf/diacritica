@@ -925,7 +925,8 @@ private fun ZhSentence(
         Text(text, style = style, modifier = modifier.pointerInput(text) { detectTapGestures(onTap = { tap() }) })
         return
     }
-    val pinyinStyle = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = (style.fontSize.value * 0.58f).sp, color = c.accent)
+    // Pinyin keeps the same proportion to the characters above it, so it grows with the "Chinese characters" size.
+    val pinyinStyle = TextStyle(fontFamily = Diacritica.fonts.label, fontSize = (style.fontSize.value * 0.58f * app.diacritica.ui.theme.LocalHanScale.current).sp, color = c.accent)
     // Only reserve a pinyin row when at least one word in the sentence gets pinyin.
     val pinyinRow = remember(tokens, env.pinyinMode, env.pinyinTop) { tokens.any { env.pinyinFor(it) != null } }
     FlowRow(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1052,98 +1053,20 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WordSheet(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv, onOpenWord: (Lang, String) -> Unit) {
-    val c = Diacritica.colors
-    val uri = LocalUriHandler.current
     val saved by vm.savedKeys.collectAsStateWithLifecycle()
-    val r = p.result
-    val hw: WordInfo = r?.headword ?: WordInfo(p.lang, p.token)
-    val found = r != null && !r.isEmpty
-    Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp).padding(bottom = 20.dp).navigationBarsPadding(),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            LangBadge(p.lang, boxed = true)
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                val head = hw.article?.let { a -> if (a.endsWith("'")) a + hw.word else "$a ${hw.word}" } ?: hw.word
-                val shownHead = if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head
-                Text(shownHead, style = headwordStyle(Diacritica.type.headwordLarge))
-                if (p.lang == Lang.ZH) {
-                    val extra = listOfNotNull(hw.pinyin, hw.traditional?.takeIf { it != hw.word && !env.traditional }, hw.hsk?.let { ZhRanking.hskLabel(it) })
-                    if (extra.isNotEmpty()) Text(extra.joinToString("  ·  "), style = captionStyle(c.accent))
-                }
-            }
-            PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { vm.speakWord(hw) })
-            if (found) CopyShareButtons { shareTextFor(hw, r!!.results.filter { it.lang != p.lang }.mapNotNull { it.words.firstOrNull() }) }
-            if (found) {
-                val isSaved = "${hw.lang.code}:${hw.word}" in saved
-                PolyIconButton(
-                    if (isSaved) PolyIcons.StarFilled else PolyIcons.Star, if (isSaved) "Remove from saved" else "Save word",
-                    onClick = { vm.toggleSave(hw) }, tint = if (isSaved) c.savedStar else c.inkMuted,
-                )
-            }
-        }
-        val meta = listOfNotNull(hw.pos, hw.gender, hw.plural?.let { "pl. $it" }, hw.ipa?.let { "/$it/" }).joinToString(" · ")
-        if (meta.isNotEmpty()) Text(meta, style = captionStyle(), modifier = Modifier.padding(top = 4.dp))
-        val forms = r?.forms.orEmpty()
-        if (forms.isNotEmpty()) {
-            FormNotes(p.token, forms, onLemma = { l -> vm.lookUpWord(p.lang, l, p.sentenceIdx, env.other(p.lang), p.anchor) }, modifier = Modifier.padding(top = 4.dp))
-        } else if (r?.redirectedFrom != null || (found && !hw.word.equals(p.token, ignoreCase = true))) {
-            Text("“${p.token}” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
-        }
-        app.diacritica.ui.components.VerbPatternNotes(hw, max = 4)
-        hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
-        if (!p.loading) vm.falseFriends(p, env.other(p.lang)).forEach {
-            FalseFriendNote(it, Modifier.padding(top = 10.dp))
-        }
-
-        when {
-            p.loading -> { Gap(14.dp); Text("Looking up…", style = captionStyle()) }
-            p.fetching -> { Gap(14.dp); Text("Not in the offline dictionary. Downloading it…", style = captionStyle()) }
-            !found -> { Gap(14.dp); Text("Not in the offline dictionary.", style = captionStyle()) }
-            else -> {
-                val concept = r!!.concepts.getOrNull(r.selected)
-                Gap(14.dp)
-                SectionLabel(concept?.label?.let { "Meaning · $it" } ?: "Translations")
-                Gap(6.dp)
-                val order = listOf(env.other(p.lang), Lang.EN).distinct().filter { it != p.lang }
-                val rows = r.results.filter { it.lang != p.lang }.sortedBy { lr -> order.indexOf(lr.lang).let { if (it < 0) 99 else it } }
-                rows.forEach { lr ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
-                        Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(lr.lang) }
-                        val words = lr.words.take(3).joinToString(", ") { w ->
-                            val base = w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word
-                            val shown = if (w.lang == Lang.ZH && env.traditional) w.traditional ?: base else base
-                            if (w.lang == Lang.ZH && w.pinyin != null) "$shown ${w.pinyin}" else shown
-                        }
-                        Text(words.ifEmpty { "—" }, style = bodyStyle(if (words.isEmpty()) c.inkMuted else c.ink), modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-
-        // The sentence it came from, in both languages.
-        val src = env.text(p.sentenceIdx, p.lang)
-        val tr = env.text(p.sentenceIdx, env.other(p.lang))
-        if (src.isNotEmpty()) {
-            Gap(14.dp)
-            Hairline()
-            Gap(10.dp)
-            Text(src, style = bodyStyle(size = 14.sp))
-            if (tr.isNotEmpty() && env.other(p.lang) != p.lang) Text(tr, style = bodyStyle(c.inkMuted, 14.sp).copy(fontStyle = FontStyle.Italic))
-        }
-
-        Gap(16.dp)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (found) PolyButton("Open in Dictionary", onClick = { onOpenWord(hw.lang, hw.word) })
-            PolyButton(
-                "${OfficialDictionary.name(p.lang)} ↗",
-                onClick = { runCatching { uri.openUri(OfficialDictionary.url(p.lang, hw.word, hw.traditional)) } },
-                primary = false,
-            )
-        }
-    }
+    val hw: WordInfo = p.result?.headword ?: WordInfo(p.lang, p.token)
+    val other = env.other(p.lang)
+    app.diacritica.ui.components.WordSheetBody(
+        lang = p.lang, token = p.token, result = p.result, loading = p.loading, fetching = p.fetching,
+        saved = "${hw.lang.code}:${hw.word}" in saved,
+        onSpeak = vm::speakWord, onToggleSave = vm::toggleSave,
+        traditional = env.traditional, firstLangs = listOf(other),
+        onLemma = { l -> vm.lookUpWord(p.lang, l, p.sentenceIdx, other, p.anchor) },
+        notes = { vm.falseFriends(p, other).forEach { FalseFriendNote(it, Modifier.padding(top = 10.dp)) } },
+        sentence = env.text(p.sentenceIdx, p.lang),
+        sentenceTranslation = env.text(p.sentenceIdx, other).takeIf { other != p.lang },
+        onOpenDictionary = onOpenWord,
+    )
 }
 
 

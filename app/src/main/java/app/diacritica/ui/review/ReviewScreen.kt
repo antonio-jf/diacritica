@@ -54,8 +54,9 @@ import app.diacritica.ui.dictionary.grammarLine
 import app.diacritica.ui.theme.Diacritica
 
 @Composable
-fun ReviewScreen(vm: ReviewViewModel) {
+fun ReviewScreen(vm: ReviewViewModel, onOpenWord: ((Lang, String) -> Unit)? = null) {
     LaunchedEffect(Unit) { vm.refresh() }
+    app.diacritica.ui.components.WordLookupSheet(vm.lookup, onOpenDictionary = onOpenWord)
     val state by vm.state.collectAsStateWithLifecycle()
     val due by vm.dueCount.collectAsStateWithLifecycle()
     val new by vm.newCount.collectAsStateWithLifecycle()
@@ -78,6 +79,13 @@ fun ReviewScreen(vm: ReviewViewModel) {
             else -> {
                 ReviewCard(item, state, onReveal = vm::reveal, onPick = vm::pickArticle, onSpeak = vm::speak)
                 Gap(12.dp)
+                if (state.revealed && item.kind != CardKind.SENTENCE) item.word?.let { w ->
+                    Text(
+                        "Word details ›", style = captionStyle(Diacritica.colors.accent),
+                        modifier = Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(4.dp))
+                            .clickable { vm.lookup.open(w.word, item.lang) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                    )
+                }
                 if (state.revealed) RatingRow(state.previews, suggestAgain = item.kind == CardKind.GENDER && state.pickedArticle != item.word?.article, onRate = vm::rate)
                 else if (item.kind != CardKind.GENDER) {
                     PolyButton("Show answer", vm::reveal, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
@@ -104,7 +112,7 @@ private fun EmptyState(total: Int, nextDue: Long?) {
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (total == 0) {
             Text("No cards yet.", style = bodyStyle())
-            Text("Tap ☆ next to a word in the Dictionary. Each saved word becomes a few cards: meaning, recall, listening, and article or pinyin practice.", style = captionStyle())
+            Text("Tap ☆ next to a word in the Dictionary, Reader, Books or Vocabulary. Each saved word becomes a few cards: meaning, recall, listening, and article or pinyin practice. Rehearse adds sentence cards from your mistakes.", style = captionStyle())
         } else {
             Text("All done for now.", style = bodyStyle())
             nextDue?.let { Text("Next card in ${Fsrs.formatInterval((it - System.currentTimeMillis()).coerceAtLeast(60_000))}.", style = captionStyle()) }

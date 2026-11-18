@@ -98,6 +98,7 @@ fun RehearseScreen(
 ) {
     LaunchedEffect(Unit) { vm.ensureStarted() }
     val st by vm.state.collectAsStateWithLifecycle()
+    val online by app.diacritica.ui.components.rememberIsOnline()
     val handsFree by vm.handsFree.collectAsStateWithLifecycle()
     val listen by vm.listen.collectAsStateWithLifecycle()
     // Hands-free: open the system voice input in the requested language; its result goes back to the round.
@@ -170,7 +171,8 @@ fun RehearseScreen(
                 style = captionStyle(), modifier = Modifier.padding(20.dp),
             )
             st.error != null -> Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(st.error!!, style = bodyStyle())
+                if (!online && settings.rehearsePath.online) app.diacritica.ui.components.OfflineNotice("You're offline. ${settings.rehearsePath.label} needs the internet; the other paths work offline.")
+                else Text(st.error!!, style = bodyStyle())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PolyButton("Try again", vm::next)
                     PolyButton("Use Everyday", { vm.setPath(RehearsePath.EVERYDAY) }, primary = false)
@@ -212,6 +214,7 @@ fun RehearseScreen(
 private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
     val c = Diacritica.colors
     var open by remember { mutableStateOf(false) }
+    val online by app.diacritica.ui.components.rememberIsOnline()
     Box {
         DropChip(current.label, emphasized = true) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.ground) {
@@ -219,10 +222,16 @@ private fun PathPicker(current: RehearsePath, onPick: (RehearsePath) -> Unit) {
                 DropdownMenuItem(
                     text = {
                         Column(Modifier.padding(vertical = 2.dp)) {
-                            Text(p.label + if (p.online) "  ·  online" else "", style = bodyStyle(if (p == current) c.accent else c.ink))
-                            Text(p.blurb, style = captionStyle())
+                            // Online paths are grayed out while offline (they can't write a sentence without Gemini).
+                            val off = p.online && !online
+                            Text(
+                                p.label + when { off -> "  ·  needs internet"; p.online -> "  ·  online"; else -> "" },
+                                style = bodyStyle(if (p == current) c.accent else if (off) c.inkMuted else c.ink),
+                            )
+                            Text(p.blurb, style = captionStyle(if (off) c.inkMuted.copy(alpha = 0.6f) else c.inkMuted))
                         }
                     },
+                    enabled = !(p.online && !online) || p == current,
                     onClick = { open = false; if (p != current) onPick(p) },
                 )
             }
@@ -388,7 +397,7 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, h
                 textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
                 visualTransformation = hanTransformation(),
                 cursorBrush = SolidColor(c.accent),
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                keyboardOptions = app.diacritica.ui.components.keyboardFor(lang, KeyboardOptions(autoCorrectEnabled = false)),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 26.dp).semantics { contentDescription = "${lang.englishName} answer" },
             )
         }
@@ -409,7 +418,13 @@ private fun Feedback(st: RehearseUiState, settings: AppSettings, vm: RehearseVie
         Text("$ok / ${st.targets.size}", style = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Diacritica.colors.ink))
         if (st.checking) Text("Checking with Gemini…", style = captionStyle(Diacritica.colors.accent))
     }
-    st.aiError?.let { err ->
+    val online by app.diacritica.ui.components.rememberIsOnline()
+    if (st.aiError != null && !online) {
+        app.diacritica.ui.components.OfflineNotice(
+            "Offline: checked on the phone only. Gemini's grammar feedback comes back when you're online.",
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp), onRetry = vm::retryAiCheck,
+        )
+    } else st.aiError?.let { err ->
         Row(Modifier.padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(err, style = captionStyle(Diacritica.colors.warning), modifier = Modifier.weight(1f))
             if (!err.contains("API key")) {

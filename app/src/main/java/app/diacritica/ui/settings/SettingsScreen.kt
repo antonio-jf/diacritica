@@ -81,6 +81,8 @@ fun SettingsScreen(
     // Sections start closed; each header shows a one-line summary of its current values.
     var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(listOf<String>()) }
     val toggle: (String) -> Unit = { k -> open = if (k in open) open - k else open + k }
+    var query by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    val searching = query.isNotBlank()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -88,6 +90,7 @@ fun SettingsScreen(
                 onBack?.let { PolyIconButton(PolyIcons.Back, "Back", it, tint = Diacritica.colors.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp)) }
                 ScreenHeader("Settings", Modifier.weight(1f))
             }
+            SettingsSearch(query, { query = it })
         }
         message?.let { m ->
             item {
@@ -102,7 +105,7 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------ Appearance
-        if (section("appearance", "Appearance", "${s.theme.title} · ${s.mode.label} · text ${(s.textScale * 100).toInt()}%", open, toggle)) {
+        if (section("appearance", "Appearance", "${s.theme.title} · ${s.mode.label} · text ${(s.textScale * 100).toInt()}%", open, toggle, query)) {
             item {
                 LinkRow("Theme, mode and accent", "${s.theme.title} · ${s.mode.label} · ${s.accent.label}", onOpenAppearance)
             }
@@ -120,7 +123,7 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------ Layouts
-        if (section("layouts", "Layouts", "Dictionary ${s.dictionaryLayout.label} · Rehearse ${s.rehearseLayout.label} · Reader ${s.readerLayout.label}", open, toggle)) {
+        if (section("layouts", "Layouts", "Dictionary ${s.dictionaryLayout.label} · Rehearse ${s.rehearseLayout.label} · Reader ${s.readerLayout.label}", open, toggle, query)) {
             item { ChipSetting("Dictionary", DictionaryLayout.entries, s.dictionaryLayout, { it.label }, vm::setDictionaryLayout) }
             item { ChipSetting("Rehearse feedback", app.diacritica.settings.RehearseLayout.entries, s.rehearseLayout, { it.label }, vm::setRehearseLayout) }
             item { ChipSetting("Reader", app.diacritica.settings.ReaderLayout.entries, s.readerLayout, { it.label }, vm::setReaderLayout) }
@@ -132,15 +135,22 @@ fun SettingsScreen(
             }
         }
 
+        // ------------------------------------------------ Home
+        val homeSummary = s.homeOrder.filter { it !in s.homeHidden }.mapNotNull { app.diacritica.ui.home.homeTileNames[it] }.take(4).joinToString(" · ") +
+            if (s.homeHidden.isNotEmpty()) " · ${s.homeHidden.size} hidden" else ""
+        if (section("home", "Home", homeSummary, open, toggle, query)) {
+            item { app.diacritica.ui.home.HomeTilesEditor(s.homeOrder, s.homeHidden, vm::setHome) }
+        }
+
         // ------------------------------------------------ Bottom bar
-        val barSummary = (listOf("Home") + s.navTabs.mapNotNull { app.diacritica.ui.Tab.byRoute(it)?.label }).joinToString(" · ")
-        if (section("bottombar", "Bottom bar", barSummary, open, toggle)) {
+        val barSummary = (listOf("Home") + s.navTabs.mapNotNull { app.diacritica.ui.Tab.byRoute(it)?.label } + "Settings").joinToString(" · ")
+        if (section("bottombar", "Bottom bar", barSummary, open, toggle, query)) {
             item { BottomBarEditor(s.navTabs, vm::setNavTabs) }
         }
 
         // ------------------------------------------------ Languages
         val langSummary = s.activeLanguages.joinToString(" ") { it.short } + " · search " + (s.sourceLang?.short ?: "auto")
-        if (section("languages", "Languages", langSummary, open, toggle)) {
+        if (section("languages", "Languages", langSummary, open, toggle, query)) {
             s.languageOrder.forEachIndexed { i, l ->
                 item("lang-${l.code}") {
                     Column(Modifier.padding(horizontal = 20.dp)) {
@@ -172,14 +182,14 @@ fun SettingsScreen(
         val rehearseSummary = (if (s.geminiKey.isBlank()) "No Gemini key" else "Gemini on") + " · " +
             s.rehearseLanguages.joinToString(" ") { it.short } + " · level ${s.rehearseLevel}" +
             (if (Lang.ZH in s.activeLanguages) " (Mandarin ${s.rehearseZhLevel})" else "")
-        if (section("rehearse", "Rehearse", rehearseSummary, open, toggle)) {
+        if (section("rehearse", "Rehearse", rehearseSummary, open, toggle, query)) {
             item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
             item { LinkRow("Rehearse settings", "Level, path, length, languages and how answers are checked", onOpenRehearseSettings) }
         }
 
         // ------------------------------------------------ Review and pronunciation
         val reviewSummary = "${s.newCardsPerDay} new/day · speech ${"%.1f".format(s.speechRate)}×"
-        if (section("review", "Review and speech", reviewSummary, open, toggle)) {
+        if (section("review", "Review and speech", reviewSummary, open, toggle, query)) {
             item {
                 Setting("New cards per day", "${s.newCardsPerDay}") {
                     Slider(value = s.newCardsPerDay.toFloat(), onValueChange = { vm.setNewCardsPerDay(it.toInt()) }, valueRange = 5f..50f, steps = 8)
@@ -194,7 +204,7 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------ Data
-        item {
+        if (!searching || settingsMatch(query.trim(), SETTINGS_KEYWORDS["data"].orEmpty())) item {
             Column(Modifier.fillMaxWidth().padding(top = 14.dp)) {
                 Hairline(heavy = true)
                 LinkRow("Data packs", "Dictionary, sentences, translation models, voices", onOpenDataPacks)
@@ -243,6 +253,9 @@ fun SettingsScreen(
                     style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 )
             }
+        }
+        if (searching && SETTINGS_KEYWORDS.keys.none { settingsMatch(query.trim(), (SECTION_TITLES[it] ?: "") + " " + SETTINGS_KEYWORDS[it]) }) item {
+            Text("No settings match “${query.trim()}”.", style = captionStyle(), modifier = Modifier.padding(20.dp))
         }
         item { Gap(24.dp) }
     }
@@ -323,8 +336,12 @@ fun AppearanceScreen(vm: SettingsViewModel, s: AppSettings, onBack: () -> Unit) 
  */
 private fun androidx.compose.foundation.lazy.LazyListScope.section(
     key: String, title: String, summary: String, open: List<String>, toggle: (String) -> Unit,
+    query: String = "",
 ): Boolean {
-    val isOpen = key in open
+    // While searching: only matching sections, already open.
+    val q = query.trim()
+    if (q.isNotEmpty() && !settingsMatch(q, "$title $summary ${SETTINGS_KEYWORDS[key].orEmpty()}")) return false
+    val isOpen = key in open || q.isNotEmpty()
     item("sec-$key") {
         Column(Modifier.fillMaxWidth()) {
             Hairline(heavy = isOpen)
@@ -458,9 +475,9 @@ internal fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChan
 @Composable
 private fun BottomBarEditor(current: List<String>, onChange: (List<String>) -> Unit) {
     val c = Diacritica.colors
-    val chosen = current.mapNotNull { app.diacritica.ui.Tab.byRoute(it) }.filter { it != app.diacritica.ui.Tab.HOME }
+    val chosen = current.mapNotNull { app.diacritica.ui.Tab.byRoute(it) }.filter { it != app.diacritica.ui.Tab.HOME && it != app.diacritica.ui.Tab.SETTINGS }
     Column(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Home is always first. Pick up to ${app.diacritica.settings.MAX_NAV_TABS} more and set their order; the rest stay on Home.", style = captionStyle())
+        Text("Home is always first and Settings always last. Pick up to ${app.diacritica.settings.MAX_NAV_TABS} more and set their order; the rest stay on Home.", style = captionStyle())
         Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.Icon(app.diacritica.ui.Tab.HOME.icon, null, tint = c.inkMuted, modifier = Modifier.size(20.dp))
             Text("   Home", style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
@@ -479,7 +496,7 @@ private fun BottomBarEditor(current: List<String>, onChange: (List<String>) -> U
                 PolyIconButton(PolyIcons.Close, "Remove ${t.label} from the bar", { onChange(routes - t.route) }, tint = c.inkMuted)
             }
         }
-        val others = app.diacritica.ui.Tab.entries.filter { it != app.diacritica.ui.Tab.HOME && it !in chosen }
+        val others = app.diacritica.ui.Tab.entries.filter { it != app.diacritica.ui.Tab.HOME && it != app.diacritica.ui.Tab.SETTINGS && it !in chosen }
         if (others.isNotEmpty()) {
             val full = chosen.size >= app.diacritica.settings.MAX_NAV_TABS
             Text(if (full) "The bar is full: remove one to add another." else "Add to the bar", style = captionStyle(), modifier = Modifier.padding(top = 6.dp))
@@ -572,5 +589,51 @@ private fun Meter(label: String, value: Int) {
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
                 .background(if (i <= value) c.accent else c.surfaceAlt))
         }
+    }
+}
+
+
+/** Words each section answers to in the Settings search, beyond its title and summary. */
+private val SETTINGS_KEYWORDS = mapOf(
+    "appearance" to "theme mode dark light night accent color colour text size font bigger smaller chinese characters hanzi 汉字 language colors paper tiles midnight index wallpaper",
+    "layouts" to "layout dictionary list cards grid table rehearse feedback tabs reader stacked side interlinear numbered word popup sheet tooltip reset",
+    "home" to "home tiles cards hide show reorder order customize customise",
+    "bottombar" to "bottom bar navigation nav tabs sections",
+    "languages" to "languages language order english french german italian spanish mandarin chinese français deutsch italiano español 中文 search from auto detect script simplified traditional",
+    "rehearse" to "rehearse gemini key api model ai grading level difficulty path length languages accents tones",
+    "review" to "review cards new per day lookups speech rate pronunciation voice tts read aloud speed",
+    "data" to "data packs download dictionary sentences backup restore automatic folder update updates version github",
+)
+private val SECTION_TITLES = mapOf(
+    "appearance" to "Appearance", "layouts" to "Layouts", "home" to "Home", "bottombar" to "Bottom bar",
+    "languages" to "Languages", "rehearse" to "Rehearse", "review" to "Review and speech", "data" to "Data",
+)
+
+/** Every word of the query appears in [text] (case and accents ignored, prefixes count). */
+private fun settingsMatch(query: String, text: String): Boolean {
+    val words = app.diacritica.data.TextNorm.normalize(text).split(Regex("\\s+"))
+    return app.diacritica.data.TextNorm.normalize(query).split(Regex("\\s+")).filter { it.isNotEmpty() }
+        .all { q -> words.any { it.startsWith(q) } }
+}
+
+@Composable
+private fun SettingsSearch(query: String, onChange: (String) -> Unit) {
+    val c = Diacritica.colors
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(Diacritica.shapes.field)
+    Row(
+        Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth().clip(shape).background(c.surface).padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.Icon(PolyIcons.Search, null, tint = c.inkMuted, modifier = Modifier.size(16.dp))
+        Box(Modifier.weight(1f).padding(start = 10.dp, top = 11.dp, bottom = 11.dp)) {
+            if (query.isEmpty()) Text("Search settings", style = bodyStyle(c.inkMuted, 15.sp))
+            androidx.compose.foundation.text.BasicTextField(
+                value = query, onValueChange = onChange, singleLine = true,
+                textStyle = bodyStyle(size = 15.sp), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(autoCorrectEnabled = false, imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (query.isNotEmpty()) PolyIconButton(PolyIcons.Close, "Clear search", { onChange("") }, tint = c.inkMuted)
     }
 }

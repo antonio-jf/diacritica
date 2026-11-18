@@ -67,7 +67,9 @@ internal enum class Tab(val route: String, val label: String, val icon: ImageVec
     VOCABULARY("vocabulary", "Vocabulary", PolyIcons.Cards),
     TRANSLATE("translate", "Translate", PolyIcons.Translate),
     PROGRESS("progress", "Progress", PolyIcons.Chart),
-    LIBRARY("library", "Library", PolyIcons.Library);
+    LIBRARY("library", "Library", PolyIcons.Library),
+    /** Always the last item of the bar, at the far right; not one of the sections chosen in Settings. */
+    SETTINGS("settings", "Settings", PolyIcons.Settings);
 
     companion object {
         fun byRoute(r: String?): Tab? = entries.firstOrNull { it.route == r }
@@ -110,7 +112,8 @@ fun AppRoot(
     DiacriticaTheme(s) {
         val nav = rememberNavController()
         // Home, then the sections chosen in Settings › Bottom bar.
-        val barTabs = listOf(Tab.HOME) + s.navTabs.mapNotNull { Tab.byRoute(it) }.filter { it != Tab.HOME }
+        // Settings is always last, at the far right.
+        val barTabs = listOf(Tab.HOME) + s.navTabs.mapNotNull { Tab.byRoute(it) }.filter { it != Tab.HOME && it != Tab.SETTINGS } + Tab.SETTINGS
         // A section in the bar is opened as a tab; otherwise it's pushed on top (with its own Back).
         fun openSection(t: Tab) { if (t in barTabs) nav.goTo(t) else nav.navigate(t.route) }
         val back by nav.currentBackStackEntryAsState()
@@ -131,8 +134,8 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.READER -> nav.goTo(Tab.READER)
                                     app.diacritica.ui.home.HomeSection.REHEARSE -> nav.goTo(Tab.REHEARSE)
                                     app.diacritica.ui.home.HomeSection.REVIEW -> nav.goTo(Tab.REVIEW)
-                                    app.diacritica.ui.home.HomeSection.LIBRARY -> openSection(Tab.LIBRARY)
-                                    app.diacritica.ui.home.HomeSection.SETTINGS -> nav.navigate("settings")
+                                    app.diacritica.ui.home.HomeSection.LIBRARY, app.diacritica.ui.home.HomeSection.SAVED -> openSection(Tab.LIBRARY)
+                                    app.diacritica.ui.home.HomeSection.SETTINGS -> nav.goTo(Tab.SETTINGS)
                                     app.diacritica.ui.home.HomeSection.TRANSLATE -> openSection(Tab.TRANSLATE)
                                     app.diacritica.ui.home.HomeSection.PROGRESS -> openSection(Tab.PROGRESS)
                                     app.diacritica.ui.home.HomeSection.TESTS -> openSection(Tab.TESTS)
@@ -141,6 +144,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.BOOKS -> openSection(Tab.BOOKS)
                                 }
                             },
+                            onChange = settingsVm::setHome,
                         )
                     }
                     composable(Tab.DICTIONARY.route) {
@@ -154,7 +158,7 @@ fun AppRoot(
                     }
                     composable(Tab.REHEARSE.route) {
                         app.diacritica.ui.rehearse.RehearseScreen(
-                            rehearseVm, s, onOpenSettings = { nav.navigate("settings") }, onOpenArchive = { nav.navigate("archive") },
+                            rehearseVm, s, onOpenSettings = { nav.goTo(Tab.SETTINGS) }, onOpenArchive = { nav.navigate("archive") },
                             onOpenRehearseSettings = { nav.navigate("rehearse-settings") },
                         )
                     }
@@ -181,7 +185,7 @@ fun AppRoot(
                         )
                     }
                     composable("rehearse-settings") {
-                        app.diacritica.ui.rehearse.RehearseSettingsScreen(rehearseVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") })
+                        app.diacritica.ui.rehearse.RehearseSettingsScreen(rehearseVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.goTo(Tab.SETTINGS) })
                     }
                     composable("archive") {
                         app.diacritica.ui.rehearse.ArchiveScreen(rehearseVm, onBack = { nav.popBackStack() }, onOpen = { nav.navigate("archive/$it") })
@@ -189,18 +193,18 @@ fun AppRoot(
                     composable("archive/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         app.diacritica.ui.rehearse.ArchiveDetailScreen(rehearseVm, entry.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() })
                     }
-                    composable(Tab.REVIEW.route) { app.diacritica.ui.review.ReviewScreen(reviewVm) }
+                    composable(Tab.REVIEW.route) { app.diacritica.ui.review.ReviewScreen(reviewVm, onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") }) }
                     composable("library") {
-                        LibraryScreen(dictVm, onOpenArchive = { nav.navigate("archive") }, onOpenSettings = { nav.navigate("settings") }) { word, lang ->
+                        LibraryScreen(dictVm, onOpenArchive = { nav.navigate("archive") }) { word, lang ->
                             dictVm.lookUp(word, lang)
                             nav.goTo(Tab.DICTIONARY)
                         }
                     }
-                    composable("settings") { SettingsScreen(settingsVm, s, onBack = { nav.popBackStack() }, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }, onOpenRehearseSettings = { nav.navigate("rehearse-settings") }) }
+                    composable("settings") { SettingsScreen(settingsVm, s, onBack = null, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }, onOpenRehearseSettings = { nav.navigate("rehearse-settings") }) }
                     composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
                     composable("tests") {
                         app.diacritica.ui.tests.TestsScreen(
-                            testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate("settings") },
+                            testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.goTo(Tab.SETTINGS) },
                             onOpenGrammar = { nav.navigate("grammar") },
                         )
                     }
@@ -214,7 +218,12 @@ fun AppRoot(
                             onOpenTests = { nav.navigate("tests") },
                         )
                     }
-                    composable("vocabulary") { app.diacritica.ui.vocab.VocabularyScreen(vocabVm, onBack = { nav.popBackStack() }) }
+                    composable("vocabulary") {
+                        app.diacritica.ui.vocab.VocabularyScreen(
+                            vocabVm, onBack = { nav.popBackStack() },
+                            onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") },
+                        )
+                    }
                     composable("progress") { app.diacritica.ui.progress.ProgressScreen(progressVm, onBack = { nav.popBackStack() }) }
                     composable("translate") {
                         app.diacritica.ui.translate.TranslateScreen(
@@ -242,6 +251,7 @@ fun AppRoot(
                 route?.startsWith("detail") == true -> Tab.DICTIONARY.takeIf { it in bar } ?: Tab.HOME
                 route?.startsWith("archive") == true || route == "rehearse-settings" -> Tab.REHEARSE.takeIf { it in bar } ?: Tab.HOME
                 route?.startsWith("book/") == true -> Tab.BOOKS.takeIf { it in bar } ?: Tab.HOME
+                route == "appearance" || route == "packs" -> Tab.SETTINGS
                 route != null -> Tab.HOME
                 else -> null
             }
@@ -269,9 +279,10 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
     val tokens = Diacritica.tokens
     Column(Modifier.fillMaxWidth().background(if (tokens.surfaceStyle == SurfaceStyle.TONAL) c.surface else c.ground).navigationBarsPadding()) {
         Hairline(heavy = tokens.heavyRules)
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceAround) {
+        // Equal widths, so up to six items (Home, four sections, Settings) fit on a phone.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
-            val navScale = if (fontScale > 1.3f) 1.3f / fontScale else 1f
+            val navScale = (if (fontScale > 1.3f) 1.3f / fontScale else 1f) * (if (items.size >= 6) 0.94f else 1f)
             items.forEach { t ->
                 val selected = t == current
                 val pill = selected && (tokens.surfaceStyle == SurfaceStyle.TONAL || tokens.surfaceStyle == SurfaceStyle.RULED)
@@ -283,6 +294,7 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
                 }
                 Column(
                     Modifier
+                        .weight(1f)
                         .clip(RoundedCornerShape(tokens.shapes.button.coerceAtMost(20.dp)))
                         .background(
                             when {
@@ -294,7 +306,7 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
                         .clickable(role = Role.Tab) { onSelect(t) }
                         .semantics { this.selected = selected }
                         .heightIn(min = 52.dp)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = 2.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -306,7 +318,7 @@ private fun BottomNav(items: List<Tab>, current: Tab?, onSelect: (Tab) -> Unit) 
                             fontFamily = tokens.fonts.label, fontSize = (11f * navScale).sp, color = fg,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         ),
-                        maxLines = 1, softWrap = false,
+                        maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     if (selected && tokens.surfaceStyle == SurfaceStyle.HAIRLINE) {
                         Box(Modifier.padding(top = 3.dp).width(18.dp).height(2.dp).background(c.accent))
