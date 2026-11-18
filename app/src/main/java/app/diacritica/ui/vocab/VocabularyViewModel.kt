@@ -3,6 +3,7 @@ package app.diacritica.ui.vocab
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.diacritica.ui.components.WordLookup
 import app.diacritica.AppContainer
 import app.diacritica.data.Lang
 import app.diacritica.data.ScriptPreference
@@ -76,7 +77,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     private val app = context.applicationContext
     private val custom = CustomVocabStore(java.io.File(context.filesDir, "vocab/custom.json"))
     /** The shared word sheet ("Details" under a word). */
-    val lookup = app.diacritica.ui.components.WordLookup(c, viewModelScope, source = "Vocabulary")
+    val lookup = WordLookup(c, viewModelScope, source = "Vocabulary")
 
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())

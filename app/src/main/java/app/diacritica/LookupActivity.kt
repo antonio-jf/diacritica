@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -51,7 +54,7 @@ class LookupActivity : ComponentActivity() {
             val settings = s ?: return@setContent
             val word by vm.lookup.word.collectAsStateWithLifecycle()
             // The sheet was swiped away or closed: back to the other app.
-            var opened by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            var opened by remember { mutableStateOf(false) }
             LaunchedEffect(word) { if (word != null) opened = true else if (opened) finish() }
             val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors)
             DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, systemBars = false) {
