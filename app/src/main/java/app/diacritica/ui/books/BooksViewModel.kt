@@ -523,7 +523,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
                 c.removeSavedWord(lang.code, v.word)
             } else {
                 val s = c.settings.settings.first()
-                c.userDb.saved().save(SavedWord(lang = lang.code, word = v.word, note = p.passage.replace('\n', ' ')))
+                c.userDb.saved().save(SavedWord(lang = lang.code, word = v.word, note = p.passage.replace('\n', ' '), deck = "Books"))
                 c.review.ensureCards(lang, v.word, s.activeLanguages, s.script)
             }
         }
@@ -569,7 +569,7 @@ class BooksViewModel(private val c: AppContainer) : ViewModel() {
             } else {
                 val s = c.settings.settings.first()
                 val ctx = _word.value?.sentence?.takeIf { it.isNotBlank() }
-                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = ctx ?: w.gloss))
+                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = ctx ?: w.gloss, deck = "Books"))
                 c.review.ensureCards(w.lang, w.word, s.activeLanguages, s.script)
             }
         }

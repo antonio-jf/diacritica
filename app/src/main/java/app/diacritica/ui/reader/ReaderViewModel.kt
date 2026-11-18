@@ -319,7 +319,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
                 val s = c.settings.settings.first()
                 val story = _state.value.story
                 val ctx = _state.value.popup?.let { p -> story?.sentences?.getOrNull(p.sentenceIdx)?.get(p.lang) }
-                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = ctx ?: w.gloss))
+                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = ctx ?: w.gloss, deck = "Reader"))
                 c.review.ensureCards(w.lang, w.word, s.activeLanguages, s.script)
             }
         }
@@ -407,7 +407,7 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
             if (key in savedKeys.value) c.removeSavedWord(e.lang.code, v.word)
             else {
                 val s = c.settings.settings.first()
-                c.userDb.saved().save(SavedWord(lang = e.lang.code, word = v.word, note = e.sentence))
+                c.userDb.saved().save(SavedWord(lang = e.lang.code, word = v.word, note = e.sentence, deck = "Reader"))
                 c.review.ensureCards(e.lang, v.word, s.activeLanguages, s.script)
             }
         }

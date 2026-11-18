@@ -36,7 +36,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- "Look up in Diacritica" from the text-selection menu in other apps. -->
+        </activity>
+        <!-- "Look up in Diacritica" from the text-selection menu in other apps: the word sheet over that app. -->
+        <activity
+            android:name=".LookupActivity"
+            android:exported="true"
+            android:label="@string/process_text_label"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Diacritica.Overlay">
             <intent-filter android:label="@string/process_text_label">
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />

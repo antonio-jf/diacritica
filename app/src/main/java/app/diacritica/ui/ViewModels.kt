@@ -68,6 +68,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setLanguageColors(v: Boolean) = edit { c.settings.setLanguageColors(v) }
     fun setDictionaryLayout(l: DictionaryLayout) = edit { c.settings.setDictionaryLayout(l) }
     fun setNavTabs(routes: List<String>) = edit { c.settings.setNavTabs(routes) }
+    fun setHome(order: List<String>, hidden: Set<String>) = edit { c.settings.setHome(order, hidden) }
     fun resetLayouts() = edit { c.settings.resetLayouts() }
     fun setScript(s: ScriptPreference) = edit { c.settings.setScript(s) }
     fun setSpeechRate(v: Float) = edit { c.settings.setSpeechRate(v) }
@@ -174,6 +175,36 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
     val savedKeys: StateFlow<Set<String>> = c.userDb.saved().keys().map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val missingVoice = c.speaker.missingVoice
+
+    /** Searches made offline that weren't in the offline dictionary ("lang:word"), downloaded once online. */
+    val pendingWords: StateFlow<Set<String>> = c.settings.pendingWords
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    private val _downloadingPending = MutableStateFlow(false)
+    val downloadingPending: StateFlow<Boolean> = _downloadingPending.asStateFlow()
+
+    /** Downloads the queued searches; each leaves the queue once found (or confirmed missing). */
+    fun downloadPending() {
+        if (_downloadingPending.value) return
+        viewModelScope.launch {
+            _downloadingPending.value = true
+            try {
+                val s = c.settings.settings.first()
+                for (key in c.settings.pendingWords.first()) {
+                    val code = key.substringBefore(':')
+                    val word = key.substringAfter(':')
+                    val lang = if (code == "auto") null else Lang.fromCode(code)
+                    val (outcome, _) = runCatching { c.online.fetchWord(word, lang, s.activeLanguages) }.getOrNull() ?: break
+                    when (outcome) {
+                        OnlineLookup.Outcome.FOUND, OnlineLookup.Outcome.NOT_FOUND -> c.settings.removePending(key)
+                        OnlineLookup.Outcome.OFFLINE -> break
+                        else -> {}
+                    }
+                }
+            } finally {
+                _downloadingPending.value = false
+            }
+        }
+    }
 
     private var searchJob: Job? = null
 
@@ -284,7 +315,7 @@ class DictionaryViewModel(private val c: AppContainer) : ViewModel() {
             if (key in savedKeys.value) {
                 c.removeSavedWord(w.lang.code, w.word)
             } else {
-                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = w.gloss ?: w.pinyin))
+                c.userDb.saved().save(SavedWord(lang = w.lang.code, word = w.word, note = w.gloss ?: w.pinyin, deck = "Dictionary"))
                 val s = c.settings.settings.first()
                 c.review.ensureCards(w.lang, w.word, s.activeLanguages, s.script)
             }

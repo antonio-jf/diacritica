@@ -34,6 +34,9 @@ enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKE
 /** Pinyin above Chinese in the Reader: every word, only words with uncommon characters, or none. */
 /** Bottom bar: Home plus up to this many sections. */
 const val MAX_NAV_TABS = 4
+
+/** Every card Home can show, in the default order. "practice" is the Review + Rehearse pair. */
+val HOME_TILES = listOf("reader", "practice", "saved", "books", "vocabulary", "tests", "grammar", "translate", "progress", "library", "dictionary")
 val DEFAULT_NAV_TABS = listOf("dictionary", "reader", "rehearse", "review")
 
 enum class PinyinMode { ALL, RARE, OFF }
@@ -130,6 +133,10 @@ data class AppSettings(
     val readerTapLookup: Boolean = false,
     /** Sections in the bottom bar after Home, in order (routes: dictionary, reader, rehearse, review, tests…). */
     val navTabs: List<String> = DEFAULT_NAV_TABS,
+    /** Home: the cards in order (ids in [HOME_TILES]); any missing from the list are added at the end. */
+    val homeOrder: List<String> = HOME_TILES,
+    /** Home: cards hidden by the user. */
+    val homeHidden: Set<String> = emptySet(),
     /** Reader: shade words you're learning (saved / in Review) and words you know (mature cards). */
     val readerShowMyWords: Boolean = true,
     val storyLevel: String = "B1",
@@ -192,6 +199,8 @@ class SettingsRepository(private val context: Context) {
         val bookSerif = booleanPreferencesKey("book_serif")
         val readerTapLookup = booleanPreferencesKey("reader_tap_lookup")
         val navTabs = stringPreferencesKey("nav_tabs")
+        val homeOrder = stringPreferencesKey("home_order")
+        val homeHidden = stringPreferencesKey("home_hidden")
         val readerShowMyWords = booleanPreferencesKey("reader_show_my_words")
         val storyLevel = stringPreferencesKey("story_level")
         val storyHsk = intPreferencesKey("story_hsk")
@@ -253,6 +262,9 @@ class SettingsRepository(private val context: Context) {
             readerTapLookup = p[K.readerTapLookup] ?: d.readerTapLookup,
             navTabs = p[K.navTabs]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.distinct()?.take(MAX_NAV_TABS) ?: d.navTabs,
             readerShowMyWords = p[K.readerShowMyWords] ?: d.readerShowMyWords,
+            homeOrder = p[K.homeOrder]?.split(',')?.map { it.trim() }?.filter { it in HOME_TILES }?.distinct()
+                ?.let { saved -> saved + HOME_TILES.filter { it !in saved } } ?: d.homeOrder,
+            homeHidden = p[K.homeHidden]?.split(',')?.map { it.trim() }?.filter { it in HOME_TILES }?.toSet() ?: d.homeHidden,
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
             storyHsk = p[K.storyHsk] ?: d.storyHsk,
         )
@@ -300,6 +312,10 @@ class SettingsRepository(private val context: Context) {
         if (top != null) it[K.readerPinyinTop] = top
     }
     suspend fun setReaderPopup(v: PopupLayout) = context.dataStore.edit { it[K.readerPopup] = v.name }
+    suspend fun setHome(order: List<String>, hidden: Set<String>) = context.dataStore.edit {
+        it[K.homeOrder] = order.filter { id -> id in HOME_TILES }.distinct().joinToString(",")
+        it[K.homeHidden] = hidden.filter { id -> id in HOME_TILES }.joinToString(",")
+    }
     suspend fun setNavTabs(v: List<String>) = context.dataStore.edit { it[K.navTabs] = v.distinct().take(MAX_NAV_TABS).joinToString(",") }
     suspend fun setReaderTapLookup(v: Boolean) = context.dataStore.edit { it[K.readerTapLookup] = v }
     suspend fun setReaderShowMyWords(v: Boolean) = context.dataStore.edit { it[K.readerShowMyWords] = v }

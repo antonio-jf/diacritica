@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Settings is always in the bottom bar, at the far right (no more going through Home). The bar fits six items.
+- Look up from any app: select text in Kindle, Chrome or elsewhere and pick "Look up in Diacritica". A word opens in the word sheet on top of that app; longer text opens in Translate.
+- Keyboard language: answer boxes in Rehearse, Tests, Vocabulary tests, Translate (with a source language) and the Dictionary (with a source language) tell the keyboard their language, so it switches layout and autocorrect by itself.
+- One word sheet everywhere: Reader, Books, Vocabulary (Details under a word), Review (Word details on a revealed card) and the overlay share the same layout and buttons.
+- Saved words: a Saved card on Home with the count; Library filters by language and by where the word was saved (Dictionary, Reader, Books, Vocabulary, Review, Other apps).
+- Customize Home: reorder or hide any card (Home › Customize Home, or Settings › Home).
+- Settings search: type to show only the matching sections, already open.
+- Rehearse keeps the sentence and what you typed if Android closes the app in the background.
+- Offline: online Rehearse paths are grayed out with "needs internet"; Gemini feedback offline shows a Retry; searches made offline are now downloaded automatically when you're back online, with a note in the Dictionary.
+- Clearer empty screens (Library, Review, Rehearse archive, Progress).
+- Pinyin above characters in the Reader and Books grows with the Chinese characters size.
+- Compose BOM 2025.04.01 (needed for keyboard language hints).
+
 - Vocabulary: tap a word (or All languages) to see it in every language you've set up; language chips use abbreviations (EN, FR, DE…).
 - Vocabulary › More topics: a catalog of 40 more specific topics (plants, science, engineering, business, music, law…) and any topic you name; Gemini writes the set in all six languages once, and it's kept for offline use.
 - Books: with text selected, tapping anywhere on the page (a word or blank space) clears the selection.

@@ -6,6 +6,14 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+    <!-- "Look up in Diacritica": a see-through window, so the word sheet sits over the other app. -->
+    <style name="Theme.Diacritica.Overlay" parent="Theme.Diacritica">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
     <color name="paper_ground">#FAF8F3</color>
     <color name="paper_ink">#1C1B19</color>
     <color name="paper_accent">#2B4FA8</color>

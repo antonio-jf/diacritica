@@ -95,6 +95,11 @@ fun DictionaryScreen(
     val savedKeys by vm.savedKeys.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     val missingVoice by vm.missingVoice.collectAsStateWithLifecycle()
+    val pending by vm.pendingWords.collectAsStateWithLifecycle()
+    val downloading by vm.downloadingPending.collectAsStateWithLifecycle()
+    val online by app.diacritica.ui.components.rememberIsOnline()
+    // Back online: download the searches that were queued while offline.
+    androidx.compose.runtime.LaunchedEffect(online, pending.isNotEmpty()) { if (online && pending.isNotEmpty()) vm.downloadPending() }
     val focus = LocalFocusManager.current
     var pad by rememberSaveable { mutableStateOf(false) }
 
@@ -145,6 +150,19 @@ fun DictionaryScreen(
         }
         if (missingVoice != null) item("voice") {
             VoiceMissingBanner(missingVoice!!, onInstall = { vm.openVoiceSettings(); vm.clearMissingVoice() }, onDismiss = vm::clearMissingVoice)
+        }
+        if (pending.isNotEmpty() && state.query.isBlank()) item("pending") {
+            val n = pending.size
+            val words = if (n == 1) "1 search" else "$n searches"
+            app.diacritica.ui.components.OfflineNotice(
+                when {
+                    !online -> "Offline: $words will be downloaded when you're back online."
+                    downloading -> "Downloading $words you made offline…"
+                    else -> "$words made offline still to download."
+                },
+                Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp),
+                onRetry = if (online && !downloading) vm::downloadPending else null,
+            )
         }
         val r = state.result
         state.online?.let { st -> if (state.query.isNotBlank()) item("online") { OnlineBanner(st) } }
@@ -219,7 +237,7 @@ private fun SearchField(
                     textStyle = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 22.sp, color = c.ink, fontWeight = FontWeight(Diacritica.type.headwordWeight)),
                     visualTransformation = hanTransformation(),
                     cursorBrush = SolidColor(c.accent),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
+                    keyboardOptions = app.diacritica.ui.components.keyboardFor(source, KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false)),
                     keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
                         // Tapping in to type a new word goes back to auto-detect; pick a language again from the chip if needed.

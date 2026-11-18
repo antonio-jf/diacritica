@@ -341,6 +341,7 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, o
                 textStyle = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 17.sp, color = c.ink, lineHeight = 24.sp).roomyForHan(),
                 visualTransformation = hanTransformation(),
                 cursorBrush = SolidColor(c.accent),
+                keyboardOptions = app.diacritica.ui.components.keyboardFor(lang, androidx.compose.foundation.text.KeyboardOptions(autoCorrectEnabled = false)),
                 modifier = Modifier.fillMaxWidth().padding(end = if (onHandwriting != null) 40.dp else 0.dp).heightIn(min = 28.dp)
                     .semantics { contentDescription = "Answer in ${lang.englishName}" },
             )
