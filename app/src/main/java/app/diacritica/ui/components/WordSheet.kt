@@ -102,6 +102,7 @@ fun WordSheetBody(
             Text("“$token” is a form of ${hw.word}", style = captionStyle(c.ink), modifier = Modifier.padding(top = 4.dp))
         }
         VerbPatternNotes(hw, max = 4)
+        if (lang == Lang.ZH) HanziBreakdown(hw.word, hw.pinyin, Modifier.padding(top = 8.dp), traditional = traditional, onOpen = onLemma)
         hw.gloss?.let { Text(it, style = bodyStyle(), modifier = Modifier.padding(top = 8.dp)) }
         if (!loading) notes()
 

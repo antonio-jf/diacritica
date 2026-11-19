@@ -103,6 +103,10 @@ fun DetailScreen(
                         tint = if (saved) Diacritica.colors.savedStar else Diacritica.colors.inkMuted)
                     CopyShareButtons { shareTextFor(info.copy(gloss = info.gloss ?: first?.senses?.firstOrNull()?.gloss ?: zh?.definitions?.take(3)?.joinToString("; "))) }
                 }
+                if (lang == Lang.ZH) app.diacritica.ui.components.HanziBreakdown(
+                    info.word, info.pinyin, Modifier.padding(top = 4.dp, bottom = 4.dp),
+                    onOpen = { ch -> onPivot(Lang.ZH, ch) },
+                )
                 PolyButton("Look up from ${lang.englishName}", { onPivot(lang, info.word) }, primary = false)
             }
         }

@@ -461,6 +461,46 @@ class DictionaryRepository(
         out.joinToString(" ")
     }
 
+    /** One character of a Chinese word: its reading in that word and a short meaning of its own. */
+    data class HanziInfo(val char: String, val traditional: String?, val pinyin: String, val meaning: String)
+
+    /**
+     * Each character of a multi-character Chinese [word] with a short meaning from its own CC-CEDICT entry.
+     * The reading that matches the word's pinyin ([wordPinyin], one syllable per character) is used, so
+     * 长 in 长城 is "cháng · long", not "zhǎng · to grow". Empty for single characters and non-Chinese text.
+     */
+    suspend fun hanziBreakdown(word: String, wordPinyin: String?): List<HanziInfo> = withContext(Dispatchers.IO) {
+        val chars = word.codePoints().toArray().map { String(Character.toChars(it)) }
+        if (chars.size < 2 || chars.size > 8 || !chars.all { TextNorm.containsHan(it) }) return@withContext emptyList()
+        val db = database.get()
+        val syllables = wordPinyin?.trim()?.split(Regex("\\s+"))?.takeIf { it.size == chars.size }
+        chars.mapIndexed { i, ch ->
+            val rows = zhRows(db, ch)
+            val want = syllables?.getOrNull(i)
+            val row = want?.let { w -> rows.firstOrNull { it.pinyin.equals(w, ignoreCase = true) } }
+                ?: want?.let { w -> rows.firstOrNull { TextNorm.normalize(it.pinyin) == TextNorm.normalize(w) } }
+                ?: rows.firstOrNull { r -> r.definitions.any { useful(it) } }
+                ?: rows.firstOrNull()
+            HanziInfo(
+                char = ch,
+                traditional = row?.traditional?.takeIf { it != ch && it != row.simplified },
+                pinyin = row?.pinyin ?: want ?: "",
+                meaning = row?.definitions?.filter { useful(it) }?.take(2)?.joinToString("; ") { shortDef(it) }.orEmpty(),
+            )
+        }
+    }
+
+    /** Skips CEDICT lines that say nothing about the meaning ("surname Li", "variant of 着", "CL:個|个"). */
+    private fun useful(d: String): Boolean {
+        val l = d.lowercase()
+        return !(l.startsWith("surname ") || l.startsWith("variant of") || l.startsWith("old variant") ||
+            l.startsWith("japanese variant") || l.startsWith("cl:") || l.startsWith("used in ") || l.startsWith("see ") ||
+            l.startsWith("abbr. for") || l.startsWith("(old)") || l.startsWith("(archaic)") || l.startsWith("radical in chinese"))
+    }
+
+    /** "to rise (from a lying or sitting position)" → "to rise". */
+    private fun shortDef(d: String): String = d.replace(Regex("\\s*\\([^)]*\\)"), "").replace(Regex("\\[[^\\]]*\\]"), "").trim().ifEmpty { d }
+
     /** A word of Chinese text with its pinyin and traditional form (for the Reader). */
     data class ZhToken(val text: String, val pinyin: String?, val traditional: String?)
 
