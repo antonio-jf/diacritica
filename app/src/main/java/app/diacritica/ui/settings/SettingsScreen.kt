@@ -187,6 +187,12 @@ fun SettingsScreen(
         if (section("rehearse", "Rehearse", rehearseSummary, open, toggle, query)) {
             item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
             item { LinkRow("Rehearse settings", "Level, path, length, languages and how answers are checked", onOpenRehearseSettings) }
+            item {
+                SwitchRow(
+                    "Tap words for meanings", "In Rehearse, Tests and Review sentences. Off: practise without help",
+                    s.tapLookupPractice, vm::setTapLookupPractice,
+                )
+            }
         }
 
         // ------------------------------------------------ Review and pronunciation
@@ -576,7 +582,7 @@ private val SETTINGS_KEYWORDS = mapOf(
     "home" to "home tiles cards hide show reorder order customize customise",
     "bottombar" to "bottom bar navigation nav tabs sections",
     "languages" to "languages language order english french german italian spanish mandarin chinese français deutsch italiano español 中文 search from auto detect script simplified traditional",
-    "rehearse" to "rehearse gemini key api model ai grading level difficulty path length languages accents tones",
+    "rehearse" to "rehearse tap words meanings look up lookup help gemini key api model ai grading level difficulty path length languages accents tones",
     "review" to "review cards new per day lookups speech rate pronunciation voice tts read aloud speed",
     "data" to "data packs download dictionary sentences backup restore automatic folder update updates version github",
 )

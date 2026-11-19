@@ -286,7 +286,7 @@ private fun TakeTest(vm: TestsViewModel, a: TestAttempt, t: TestSet, position: I
                 }
             }
             Text("Sentence ${i + 1} of ${t.items.size}", style = captionStyle())
-            Text(item.prompt(a.source), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 22.sp, lineHeight = 30.sp, color = c.ink))
+            app.diacritica.ui.components.TappableText(item.prompt(a.source), a.source, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 22.sp, lineHeight = 30.sp, color = c.ink))
             item.hint?.let { h ->
                 if (hint) Text("Hint: $h", style = captionStyle(c.accent))
                 else Text("Show a hint", style = captionStyle(c.accent), modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { hint = true }.padding(vertical = 4.dp))

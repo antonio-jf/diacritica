@@ -366,7 +366,7 @@ private fun PromptCard(st: RehearseUiState, onSpeak: () -> Unit) {
         st.note?.let {
             Text(it, style = captionStyle(Diacritica.colors.accent), modifier = Modifier.padding(bottom = 6.dp))
         }
-        Text(st.prompt, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 21.sp, color = Diacritica.colors.ink, lineHeight = 29.sp))
+        app.diacritica.ui.components.TappableText(st.prompt, st.promptLang, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 21.sp, color = Diacritica.colors.ink, lineHeight = 29.sp))
         st.practiceWord?.let { (l, w) ->
             Gap(8.dp)
             Text("Practising: $w (${l.englishName})", style = captionStyle(Diacritica.colors.accent))
@@ -648,7 +648,7 @@ internal fun FeedbackPanel(
             SectionLabel("More natural")
             f.alternatives.forEach { a ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(InlineMarkdown.render(a), style = bodyStyle(), modifier = Modifier.weight(1f))
+                    app.diacritica.ui.components.TappableText(InlineMarkdown.render(a), f.lang, style = bodyStyle(), modifier = Modifier.weight(1f))
                     PolyIconButton(PolyIcons.Speaker, "Play", { onSpeak(f.lang, plain(a)) })
                 }
             }
@@ -656,7 +656,7 @@ internal fun FeedbackPanel(
         f.reference?.let { r ->
             SectionLabel(if (f.referenceGenerated) "Reference (written by Gemini)" else "Reference ($sourceLabel)")
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(r, style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f))
+                app.diacritica.ui.components.TappableText(r, f.lang, style = bodyStyle(c.inkMuted), modifier = Modifier.weight(1f))
                 PolyIconButton(PolyIcons.Speaker, "Play reference", { onSpeak(f.lang, r) })
             }
         }
