@@ -5,6 +5,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.diacritica.data.Lang
 import app.diacritica.settings.ThemeId
+import app.diacritica.settings.CornerChoice
+import app.diacritica.settings.DensityChoice
+import app.diacritica.settings.FontChoice
+import app.diacritica.settings.PaletteId
+import app.diacritica.settings.SurfaceChoice
 
 /** Static definition of one theme: both color modes, accent alternatives, fonts, shapes. */
 data class ThemeSpec(
@@ -97,6 +102,81 @@ object Themes {
         surfaceStyle = SurfaceStyle.RULED,
         heavyRules = true,
     )
+
+    /** A background and color family: both modes and two alternative accents. */
+    data class Palette(val light: PolyColors, val dark: PolyColors, val altAccents: List<Pair<Color, Color>>)
+
+    private val stone = Palette(
+        light = colors(false, 0xF4F2EF, 0xFFFFFF, 0xEAE6E1, 0x1F1C1A, 0x625C56, 0xDDD7D0,
+            0xA0522D, 0xFFFFFF, 0xF5E4DA, 0x6E3415, 0x2E7D4F, 0xB3261E, 0x8A5A00),
+        dark = colors(true, 0x1A1817, 0x23201E, 0x2C2926, 0xEEE9E4, 0xADA59D, 0x3A3632,
+            0xE79A72, 0x2A1408, 0x3D2A1F, 0xF6CDB6, 0x6FCF97, 0xF2B8B5, 0xE2B65C),
+        altAccents = listOf(c(0x5B6B2F) to c(0xB6C77E), c(0x3D5A80) to c(0x9BB6DA)),
+    )
+    private val rose = Palette(
+        light = colors(false, 0xFBF6F5, 0xFFFFFF, 0xF3EAE8, 0x1E1A1B, 0x655B5D, 0xE8DCDA,
+            0x8E3B5E, 0xFFFFFF, 0xF5E1EA, 0x5E2340, 0x2E7D4F, 0xB3261E, 0x8A5A00),
+        dark = colors(true, 0x1C1719, 0x251F21, 0x2E272A, 0xEFE6E8, 0xB0A3A7, 0x3D3437,
+            0xE8A0BF, 0x2B0F1C, 0x43283A, 0xF7CFE0, 0x6FCF97, 0xF2B8B5, 0xE2B65C),
+        altAccents = listOf(c(0x1F6F78) to c(0x7FD0D8), c(0x4B4FA8) to c(0xA9ACF2)),
+    )
+
+    fun palette(id: PaletteId): Palette = when (id) {
+        PaletteId.CREAM -> Palette(paper.light, paper.dark, paper.altAccents)
+        PaletteId.SAGE -> Palette(tiles.light, tiles.dark, tiles.altAccents)
+        PaletteId.SLATE -> Palette(midnight.light, midnight.dark, midnight.altAccents)
+        PaletteId.WHITE -> Palette(index.light, index.dark, index.altAccents)
+        PaletteId.STONE -> stone
+        PaletteId.ROSE -> rose
+    }
+
+    /** What each preset uses, so the builder can show "the preset's own" as selected. */
+    fun paletteOf(id: ThemeId): PaletteId = when (id) {
+        ThemeId.PAPER -> PaletteId.CREAM
+        ThemeId.TILES -> PaletteId.SAGE
+        ThemeId.MIDNIGHT -> PaletteId.SLATE
+        ThemeId.INDEX -> PaletteId.WHITE
+    }
+    fun displayFontOf(id: ThemeId): FontChoice = when (id) {
+        ThemeId.PAPER -> FontChoice.SERIF
+        ThemeId.TILES -> FontChoice.JAKARTA
+        ThemeId.MIDNIGHT -> FontChoice.PLEX
+        ThemeId.INDEX -> FontChoice.GROTESK
+    }
+    fun bodyFontOf(id: ThemeId): FontChoice = when (id) {
+        ThemeId.PAPER, ThemeId.INDEX -> FontChoice.INTER
+        ThemeId.TILES -> FontChoice.JAKARTA
+        ThemeId.MIDNIGHT -> FontChoice.PLEX
+    }
+    fun cornersOf(id: ThemeId): CornerChoice = when (id) {
+        ThemeId.INDEX -> CornerChoice.SHARP
+        ThemeId.TILES -> CornerChoice.ROUND
+        else -> CornerChoice.SOFT
+    }
+    fun surfaceOf(id: ThemeId): SurfaceChoice = when (id) {
+        ThemeId.PAPER -> SurfaceChoice.LINES
+        ThemeId.TILES -> SurfaceChoice.CARDS
+        ThemeId.MIDNIGHT -> SurfaceChoice.OUTLINED
+        ThemeId.INDEX -> SurfaceChoice.BOLD
+    }
+    fun densityOf(id: ThemeId): DensityChoice = if (id == ThemeId.PAPER) DensityChoice.COMFORTABLE else DensityChoice.COMPACT
+
+    fun shapes(c: CornerChoice): PolyShapes = when (c) {
+        CornerChoice.SHARP -> PolyShapes(card = 0.dp, chip = 0.dp, button = 0.dp, field = 0.dp)
+        CornerChoice.SOFT -> paper.shapes
+        CornerChoice.ROUND -> tiles.shapes
+    }
+    fun surfaceStyle(s: SurfaceChoice): SurfaceStyle = when (s) {
+        SurfaceChoice.LINES -> SurfaceStyle.HAIRLINE
+        SurfaceChoice.CARDS -> SurfaceStyle.TONAL
+        SurfaceChoice.OUTLINED -> SurfaceStyle.BORDERED
+        SurfaceChoice.BOLD -> SurfaceStyle.RULED
+    }
+    fun spacing(d: DensityChoice): PolySpacing = when (d) {
+        DensityChoice.COMPACT -> PolySpacing(screen = 16.dp, row = 12.dp, gap = 8.dp)
+        DensityChoice.COMFORTABLE -> PolySpacing(screen = 20.dp, row = 14.dp, gap = 10.dp)
+        DensityChoice.ROOMY -> PolySpacing(screen = 24.dp, row = 18.dp, gap = 12.dp)
+    }
 
     fun spec(id: ThemeId): ThemeSpec = when (id) {
         ThemeId.PAPER -> paper

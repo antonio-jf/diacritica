@@ -56,7 +56,7 @@ class LookupActivity : ComponentActivity() {
             // The sheet was swiped away or closed: back to the other app.
             var opened by remember { mutableStateOf(false) }
             LaunchedEffect(word) { if (word != null) opened = true else if (opened) finish() }
-            val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors)
+            val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors, custom = settings.themeCustom)
             DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, systemBars = false) {
                 Box(Modifier.fillMaxSize()) {
                     WordLookupSheet(

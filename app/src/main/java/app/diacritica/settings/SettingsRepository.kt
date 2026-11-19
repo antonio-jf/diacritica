@@ -72,6 +72,10 @@ data class AppSettings(
     val theme: ThemeId = ThemeId.PAPER,
     val mode: ThemeMode = ThemeMode.SYSTEM,
     val accent: AccentChoice = AccentChoice.THEME,
+    /** Parts of the theme changed from the preset ([theme]): fonts, background, corners, surfaces, spacing. */
+    val themeCustom: ThemeCustom = ThemeCustom(),
+    /** Themes the user saved ("My themes"). */
+    val savedThemes: List<SavedTheme> = emptyList(),
     val textScale: Float = 1f,
     /** Extra size for Chinese characters, on top of [textScale]. */
     val hanScale: Float = 1.15f,
@@ -154,6 +158,8 @@ class SettingsRepository(private val context: Context) {
     private object K {
         val onboarded = booleanPreferencesKey("onboarded")
         val theme = stringPreferencesKey("theme")
+        val themeCustom = stringPreferencesKey("theme_custom")
+        val savedThemes = stringPreferencesKey("saved_themes")
         val mode = stringPreferencesKey("mode")
         val accent = stringPreferencesKey("accent")
         val textScale = floatPreferencesKey("text_scale")
@@ -215,6 +221,8 @@ class SettingsRepository(private val context: Context) {
             theme = enumOr(p[K.theme], d.theme),
             mode = enumOr(p[K.mode], d.mode),
             accent = enumOr(p[K.accent], d.accent),
+            themeCustom = ThemeCustom.decode(p[K.themeCustom]),
+            savedThemes = SavedTheme.decodeAll(p[K.savedThemes]),
             textScale = p[K.textScale] ?: d.textScale,
             hanScale = p[K.hanScale] ?: d.hanScale,
             languageColors = p[K.languageColors] ?: d.languageColors,
@@ -277,6 +285,12 @@ class SettingsRepository(private val context: Context) {
         it[K.theme] = theme.name; it[K.onboarded] = true
     }
     suspend fun setTheme(v: ThemeId) = context.dataStore.edit { it[K.theme] = v.name }
+    /** A preset as it comes, or a saved theme: base, accent and changes together. */
+    suspend fun applyTheme(base: ThemeId, accent: AccentChoice, custom: ThemeCustom) = context.dataStore.edit {
+        it[K.theme] = base.name; it[K.accent] = accent.name; it[K.themeCustom] = custom.encode()
+    }
+    suspend fun setThemeCustom(v: ThemeCustom) = context.dataStore.edit { it[K.themeCustom] = v.encode() }
+    suspend fun setSavedThemes(v: List<SavedTheme>) = context.dataStore.edit { it[K.savedThemes] = SavedTheme.encodeAll(v) }
     suspend fun setMode(v: ThemeMode) = context.dataStore.edit { it[K.mode] = v.name }
     suspend fun setAccent(v: AccentChoice) = context.dataStore.edit { it[K.accent] = v.name }
     suspend fun setTextScale(v: Float) = context.dataStore.edit { it[K.textScale] = v }

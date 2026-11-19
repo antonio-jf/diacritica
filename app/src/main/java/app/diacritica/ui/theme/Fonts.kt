@@ -42,4 +42,13 @@ object Fonts {
         Font(R.font.space_grotesk_700, FontWeight.SemiBold),
         Font(R.font.space_grotesk_700, FontWeight.Bold),
     )
+
+    fun family(f: app.diacritica.settings.FontChoice): FontFamily = when (f) {
+        app.diacritica.settings.FontChoice.SERIF -> sourceSerif
+        app.diacritica.settings.FontChoice.INTER -> inter
+        app.diacritica.settings.FontChoice.JAKARTA -> jakarta
+        app.diacritica.settings.FontChoice.PLEX -> plexSans
+        app.diacritica.settings.FontChoice.GROTESK -> spaceGrotesk
+        app.diacritica.settings.FontChoice.SYSTEM -> FontFamily.Default
+    }
 }

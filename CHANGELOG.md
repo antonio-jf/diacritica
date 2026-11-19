@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Appearance: themes are now a gallery of starting points you can change part by part — headings font, text font, Chinese characters (sans or serif), background (Cream, Sage, Slate, White, Stone, Rose), accent, corners, surfaces and spacing. Save the result as your own theme; saved themes appear in the gallery.
+
 - Settings is always in the bottom bar, at the far right (no more going through Home). The bar fits six items.
 - Look up from any app: select text in Kindle, Chrome or elsewhere and pick "Look up in Diacritica". A word opens in the word sheet on top of that app; longer text opens in Translate.
 - Keyboard language: answer boxes in Rehearse, Tests, Vocabulary tests, Translate (with a source language) and the Dictionary (with a source language) tell the keyboard their language, so it switches layout and autocorrect by itself.
