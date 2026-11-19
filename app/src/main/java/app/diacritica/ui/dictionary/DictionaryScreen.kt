@@ -46,6 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -77,6 +80,7 @@ import app.diacritica.ui.components.ScreenHeader
 import app.diacritica.ui.components.SectionLabel
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.components.captionStyle
+import app.diacritica.ui.components.headwordStyle
 import app.diacritica.ui.components.FalseFriendNote
 import app.diacritica.ui.components.FormNotes
 import app.diacritica.ui.components.HandwritingPad
@@ -102,6 +106,10 @@ fun DictionaryScreen(
     androidx.compose.runtime.LaunchedEffect(online, pending.isNotEmpty()) { if (online && pending.isNotEmpty()) vm.downloadPending() }
     val focus = LocalFocusManager.current
     var pad by rememberSaveable { mutableStateOf(false) }
+    // The search box rests lower on the screen while there's nothing to show, and rises to the top
+    // as soon as you tap it (or there's a word, or the handwriting pad is open).
+    var focused by remember { mutableStateOf(false) }
+    val raised = focused || state.query.isNotBlank() || pad
 
     val actions = WordActions(
         onSpeak = { w, slow -> vm.speak(w, slow) },
@@ -127,8 +135,10 @@ fun DictionaryScreen(
                 }
             }
         }
+        item("hero") { SearchHero(raised, settings.activeLanguages) }
         item("search") {
             SearchField(
+                onFocus = { focused = it },
                 query = state.query,
                 source = settings.sourceLang,
                 active = settings.activeLanguages,
@@ -200,6 +210,7 @@ private fun SearchField(
     onClear: () -> Unit,
     onSourceChange: (Lang?) -> Unit,
     onHandwriting: (() -> Unit)? = null,
+    onFocus: (Boolean) -> Unit = {},
 ) {
     val c = Diacritica.colors
     val shapes = Diacritica.shapes
@@ -241,7 +252,7 @@ private fun SearchField(
                     keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
                         // Tapping in to type a new word goes back to auto-detect; pick a language again from the chip if needed.
-                        .onFocusChanged { if (it.isFocused && source != null) onSourceChange(null) }
+                        .onFocusChanged { onFocus(it.isFocused); if (it.isFocused && source != null) onSourceChange(null) }
                         .semantics { contentDescription = "Search word" },
                 )
             }
@@ -256,6 +267,37 @@ private fun SearchField(
             }, tint = c.inkMuted)
         }
         if (style == SurfaceStyle.HAIRLINE) Hairline(Modifier.padding(top = 0.dp), heavy = false)
+    }
+}
+
+/**
+ * The space above the search box: about a fifth of the screen with a short prompt while the Dictionary is
+ * idle, shrinking to nothing (so the box glides to the top) once you start searching.
+ */
+@Composable
+private fun SearchHero(raised: Boolean, active: List<Lang>) {
+    val screen = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+    val height by androidx.compose.animation.core.animateDpAsState(
+        if (raised) 0.dp else screen * 0.2f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.85f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
+        label = "searchHero",
+    )
+    val alpha by androidx.compose.animation.core.animateFloatAsState(if (raised) 0f else 1f, label = "searchHeroAlpha")
+    Box(
+        Modifier.fillMaxWidth().height(height).clipToBounds().graphicsLayer { this.alpha = alpha },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier.padding(horizontal = Diacritica.spacing.screen).padding(bottom = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Look up a word", style = headwordStyle(28.sp).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+            Text(
+                "in any of your languages · " + active.joinToString(" ") { it.short },
+                style = captionStyle().copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+            )
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Dictionary: while idle, the search box sits lower on the screen under a short prompt and glides to the top when you tap it.
 - Appearance: themes are now a gallery of starting points you can change part by part — headings font, text font, Chinese characters (sans or serif), background (Cream, Sage, Slate, White, Stone, Rose), accent, corners, surfaces and spacing. Save the result as your own theme; saved themes appear in the gallery.
 
 - Settings is always in the bottom bar, at the far right (no more going through Home). The bar fits six items.
