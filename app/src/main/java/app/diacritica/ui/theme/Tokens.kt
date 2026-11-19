@@ -66,6 +66,8 @@ data class PolyFonts(
     val label: FontFamily,
     /** Reading text (examples, later the Reader). */
     val reading: FontFamily,
+    /** Chinese characters, when the user picked a font for them (null: the system's default). */
+    val han: FontFamily? = null,
 )
 
 @Immutable

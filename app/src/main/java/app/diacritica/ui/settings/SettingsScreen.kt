@@ -105,9 +105,11 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------ Appearance
-        if (section("appearance", "Appearance", "${s.theme.title} · ${s.mode.label} · text ${(s.textScale * 100).toInt()}%", open, toggle, query)) {
+        val themeName = s.savedThemes.firstOrNull { it.base == s.theme && it.custom == s.themeCustom && it.accent == s.accent }?.name
+            ?: (s.theme.title + if (s.themeCustom.isEmpty) "" else ", changed")
+        if (section("appearance", "Appearance", "$themeName · ${s.mode.label} · text ${(s.textScale * 100).toInt()}%", open, toggle, query)) {
             item {
-                LinkRow("Theme, mode and accent", "${s.theme.title} · ${s.mode.label} · ${s.accent.label}", onOpenAppearance)
+                LinkRow("Theme, fonts, colors and shapes", "$themeName · ${s.mode.label}", onOpenAppearance)
             }
             item {
                 Setting("Text size", "${(s.textScale * 100).toInt()}%") {
@@ -185,6 +187,12 @@ fun SettingsScreen(
         if (section("rehearse", "Rehearse", rehearseSummary, open, toggle, query)) {
             item { GeminiKeySetting(s.geminiKey, s.geminiModel, vm) }
             item { LinkRow("Rehearse settings", "Level, path, length, languages and how answers are checked", onOpenRehearseSettings) }
+            item {
+                SwitchRow(
+                    "Tap words for meanings", "In Rehearse, Tests and Review sentences. Off: practise without help",
+                    s.tapLookupPractice, vm::setTapLookupPractice,
+                )
+            }
         }
 
         // ------------------------------------------------ Review and pronunciation
@@ -287,17 +295,11 @@ fun AppearanceScreen(vm: SettingsViewModel, s: AppSettings, onBack: () -> Unit) 
                 ScreenHeader("Appearance", Modifier.weight(1f))
             }
             Text(
-                "Colors, fonts and shapes apply to the whole app, whatever the layout. Tap a theme to use it.",
+                "Pick a theme to start from, then change any part of it below. Everything applies to the whole app, whatever the layout.",
                 style = captionStyle(), modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp),
             )
         }
-        item {
-            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ThemeId.entries.forEach { t ->
-                    ThemePreviewCard(t, s.mode, s.accent, s.languageColors, selected = t == s.theme, onClick = { vm.setTheme(t) })
-                }
-            }
-        }
+        item { ThemeGallery(s, vm) }
         item {
             Setting("Mode") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -305,27 +307,7 @@ fun AppearanceScreen(vm: SettingsViewModel, s: AppSettings, onBack: () -> Unit) 
                 }
             }
         }
-        item {
-            val spec = Themes.spec(s.theme)
-            val dark = Diacritica.colors.isDark
-            Setting("Accent") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AccentChoice.entries.forEach { a ->
-                        if (a == AccentChoice.DYNAMIC && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return@forEach
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            val swatch = when (a) {
-                                AccentChoice.THEME -> if (dark) spec.dark.accent else spec.light.accent
-                                AccentChoice.ALT1 -> spec.altAccents[0].let { if (dark) it.second else it.first }
-                                AccentChoice.ALT2 -> spec.altAccents[1].let { if (dark) it.second else it.first }
-                                AccentChoice.DYNAMIC -> null
-                            }
-                            swatch?.let { Box(Modifier.size(14.dp).clip(CircleShape).background(it)) }
-                            PolyChip(a.label, s.accent == a, { vm.setAccent(a) })
-                        }
-                    }
-                }
-            }
-        }
+        item { Column { ThemeBuilder(s, vm) } }
         item { Gap(32.dp) }
     }
 }
@@ -595,12 +577,12 @@ private fun Meter(label: String, value: Int) {
 
 /** Words each section answers to in the Settings search, beyond its title and summary. */
 private val SETTINGS_KEYWORDS = mapOf(
-    "appearance" to "theme mode dark light night accent color colour text size font bigger smaller chinese characters hanzi 汉字 language colors paper tiles midnight index wallpaper",
+    "appearance" to "theme mode dark light night accent color colour text size font bigger smaller chinese characters hanzi 汉字 language colors paper tiles midnight index wallpaper fonts serif corners rounded surfaces cards background spacing saved themes my theme",
     "layouts" to "layout dictionary list cards grid table rehearse feedback tabs reader stacked side interlinear numbered word popup sheet tooltip reset",
     "home" to "home tiles cards hide show reorder order customize customise",
     "bottombar" to "bottom bar navigation nav tabs sections",
     "languages" to "languages language order english french german italian spanish mandarin chinese français deutsch italiano español 中文 search from auto detect script simplified traditional",
-    "rehearse" to "rehearse gemini key api model ai grading level difficulty path length languages accents tones",
+    "rehearse" to "rehearse tap words meanings look up lookup help gemini key api model ai grading level difficulty path length languages accents tones",
     "review" to "review cards new per day lookups speech rate pronunciation voice tts read aloud speed",
     "data" to "data packs download dictionary sentences backup restore automatic folder update updates version github",
 )

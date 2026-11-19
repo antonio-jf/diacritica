@@ -72,6 +72,10 @@ data class AppSettings(
     val theme: ThemeId = ThemeId.PAPER,
     val mode: ThemeMode = ThemeMode.SYSTEM,
     val accent: AccentChoice = AccentChoice.THEME,
+    /** Parts of the theme changed from the preset ([theme]): fonts, background, corners, surfaces, spacing. */
+    val themeCustom: ThemeCustom = ThemeCustom(),
+    /** Themes the user saved ("My themes"). */
+    val savedThemes: List<SavedTheme> = emptyList(),
     val textScale: Float = 1f,
     /** Extra size for Chinese characters, on top of [textScale]. */
     val hanScale: Float = 1.15f,
@@ -97,6 +101,8 @@ data class AppSettings(
     val pinyinHint: Boolean = false,
     /** Also make review cards from words looked up in the Dictionary (not only starred ones). */
     val reviewFromHistory: Boolean = true,
+    /** Practice sentences (Rehearse, Tests, Review) can be tapped for word meanings. Off: practise without help. */
+    val tapLookupPractice: Boolean = false,
     /** Rehearse sentence source: everyday (any sentence) or my words (sentences using words you looked up). */
     val rehearseMyWords: Boolean = false,
     /** Rehearse path; defaults to My words if that was switched on before paths existed. */
@@ -154,6 +160,8 @@ class SettingsRepository(private val context: Context) {
     private object K {
         val onboarded = booleanPreferencesKey("onboarded")
         val theme = stringPreferencesKey("theme")
+        val themeCustom = stringPreferencesKey("theme_custom")
+        val savedThemes = stringPreferencesKey("saved_themes")
         val mode = stringPreferencesKey("mode")
         val accent = stringPreferencesKey("accent")
         val textScale = floatPreferencesKey("text_scale")
@@ -176,6 +184,7 @@ class SettingsRepository(private val context: Context) {
         val levels = stringSetPreferencesKey("rehearse_levels")
         val pinyinHint = booleanPreferencesKey("pinyin_hint")
         val reviewFromHistory = booleanPreferencesKey("review_from_history")
+        val tapLookupPractice = booleanPreferencesKey("tap_lookup_practice")
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
         val rehearsePath = stringPreferencesKey("rehearse_path")
         val grammarFocus = stringPreferencesKey("grammar_focus")
@@ -215,6 +224,8 @@ class SettingsRepository(private val context: Context) {
             theme = enumOr(p[K.theme], d.theme),
             mode = enumOr(p[K.mode], d.mode),
             accent = enumOr(p[K.accent], d.accent),
+            themeCustom = ThemeCustom.decode(p[K.themeCustom]),
+            savedThemes = SavedTheme.decodeAll(p[K.savedThemes]),
             textScale = p[K.textScale] ?: d.textScale,
             hanScale = p[K.hanScale] ?: d.hanScale,
             languageColors = p[K.languageColors] ?: d.languageColors,
@@ -235,6 +246,7 @@ class SettingsRepository(private val context: Context) {
             levels = p[K.levels]?.ifEmpty { null } ?: d.levels,
             pinyinHint = p[K.pinyinHint] ?: d.pinyinHint,
             reviewFromHistory = p[K.reviewFromHistory] ?: d.reviewFromHistory,
+            tapLookupPractice = p[K.tapLookupPractice] ?: d.tapLookupPractice,
             rehearseMyWords = p[K.rehearseMyWords] ?: d.rehearseMyWords,
             rehearsePath = p[K.rehearsePath]?.let { enumOr(it, d.rehearsePath) }
                 ?: if (p[K.rehearseMyWords] == true) RehearsePath.MY_WORDS else d.rehearsePath,
@@ -277,6 +289,12 @@ class SettingsRepository(private val context: Context) {
         it[K.theme] = theme.name; it[K.onboarded] = true
     }
     suspend fun setTheme(v: ThemeId) = context.dataStore.edit { it[K.theme] = v.name }
+    /** A preset as it comes, or a saved theme: base, accent and changes together. */
+    suspend fun applyTheme(base: ThemeId, accent: AccentChoice, custom: ThemeCustom) = context.dataStore.edit {
+        it[K.theme] = base.name; it[K.accent] = accent.name; it[K.themeCustom] = custom.encode()
+    }
+    suspend fun setThemeCustom(v: ThemeCustom) = context.dataStore.edit { it[K.themeCustom] = v.encode() }
+    suspend fun setSavedThemes(v: List<SavedTheme>) = context.dataStore.edit { it[K.savedThemes] = SavedTheme.encodeAll(v) }
     suspend fun setMode(v: ThemeMode) = context.dataStore.edit { it[K.mode] = v.name }
     suspend fun setAccent(v: AccentChoice) = context.dataStore.edit { it[K.accent] = v.name }
     suspend fun setTextScale(v: Float) = context.dataStore.edit { it[K.textScale] = v }
@@ -303,6 +321,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearseLayout(v: RehearseLayout) = context.dataStore.edit { it[K.rehearseLayout] = v.name }
     suspend fun setLevels(v: Set<String>) = context.dataStore.edit { it[K.levels] = v }
     suspend fun setReviewFromHistory(v: Boolean) = context.dataStore.edit { it[K.reviewFromHistory] = v }
+    suspend fun setTapLookupPractice(v: Boolean) = context.dataStore.edit { it[K.tapLookupPractice] = v }
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }
     suspend fun setReaderPinyin(v: Boolean) = context.dataStore.edit { it[K.readerPinyin] = v }

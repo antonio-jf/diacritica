@@ -61,6 +61,14 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun finishOnboarding(t: ThemeId) = edit { c.settings.finishOnboarding(t) }
     fun setTheme(t: ThemeId) = edit { c.settings.setTheme(t) }
+    fun applyTheme(base: ThemeId, accent: AccentChoice, custom: app.diacritica.settings.ThemeCustom) = edit { c.settings.applyTheme(base, accent, custom) }
+    fun setThemeCustom(v: app.diacritica.settings.ThemeCustom) = edit { c.settings.setThemeCustom(v) }
+    /** Saves the current theme under [name] (replacing one with the same name). */
+    fun saveTheme(s: AppSettings, name: String) = edit {
+        val t = app.diacritica.settings.SavedTheme(app.diacritica.settings.SavedTheme.clean(name), s.theme, s.accent, s.themeCustom)
+        c.settings.setSavedThemes(s.savedThemes.filter { !it.name.equals(t.name, ignoreCase = true) } + t)
+    }
+    fun deleteTheme(s: AppSettings, name: String) = edit { c.settings.setSavedThemes(s.savedThemes.filter { it.name != name }) }
     fun setMode(m: ThemeMode) = edit { c.settings.setMode(m) }
     fun setAccent(a: AccentChoice) = edit { c.settings.setAccent(a) }
     fun setTextScale(v: Float) = edit { c.settings.setTextScale(v) }
@@ -84,6 +92,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setReaderPopup(v: app.diacritica.settings.PopupLayout) = edit { c.settings.setReaderPopup(v) }
     fun setPinyinHint(v: Boolean) = edit { c.settings.setPinyinHint(v) }
     fun setReviewFromHistory(v: Boolean) = edit { c.settings.setReviewFromHistory(v) }
+    fun setTapLookupPractice(v: Boolean) = edit { c.settings.setTapLookupPractice(v) }
     fun toggleRehearseLang(l: Lang) = edit {
         val cur = c.settings.settings.first().rehearseLanguages.toSet()
         val next = if (l in cur) cur - l else cur + l

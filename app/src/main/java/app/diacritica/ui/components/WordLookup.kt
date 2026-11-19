@@ -90,6 +90,45 @@ class WordLookup(
         }
     }
 
+    /**
+     * The word at [offset] in [text]: letters (with apostrophes and hyphens inside a word) for alphabetic
+     * languages; for Chinese, the longest dictionary word (up to 4 characters) that covers the tapped character.
+     */
+    fun openAt(text: String, offset: Int, lang: Lang?) {
+        if (text.isEmpty()) return
+        val i = offset.coerceIn(0, text.length - 1)
+        val sentence = text.trim()
+        if (app.diacritica.ui.theme.Han.isHan(text[i].code)) {
+            scope.launch {
+                val s = c.settings.settings.first()
+                var best = text[i].toString()
+                search@ for (len in 4 downTo 2) {
+                    for (start in (i - len + 1)..i) {
+                        if (start < 0 || start + len > text.length) continue
+                        val sub = text.substring(start, start + len)
+                        if (!sub.all { app.diacritica.ui.theme.Han.isHan(it.code) }) continue
+                        val r = runCatching { c.dictionary.lookup(sub, Lang.ZH, listOf(Lang.ZH, Lang.EN), s.script) }.getOrNull()
+                        if (r != null && r.concepts.isNotEmpty()) { best = sub; break@search }
+                    }
+                }
+                open(best, Lang.ZH, sentence)
+            }
+            return
+        }
+        fun inWord(ch: Char) = ch.isLetterOrDigit()
+        fun joiner(k: Int) = k in 1 until text.length - 1 && text[k] in "'’-" && inWord(text[k - 1]) && inWord(text[k + 1])
+        var j = i
+        if (!inWord(text[j])) { if (j > 0 && inWord(text[j - 1])) j-- else return }
+        var a = j
+        while (a > 0 && (inWord(text[a - 1]) || joiner(a - 1))) a--
+        var b = j + 1
+        while (b < text.length && (inWord(text[b]) || joiner(b))) b++
+        var word = text.substring(a, b)
+        // French/Italian elision: "l'école" → "école", "dell'acqua" → "acqua".
+        if (lang == Lang.FR || lang == Lang.IT) word = word.replace(Regex("^\\p{L}{1,4}['’]"), "")
+        open(word, lang, sentence)
+    }
+
     fun dismiss() { _word.value = null }
 
     fun toggleSave(w: WordInfo) {

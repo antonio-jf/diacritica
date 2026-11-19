@@ -164,7 +164,7 @@ private fun Front(item: ReviewItem, state: ReviewUiState, onPick: (String) -> Un
             }
         }
         CardKind.SENTENCE -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(item.card.front ?: "", style = headwordStyle())
+            app.diacritica.ui.components.TappableText(item.card.front ?: "", null, style = headwordStyle())
             Text("Translate into ${item.lang.englishName}.", style = captionStyle())
         }
     }
@@ -183,7 +183,7 @@ private fun Back(item: ReviewItem, state: ReviewUiState) {
     val w = item.word
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (item.kind) {
-            CardKind.SENTENCE -> Text(item.card.back ?: "", style = headwordStyle())
+            CardKind.SENTENCE -> app.diacritica.ui.components.TappableText(item.card.back ?: "", item.lang, style = headwordStyle())
             CardKind.GENDER -> {
                 val right = state.pickedArticle == w?.article
                 Text(

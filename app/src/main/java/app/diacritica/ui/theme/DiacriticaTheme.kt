@@ -25,6 +25,7 @@ import app.diacritica.settings.AccentChoice
 import app.diacritica.settings.AppSettings
 import app.diacritica.settings.ThemeId
 import app.diacritica.settings.ThemeMode
+import app.diacritica.settings.ThemeCustom
 
 /** Resolves the user's appearance settings into one global token set. */
 @Composable
@@ -34,6 +35,7 @@ fun rememberTokens(
     accent: AccentChoice,
     languageColors: Boolean,
     forceDark: Boolean? = null,
+    custom: ThemeCustom = ThemeCustom(),
 ): PolyTokens {
     val systemDark = isSystemInDarkTheme()
     val dark = forceDark ?: when (mode) {
@@ -42,39 +44,78 @@ fun rememberTokens(
         ThemeMode.DARK -> true
     }
     val context = LocalContext.current
-    return remember(theme, dark, accent, languageColors) {
-        val spec = Themes.spec(theme)
-        var colors = if (dark) spec.dark else spec.light
-        colors = when (accent) {
-            AccentChoice.THEME -> colors
-            AccentChoice.ALT1, AccentChoice.ALT2 -> {
-                val pair = spec.altAccents[if (accent == AccentChoice.ALT1) 0 else 1]
-                val a = if (dark) pair.second else pair.first
-                colors.copy(
-                    accent = a,
-                    accentSoft = a.copy(alpha = if (dark) 0.22f else 0.12f).compositeOver(colors.ground),
-                    onAccentSoft = if (dark) a else a.darken(0.25f),
-                    onAccent = if (dark) colors.ground else Color.White,
-                )
-            }
-            AccentChoice.DYNAMIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val s = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-                colors.copy(accent = s.primary, onAccent = s.onPrimary, accentSoft = s.primaryContainer, onAccentSoft = s.onPrimaryContainer)
-            } else colors
+    return remember(theme, dark, accent, languageColors, custom) { buildTokens(context, theme, custom, dark, accent, languageColors) }
+}
+
+/** The colors a preset plus changes uses, before the accent choice (for swatches in Appearance). */
+fun paletteFor(theme: ThemeId, custom: ThemeCustom): Themes.Palette {
+    val spec = Themes.spec(theme)
+    return custom.palette?.let { Themes.palette(it) } ?: Themes.Palette(spec.light, spec.dark, spec.altAccents)
+}
+
+/**
+ * The preset [theme] with each part the user changed swapped in: fonts, background, corners,
+ * surfaces and spacing. Type sizes and label style stay the preset's.
+ */
+fun buildTokens(
+    context: android.content.Context, theme: ThemeId, custom: ThemeCustom, dark: Boolean, accent: AccentChoice, languageColors: Boolean,
+): PolyTokens {
+    val spec = Themes.spec(theme)
+    val palette = paletteFor(theme, custom)
+    val surface = custom.surface?.let { Themes.surfaceStyle(it) } ?: spec.surfaceStyle
+    val heavy = custom.surface?.let { it == app.diacritica.settings.SurfaceChoice.BOLD } ?: spec.heavyRules
+    var colors = if (dark) palette.dark else palette.light
+    // Bold rules are drawn in ink; other surfaces use the normal line color.
+    colors = colors.copy(rule = if (heavy) colors.ink else colors.line)
+    colors = when (accent) {
+        AccentChoice.THEME -> colors
+        AccentChoice.ALT1, AccentChoice.ALT2 -> {
+            val pair = palette.altAccents[if (accent == AccentChoice.ALT1) 0 else 1]
+            val a = if (dark) pair.second else pair.first
+            colors.copy(
+                accent = a,
+                accentSoft = a.copy(alpha = if (dark) 0.22f else 0.12f).compositeOver(colors.ground),
+                onAccentSoft = if (dark) a else a.darken(0.25f),
+                onAccent = if (dark) colors.ground else Color.White,
+            )
         }
-        PolyTokens(
-            id = theme.name,
-            colors = colors,
-            fonts = spec.fonts,
-            type = spec.type,
-            shapes = spec.shapes,
-            spacing = spec.spacing,
-            surfaceStyle = spec.surfaceStyle,
-            heavyRules = spec.heavyRules,
-            languageColors = languageColors,
-            langPalette = Themes.langPalette(dark),
-        )
+        AccentChoice.DYNAMIC -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val s = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            colors.copy(accent = s.primary, onAccent = s.onPrimary, accentSoft = s.primaryContainer, onAccentSoft = s.onPrimaryContainer)
+        } else colors
     }
+    val fontsChanged = custom.display != null || custom.body != null
+    val display = custom.display?.let { Fonts.family(it) } ?: spec.fonts.display
+    val body = custom.body?.let { Fonts.family(it) } ?: spec.fonts.body
+    val fonts = PolyFonts(
+        display = display,
+        body = body,
+        // With changed fonts: labels follow the body font (Space Grotesk headings keep grotesk labels, as in Index);
+        // reading text follows a serif heading font, as in Paper, otherwise the body font.
+        label = when {
+            !fontsChanged -> spec.fonts.label
+            (custom.display ?: Themes.displayFontOf(theme)) == app.diacritica.settings.FontChoice.GROTESK -> Fonts.spaceGrotesk
+            else -> body
+        },
+        reading = when {
+            !fontsChanged -> spec.fonts.reading
+            (custom.display ?: Themes.displayFontOf(theme)) == app.diacritica.settings.FontChoice.SERIF -> Fonts.sourceSerif
+            else -> body
+        },
+        han = if (custom.han == app.diacritica.settings.HanFont.SERIF) androidx.compose.ui.text.font.FontFamily.Serif else null,
+    )
+    return PolyTokens(
+        id = theme.name + if (custom.isEmpty) "" else ":" + custom.encode(),
+        colors = colors,
+        fonts = fonts,
+        type = spec.type,
+        shapes = custom.corners?.let { Themes.shapes(it) } ?: spec.shapes,
+        spacing = custom.density?.let { Themes.spacing(it) } ?: spec.spacing,
+        surfaceStyle = surface,
+        heavyRules = heavy,
+        languageColors = languageColors,
+        langPalette = Themes.langPalette(dark),
+    )
 }
 
 private fun Color.darken(f: Float) = Color(red * (1 - f), green * (1 - f), blue * (1 - f), alpha)
@@ -100,7 +141,7 @@ fun PolyTokens.materialScheme(): ColorScheme {
 
 @Composable
 fun DiacriticaTheme(settings: AppSettings, content: @Composable () -> Unit) {
-    val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors)
+    val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors, custom = settings.themeCustom)
     DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, content = content)
 }
 
@@ -133,7 +174,7 @@ fun DiacriticaTheme(tokens: PolyTokens, textScale: Float = 1f, hanScale: Float =
             }
         }
     }
-    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled, LocalReadingHanScale provides hanScale) {
+    CompositionLocalProvider(LocalDiacritica provides tokens, LocalDensity provides scaled, LocalReadingHanScale provides hanScale, LocalHanFont provides tokens.fonts.han) {
         MaterialTheme(colorScheme = tokens.materialScheme(), typography = typography, content = content)
     }
 }

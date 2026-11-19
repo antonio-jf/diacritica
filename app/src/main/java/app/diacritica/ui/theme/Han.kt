@@ -14,6 +14,9 @@ val LocalHanScale = staticCompositionLocalOf { 1f }
 /** The "Chinese characters" setting. Only the reading text of the Reader and Books uses it (see [ReadingText]). */
 val LocalReadingHanScale = staticCompositionLocalOf { 1f }
 
+/** Font for Chinese characters picked in Appearance (null: the system's default). Set by DiacriticaTheme. */
+val LocalHanFont = staticCompositionLocalOf<androidx.compose.ui.text.font.FontFamily?> { null }
+
 /** Draws [content] with Chinese characters at the reading size: for book and story text only, not menus. */
 @androidx.compose.runtime.Composable
 fun ReadingText(content: @androidx.compose.runtime.Composable () -> Unit) {
@@ -58,28 +61,34 @@ object Han {
         return out
     }
 
-    fun scale(text: AnnotatedString, scale: Float): AnnotatedString {
-        if (scale == 1f || !hasHan(text)) return text
+    /** Chinese runs drawn at [scale] and, when set, in [family]. */
+    fun scale(text: AnnotatedString, scale: Float, family: androidx.compose.ui.text.font.FontFamily? = null): AnnotatedString {
+        if ((scale == 1f && family == null) || !hasHan(text)) return text
         val b = AnnotatedString.Builder(text)
-        for ((s, e) in runs(text)) b.addStyle(SpanStyle(fontSize = scale.em), s, e)
+        val style = SpanStyle(fontSize = if (scale == 1f) androidx.compose.ui.unit.TextUnit.Unspecified else scale.em, fontFamily = family)
+        for ((s, e) in runs(text)) b.addStyle(style, s, e)
         return b.toAnnotatedString()
     }
 
-    fun scale(text: String, scale: Float): AnnotatedString = scale(AnnotatedString(text), scale)
+    fun scale(text: String, scale: Float, family: androidx.compose.ui.text.font.FontFamily? = null): AnnotatedString =
+        scale(AnnotatedString(text), scale, family)
 }
 
 /** Draws Chinese characters typed into a field at the Chinese size; the text itself is unchanged. */
-class HanTransformation(private val scale: Float) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText = TransformedText(Han.scale(text, scale), OffsetMapping.Identity)
-    override fun equals(other: Any?) = other is HanTransformation && other.scale == scale
-    override fun hashCode() = scale.hashCode()
+class HanTransformation(private val scale: Float, private val family: androidx.compose.ui.text.font.FontFamily? = null) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText = TransformedText(Han.scale(text, scale, family), OffsetMapping.Identity)
+    override fun equals(other: Any?) = other is HanTransformation && other.scale == scale && other.family == family
+    override fun hashCode() = scale.hashCode() * 31 + family.hashCode()
 }
 
 /** For text fields where Chinese may be typed: draws it at the Chinese size. */
 @androidx.compose.runtime.Composable
 fun hanTransformation(): VisualTransformation {
     val scale = LocalHanScale.current
-    return androidx.compose.runtime.remember(scale) { if (scale == 1f) VisualTransformation.None else HanTransformation(scale) }
+    val family = LocalHanFont.current
+    return androidx.compose.runtime.remember(scale, family) {
+        if (scale == 1f && family == null) VisualTransformation.None else HanTransformation(scale, family)
+    }
 }
 
 /** A field style with room between lines for enlarged Chinese characters. */

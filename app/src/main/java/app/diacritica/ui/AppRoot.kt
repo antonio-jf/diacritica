@@ -122,6 +122,7 @@ fun AppRoot(
         LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) { if (sharedIsPhrase) nav.navigate("translate") else nav.goTo(Tab.DICTIONARY) } }
         Column(Modifier.fillMaxSize().background(Diacritica.colors.ground).statusBarsPadding()) {
             Box(Modifier.weight(1f).imePadding()) {
+                val openWord: (Lang, String) -> Unit = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") }
                 NavHost(nav, startDestination = Tab.HOME.route) {
                     composable(Tab.HOME.route) {
                         app.diacritica.ui.home.HomeScreen(
@@ -157,10 +158,12 @@ fun AppRoot(
                         )
                     }
                     composable(Tab.REHEARSE.route) {
-                        app.diacritica.ui.rehearse.RehearseScreen(
-                            rehearseVm, s, onOpenSettings = { nav.goTo(Tab.SETTINGS) }, onOpenArchive = { nav.navigate("archive") },
-                            onOpenRehearseSettings = { nav.navigate("rehearse-settings") },
-                        )
+                        app.diacritica.ui.components.WordTapHost(s.tapLookupPractice, "Rehearse", onOpenDictionary = openWord) {
+                            app.diacritica.ui.rehearse.RehearseScreen(
+                                rehearseVm, s, onOpenSettings = { nav.goTo(Tab.SETTINGS) }, onOpenArchive = { nav.navigate("archive") },
+                                onOpenRehearseSettings = { nav.navigate("rehearse-settings") },
+                            )
+                        }
                     }
                     composable(Tab.READER.route) {
                         app.diacritica.ui.reader.ReaderScreen(
@@ -193,7 +196,11 @@ fun AppRoot(
                     composable("archive/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         app.diacritica.ui.rehearse.ArchiveDetailScreen(rehearseVm, entry.arguments?.getLong("id") ?: 0L, onBack = { nav.popBackStack() })
                     }
-                    composable(Tab.REVIEW.route) { app.diacritica.ui.review.ReviewScreen(reviewVm, onOpenWord = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") }) }
+                    composable(Tab.REVIEW.route) {
+                        app.diacritica.ui.components.WordTapHost(s.tapLookupPractice, "Review", lookup = reviewVm.lookup) {
+                            app.diacritica.ui.review.ReviewScreen(reviewVm, onOpenWord = openWord)
+                        }
+                    }
                     composable("library") {
                         LibraryScreen(dictVm, onOpenArchive = { nav.navigate("archive") }) { word, lang ->
                             dictVm.lookUp(word, lang)
@@ -203,10 +210,12 @@ fun AppRoot(
                     composable("settings") { SettingsScreen(settingsVm, s, onBack = null, onOpenAppearance = { nav.navigate("appearance") }, onOpenDataPacks = { nav.navigate("packs") }, onOpenRehearseSettings = { nav.navigate("rehearse-settings") }) }
                     composable("packs") { app.diacritica.ui.packs.DataPacksScreen(packsVm, s, onBack = { nav.popBackStack() }) }
                     composable("tests") {
-                        app.diacritica.ui.tests.TestsScreen(
-                            testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.goTo(Tab.SETTINGS) },
-                            onOpenGrammar = { nav.navigate("grammar") },
-                        )
+                        app.diacritica.ui.components.WordTapHost(s.tapLookupPractice, "Tests", onOpenDictionary = openWord) {
+                            app.diacritica.ui.tests.TestsScreen(
+                                testsVm, s, onBack = { nav.popBackStack() }, onOpenSettings = { nav.goTo(Tab.SETTINGS) },
+                                onOpenGrammar = { nav.navigate("grammar") },
+                            )
+                        }
                     }
                     composable("grammar") {
                         app.diacritica.ui.grammar.GrammarScreen(

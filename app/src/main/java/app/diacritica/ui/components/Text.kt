@@ -48,13 +48,14 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val scale = LocalHanScale.current
-    if (scale == 1f || !Han.hasHan(text)) {
+    val hanFont = app.diacritica.ui.theme.LocalHanFont.current
+    if ((scale == 1f && hanFont == null) || !Han.hasHan(text)) {
         androidx.compose.material3.Text(
             text, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration,
             textAlign, lineHeight, overflow, softWrap, maxLines, minLines, onTextLayout, style,
         )
     } else {
-        val scaled = remember(text, scale) { Han.scale(text, scale) }
+        val scaled = remember(text, scale, hanFont) { Han.scale(text, scale, hanFont) }
         androidx.compose.material3.Text(
             scaled, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration,
             textAlign, roomyLineHeight(lineHeight, fontSize, style, scale), overflow, softWrap, maxLines, minLines, emptyMap(), onTextLayout ?: {}, style,
@@ -84,7 +85,8 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val scale = LocalHanScale.current
-    val shown = remember(text, scale) { Han.scale(text, scale) }
+    val hanFont = app.diacritica.ui.theme.LocalHanFont.current
+    val shown = remember(text, scale, hanFont) { Han.scale(text, scale, hanFont) }
     val lh = if (shown === text) lineHeight else roomyLineHeight(lineHeight, fontSize, style, scale)
     androidx.compose.material3.Text(
         shown, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration,
