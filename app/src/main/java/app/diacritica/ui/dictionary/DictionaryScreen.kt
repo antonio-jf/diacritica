@@ -342,6 +342,7 @@ private fun Headword(r: LookupResult, actions: WordActions, onPickLang: (Lang) -
             WordActionButtons(h, actions)
         }
         app.diacritica.ui.components.VerbPatternNotes(h)
+        if (h.lang == Lang.ZH) app.diacritica.ui.components.HanziBreakdown(h.word, h.pinyin, Modifier.padding(top = 4.dp), onOpen = { ch -> onLookUp(ch, Lang.ZH) })
         if (r.forms.isNotEmpty()) {
             // Looking up the base word from here replaces the search, like typing it.
             FormNotes(r.query, r.forms, onLemma = { l -> onLookUp(l, r.source) })
