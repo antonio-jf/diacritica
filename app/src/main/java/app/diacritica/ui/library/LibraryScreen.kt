@@ -52,10 +52,18 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
     app.diacritica.ui.components.WordLookupSheet(lookup, onOpenDictionary = { l, w -> onOpen(w, l) })
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val allSaved by vm.saved.collectAsStateWithLifecycle()
-    // Filters for the saved list: one language and/or one source (where the word was saved from).
+    // Search and filters for the saved list (language, source, date, sort); the sheet holds the filters.
+    var query by rememberSaveable { mutableStateOf("") }
     var langFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sourceFilter by rememberSaveable { mutableStateOf<String?>(null) }
-    val saved = allSaved.filter { (langFilter == null || it.lang == langFilter) && (sourceFilter == null || sourceLabel(it.deck) == sourceFilter) }
+    var timeFilter by rememberSaveable { mutableStateOf(SavedWhen.ANY) }
+    var sort by rememberSaveable { mutableStateOf(SavedSort.NEWEST) }
+    val filter = SavedFilter(query, langFilter, sourceFilter, timeFilter, sort)
+    val setFilter: (SavedFilter) -> Unit = { f -> query = f.query; langFilter = f.lang; sourceFilter = f.source; timeFilter = f.time; sort = f.sort }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val saved = filter.apply(allSaved)
+    if (showFilters) SavedFilterSheet(allSaved, filter, setFilter, onDismiss = { showFilters = false })
+    val shortDate = java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
     val history by vm.history.collectAsStateWithLifecycle()
     val fmt = DateFormat.getDateInstance(DateFormat.MEDIUM)
 
@@ -71,19 +79,24 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
             }
         }
         if (tab == 0) {
-            val langs = allSaved.map { it.lang }.distinct()
-            val sources = allSaved.map { sourceLabel(it.deck) }.distinct().sorted()
-            if (langs.size > 1 || sources.size > 1) item {
-                Column(Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (langs.size > 1) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PolyChip("All", langFilter == null, { langFilter = null })
-                        Lang.defaultOrder.filter { it.code in langs }.forEach { l ->
-                            PolyChip("${l.short} ${allSaved.count { it.lang == l.code }}", langFilter == l.code, { langFilter = if (langFilter == l.code) null else l.code })
-                        }
-                    }
-                    if (sources.size > 1) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PolyChip("Anywhere", sourceFilter == null, { sourceFilter = null })
-                        sources.forEach { src -> PolyChip(src, sourceFilter == src, { sourceFilter = if (sourceFilter == src) null else src }) }
+            val sources = allSaved.map { sourceLabel(it.deck) }.distinct()
+            if (allSaved.isNotEmpty()) item {
+                Column(Modifier.padding(horizontal = Diacritica.spacing.screen, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SavedSearchBar(filter, onQuery = { query = it }, onOpenFilters = { showFilters = true })
+                    // What's narrowing the list, in one quiet line, with a way to clear it.
+                    val active = listOfNotNull(
+                        langFilter?.let { Lang.fromCode(it)?.short ?: it }, sourceFilter,
+                        timeFilter.takeIf { it != SavedWhen.ANY }?.label, sort.takeIf { it != SavedSort.NEWEST }?.label,
+                    )
+                    if (active.isNotEmpty() || query.isNotBlank()) Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "${saved.size} of ${allSaved.size}" + if (active.isNotEmpty()) " · " + active.joinToString(" · ") else "",
+                            style = captionStyle(), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            "Clear", style = captionStyle(Diacritica.colors.accent),
+                            modifier = Modifier.clickable(role = Role.Button) { setFilter(SavedFilter()) }.padding(horizontal = 6.dp, vertical = 6.dp),
+                        )
                     }
                 }
             }
@@ -93,7 +106,11 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
                     "Tap ☆ on a word in the Dictionary, Reader, Books or Vocabulary. Saved words become Review cards and feed Rehearse › My words.",
                 )
             } else if (saved.isEmpty()) item {
-                Text("No saved words match these filters.", style = captionStyle(), modifier = Modifier.padding(20.dp))
+                Text(
+                    if (query.isNotBlank()) "No saved words match “${query.trim()}”" + (if (filter.activeCount > 0) " with these filters." else ".")
+                    else "No saved words match these filters.",
+                    style = captionStyle(), modifier = Modifier.padding(20.dp),
+                )
             }
             items(saved, key = { "s-${it.lang}:${it.word}" }) { w ->
                 val lang = Lang.fromCode(w.lang)
@@ -107,7 +124,10 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
                         Column(Modifier.weight(1f)) {
                             Text(w.word, style = headwordStyle())
                             val src = sourceLabel(w.deck)
-                            Text(listOfNotNull(src.takeIf { sources.size > 1 }, w.note).joinToString(" · ").ifEmpty { src }, style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                listOfNotNull(src.takeIf { sources.size > 1 }, shortDate.format(Date(w.at)), w.note).joinToString(" · "),
+                                style = captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         PolyIconButton(PolyIcons.Close, "Remove ${w.word}", { vm.removeSaved(w) }, tint = Diacritica.colors.inkMuted)
                     }

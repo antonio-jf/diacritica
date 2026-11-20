@@ -31,6 +31,7 @@ object PolyIcons {
     /** Saved state: filled, so it reads clearly even when accent and muted colors are close. */
     val StarFilled = stroke("star-filled", "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z", filled = true)
     val Mic = stroke("mic", "M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1 -6 0z", "M5 11a7 7 0 0 0 14 0", "M12 18v3")
+    val Filter = stroke("filter", "M4 7h16", "M7 12h10", "M10 17h4")
     val Search = stroke("search", "M11 5a6 6 0 1 1 0 12a6 6 0 0 1 0 -12z", "M20 20l-4.5-4.5")
     val Close = stroke("close", "M6 6l12 12", "M18 6L6 18")
     val Back = stroke("back", "M15 5l-7 7 7 7")
