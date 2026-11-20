@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Library: tapping a saved word or a past search opens the word sheet over the list (meaning, translations, characters, listen, save); Open in Dictionary is still there for the full entry.
 - Mandarin words: a compact Characters list under the word (Dictionary, word page and word sheet) with each character's pinyin in that word and its own short meaning; tap a character to look it up.
 - Settings › Rehearse › Tap words for meanings (off by default): tap any word in Rehearse prompts, references and alternatives, Test sentences and Review sentence cards to open the word sheet. Chinese picks the longest dictionary word around the tapped character.
 - Dictionary: while idle, the search box sits lower on the screen under a short prompt and glides to the top when you tap it.
