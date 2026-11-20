@@ -44,6 +44,12 @@ import java.util.Date
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (String, Lang?) -> Unit) {
+    // Tapping a saved word or a past search shows its meaning in the word sheet, over the list,
+    // instead of leaving Library; "Open in Dictionary" in the sheet still goes to the full entry.
+    val application = androidx.compose.ui.platform.LocalContext.current.applicationContext as app.diacritica.DiacriticaApp
+    val sheetScope = androidx.compose.runtime.rememberCoroutineScope()
+    val lookup = androidx.compose.runtime.remember { app.diacritica.ui.components.WordLookup(application.container, sheetScope, source = "Library") }
+    app.diacritica.ui.components.WordLookupSheet(lookup, onOpenDictionary = { l, w -> onOpen(w, l) })
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val allSaved by vm.saved.collectAsStateWithLifecycle()
     // Filters for the saved list: one language and/or one source (where the word was saved from).
@@ -94,7 +100,7 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
                 SwipeToDelete(onDelete = { vm.removeSaved(w) }) {
                 Column(Modifier.background(Diacritica.colors.ground).padding(horizontal = 20.dp)) {
                     Row(
-                        Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(w.word, lang) }.padding(vertical = 10.dp),
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) { lookup.open(w.word, lang) }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         SectionLabel(lang?.short ?: w.lang)
@@ -116,7 +122,7 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
                 SwipeToDelete(onDelete = { vm.deleteHistory(h) }) {
                 Column(Modifier.background(Diacritica.colors.ground).padding(horizontal = 20.dp)) {
                     Row(
-                        Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(h.query, lang) }.padding(vertical = 13.dp),
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) { lookup.open(h.query, lang) }.padding(vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         SectionLabel(lang?.short ?: h.lang)
