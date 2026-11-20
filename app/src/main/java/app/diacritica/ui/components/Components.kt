@@ -195,7 +195,11 @@ fun Dp.textScaled(): Dp = this * androidx.compose.ui.platform.LocalDensity.curre
 
 /** Selectable chip: sense picker, source language, settings choices. */
 @Composable
-fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, iconTint: Color? = null) {
+fun PolyChip(
+    text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, iconTint: Color? = null,
+    /** A number shown apart from the label, in a small pill (how many items the chip stands for). */
+    count: Int? = null,
+) {
     val c = Diacritica.colors
     val shape = RoundedCornerShape(Diacritica.shapes.chip)
     val style = Diacritica.tokens.surfaceStyle
@@ -228,6 +232,15 @@ fun PolyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
             Spacer(Modifier.width(5.dp))
         }
         Text(text, style = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (count != null) {
+            Spacer(Modifier.width(6.dp))
+            Text(
+                count.toString(),
+                style = label.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium, color = label.color.copy(alpha = 0.8f)),
+                maxLines = 1,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(label.color.copy(alpha = 0.12f)).padding(horizontal = 6.dp, vertical = 1.dp),
+            )
+        }
     }
 }
 

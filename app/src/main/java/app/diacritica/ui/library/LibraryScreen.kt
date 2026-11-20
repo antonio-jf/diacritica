@@ -63,7 +63,10 @@ fun LibraryScreen(vm: DictionaryViewModel, onOpenArchive: () -> Unit, onOpen: (S
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val saved = filter.apply(allSaved)
     if (showFilters) SavedFilterSheet(allSaved, filter, setFilter, onDismiss = { showFilters = false })
-    val shortDate = java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
+    // Day and month in the phone's own order and words ("20 Nov", "11月20日", "20. Nov.").
+    val shortDate = java.util.Locale.getDefault().let { loc ->
+        java.text.SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(loc, "dMMM"), loc)
+    }
     val history by vm.history.collectAsStateWithLifecycle()
     val fmt = DateFormat.getDateInstance(DateFormat.MEDIUM)
 

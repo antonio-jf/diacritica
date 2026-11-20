@@ -159,25 +159,28 @@ fun SavedFilterSheet(all: List<SavedWord>, filter: SavedFilter, onChange: (Saved
 
             Gap(8.dp); SectionLabel("Language")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                PolyChip("All", filter.lang == null, { onChange(filter.copy(lang = null)) })
+                PolyChip("All", filter.lang == null, { onChange(filter.copy(lang = null)) }, count = all.size)
                 Lang.defaultOrder.filter { l -> all.any { it.lang == l.code } }.forEach { l ->
-                    PolyChip("${l.short} ${all.count { it.lang == l.code }}", filter.lang == l.code, { onChange(filter.copy(lang = l.code)) })
+                    PolyChip(l.short, filter.lang == l.code, { onChange(filter.copy(lang = l.code)) }, count = all.count { it.lang == l.code })
                 }
             }
 
             Gap(8.dp); SectionLabel("Saved from")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                PolyChip("Anywhere", filter.source == null, { onChange(filter.copy(source = null)) })
+                PolyChip("Anywhere", filter.source == null, { onChange(filter.copy(source = null)) }, count = all.size)
                 all.map { sourceLabel(it.deck) }.distinct().sorted().forEach { s ->
-                    PolyChip(s, filter.source == s, { onChange(filter.copy(source = s)) })
+                    PolyChip(s, filter.source == s, { onChange(filter.copy(source = s)) }, count = all.count { sourceLabel(it.deck) == s })
                 }
             }
 
-            Gap(8.dp); SectionLabel("Saved")
+            Gap(8.dp); SectionLabel("Date saved")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 SavedWhen.entries.forEach { t ->
                     val n = all.count { t.matches(it.at) }
-                    PolyChip(if (t == SavedWhen.ANY) t.label else "${t.label} $n", filter.time == t, { onChange(filter.copy(time = t)) })
+                    // Periods with no words are left out (unless chosen), so there are no "0" chips to puzzle over.
+                    if (n > 0 || t == SavedWhen.ANY || filter.time == t) {
+                        PolyChip(t.label, filter.time == t, { onChange(filter.copy(time = t)) }, count = n)
+                    }
                 }
             }
 
