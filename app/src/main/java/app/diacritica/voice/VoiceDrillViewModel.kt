@@ -222,18 +222,54 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         loop = viewModelScope.launch {
             val s = c.settings.settings.first()
             val cfg = _state.value.config
-            if (!fromListening) {
-                for ((text, lang) in VoicePhrases.question(item)) {
-                    if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
+            var rate = s.speechRate
+            var ask = !fromListening
+            var repeats = 0
+            var silences = 0
+            var heard: Heard
+            // Ask and listen until there's an answer. Spoken commands ("repeat", "slower", "skip", "stop") and one
+            // silence are handled here, so the drill can be used without touching the phone.
+            while (true) {
+                if (ask) {
+                    _state.update { it.copy(phase = VoicePhase.ASKING) }
+                    for ((text, lang) in VoicePhrases.question(item)) {
+                        if (!c.speaker.speakAndWait(text, lang, rate)) break
+                    }
                 }
+                _state.update { it.copy(phase = VoicePhase.LISTENING, partial = "", level = 0f) }
+                val packs = _state.value.packs
+                heard = listener.listen(
+                    item.answer, preferOffline = packs?.contains(item.answer) == true,
+                    onPartial = { p -> _state.update { it.copy(partial = p) } },
+                    onLevel = { l -> _state.update { it.copy(level = l) } },
+                )
+                when (VoiceCommands.detect(item, heard.texts)) {
+                    VoiceCommand.REPEAT, VoiceCommand.SLOWER -> {
+                        val slower = VoiceCommands.detect(item, heard.texts) == VoiceCommand.SLOWER
+                        if (repeats++ < 6) {
+                            if (slower) rate = s.speechRate * 0.65f
+                            val (t, l) = VoicePhrases.again(item)
+                            _state.update { it.copy(note = if (slower) "Slower, again." else "Again.") }
+                            c.speaker.speakAndWait(t, l, rate)
+                            ask = true
+                            continue
+                        }
+                    }
+                    VoiceCommand.SKIP -> {
+                        _state.update { it.copy(phase = VoicePhase.FEEDBACK, heard = heard, verdict = VoiceVerdict.SKIPPED, note = null) }
+                        for ((text, lang) in VoicePhrases.feedback(VoiceVerdict.SKIPPED, item)) {
+                            if (!c.speaker.speakAndWait(text, lang, rate)) break
+                        }
+                        if (cfg.autoNext) autoNextJob = viewModelScope.launch { delay(1_200); next() }
+                        return@launch
+                    }
+                    VoiceCommand.STOP -> { finish(); return@launch }
+                    null -> {}
+                }
+                // Nothing heard: ask once more before giving the answer.
+                if (heard.texts.isEmpty() && heard.error == "Didn't catch that." && silences++ < 1) { ask = true; continue }
+                break
             }
-            _state.update { it.copy(phase = VoicePhase.LISTENING, partial = "", level = 0f) }
-            val packs = _state.value.packs
-            val heard = listener.listen(
-                item.answer, preferOffline = packs?.contains(item.answer) == true,
-                onPartial = { p -> _state.update { it.copy(partial = p) } },
-                onLevel = { l -> _state.update { it.copy(level = l) } },
-            )
             _state.update { it.copy(phase = VoicePhase.CHECKING, heard = heard) }
             var result = VoiceCheck.check(item, heard.texts)
             // Mandarin: when the recognizer chose other characters, compare by sound.
@@ -247,7 +283,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
             }
             _state.update { it.copy(phase = VoicePhase.FEEDBACK, verdict = result.verdict, note = result.note) }
             for ((text, lang) in VoicePhrases.feedback(result.verdict, item)) {
-                if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
+                if (!c.speaker.speakAndWait(text, lang, rate)) break
             }
             if (cfg.autoNext && result.verdict == VoiceVerdict.RIGHT) {
                 autoNextJob = viewModelScope.launch { delay(1_200); next() }

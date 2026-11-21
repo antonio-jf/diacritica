@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Voice drill, hands-free: instead of answering you can say “repeat”, “slower”, “skip” or “stop” in any of the six languages (otra vez, répète, noch mal, ripeti, 再说一遍…). Repeat says “Again.” and asks again without marking you wrong; slower repeats at a slower speed; skip gives the answer and moves on; stop ends with the summary. A right answer always wins over a command. If nothing is heard, the question is asked once more.
 - Voice drill: Mandarin offline speech pack now detected and downloadable (the phone's recognizer calls it cmn-Hans-CN, not zh-CN); offline recognition uses the phone's own tag; a message when a pack can't be downloaded, and a link to the phone's voice settings.
 - Voice drill: a language can be one of your languages and one you practise at the same time, so any pair works (中文 → FR, DE → IT…); a question never asks and answers in the same language, and every pair comes up before any repeats. Questions and feedback are spoken in the question's own language (French, German, Italian and Mandarin frames added).
 - Translate with Gemini: optional Grammar suggestions (switch under the engine, on by default): up to 3 grammar points of the language you translate from that your text uses, each with a short explanation and Make a lesson (a full lesson in Grammar › Full lessons). A separate request, so translations don't wait for it.
