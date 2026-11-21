@@ -65,7 +65,7 @@ import java.util.Calendar
 import java.util.Date
 
 /** The parts of the app Home links to. */
-enum class HomeSection { SAVED, DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS, VOCABULARY }
+enum class HomeSection { SAVED, DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS, VOCABULARY, VOICE }
 
 @Composable
 fun HomeScreen(
@@ -230,6 +230,8 @@ private fun smallTiles(st: HomeStats, settings: AppSettings): Map<String, Tile> 
             "Import your own EPUBs and read them with the dictionary a tap away."),
         "tests" to Tile(PolyIcons.Check, "Tests", HomeSection.TESTS, "8 sentences, scored",
             "Translate 8 sentences into your languages and get a score, corrections and lessons for your mistakes."),
+        "voice" to Tile(PolyIcons.Mic, "Voice drill", HomeSection.VOICE, "Hear it, say it",
+            "Questions out loud, answers by voice: say a word in another language, translate what you hear, or repeat it."),
         "vocabulary" to Tile(PolyIcons.Cards, "Vocabulary", HomeSection.VOCABULARY, "Word sets by topic",
             "Word sets by topic (fruits, colours, professions, places, actions…) with a mini test for each."),
         "grammar" to Tile(PolyIcons.Book, "Grammar", HomeSection.GRAMMAR, "Weak points and lessons",
@@ -281,7 +283,7 @@ private fun TileGrid(tiles: List<Tile>, onOpen: (HomeSection) -> Unit) {
 /** Names for the editor (Home and Settings › Home). */
 internal val homeTileNames = mapOf(
     "reader" to "Reader", "practice" to "Review and Rehearse", "saved" to "Saved words", "books" to "Books",
-    "vocabulary" to "Vocabulary", "tests" to "Tests", "grammar" to "Grammar", "translate" to "Translate",
+    "vocabulary" to "Vocabulary", "voice" to "Voice drill", "tests" to "Tests", "grammar" to "Grammar", "translate" to "Translate",
     "progress" to "Progress", "library" to "Library", "dictionary" to "Dictionary",
 )
 

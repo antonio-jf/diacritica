@@ -4,6 +4,8 @@
     <!-- Used only to download words missing from the offline dictionary (can be turned off in Settings). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Voice drill: listening to spoken answers and recording them for the pronunciation check. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Read-aloud keeps going with the screen off (a media-playback service with a Stop notification). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -17,6 +19,10 @@
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <!-- Voice drill: find the speech recognition services (Google's is preferred). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 

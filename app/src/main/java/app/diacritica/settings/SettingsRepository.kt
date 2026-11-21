@@ -36,7 +36,7 @@ enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKE
 const val MAX_NAV_TABS = 4
 
 /** Every card Home can show, in the default order. "practice" is the Review + Rehearse pair. */
-val HOME_TILES = listOf("reader", "practice", "saved", "books", "vocabulary", "tests", "grammar", "translate", "progress", "library", "dictionary")
+val HOME_TILES = listOf("reader", "practice", "saved", "books", "vocabulary", "voice", "tests", "grammar", "translate", "progress", "library", "dictionary")
 val DEFAULT_NAV_TABS = listOf("dictionary", "reader", "rehearse", "review")
 
 enum class PinyinMode { ALL, RARE, OFF }
@@ -103,6 +103,8 @@ data class AppSettings(
     val reviewFromHistory: Boolean = true,
     /** Practice sentences (Rehearse, Tests, Review) can be tapped for word meanings. Off: practise without help. */
     val tapLookupPractice: Boolean = false,
+    /** Voice drill setup (mode, words, languages, length, Review option). */
+    val voice: app.diacritica.voice.VoiceConfig = app.diacritica.voice.VoiceConfig(),
     /** Rehearse sentence source: everyday (any sentence) or my words (sentences using words you looked up). */
     val rehearseMyWords: Boolean = false,
     /** Rehearse path; defaults to My words if that was switched on before paths existed. */
@@ -185,6 +187,7 @@ class SettingsRepository(private val context: Context) {
         val pinyinHint = booleanPreferencesKey("pinyin_hint")
         val reviewFromHistory = booleanPreferencesKey("review_from_history")
         val tapLookupPractice = booleanPreferencesKey("tap_lookup_practice")
+        val voiceConfig = stringPreferencesKey("voice_config")
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
         val rehearsePath = stringPreferencesKey("rehearse_path")
         val grammarFocus = stringPreferencesKey("grammar_focus")
@@ -247,6 +250,7 @@ class SettingsRepository(private val context: Context) {
             pinyinHint = p[K.pinyinHint] ?: d.pinyinHint,
             reviewFromHistory = p[K.reviewFromHistory] ?: d.reviewFromHistory,
             tapLookupPractice = p[K.tapLookupPractice] ?: d.tapLookupPractice,
+            voice = app.diacritica.voice.VoiceConfig.decode(p[K.voiceConfig]),
             rehearseMyWords = p[K.rehearseMyWords] ?: d.rehearseMyWords,
             rehearsePath = p[K.rehearsePath]?.let { enumOr(it, d.rehearsePath) }
                 ?: if (p[K.rehearseMyWords] == true) RehearsePath.MY_WORDS else d.rehearsePath,
@@ -322,6 +326,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLevels(v: Set<String>) = context.dataStore.edit { it[K.levels] = v }
     suspend fun setReviewFromHistory(v: Boolean) = context.dataStore.edit { it[K.reviewFromHistory] = v }
     suspend fun setTapLookupPractice(v: Boolean) = context.dataStore.edit { it[K.tapLookupPractice] = v }
+    suspend fun setVoiceConfig(v: app.diacritica.voice.VoiceConfig) = context.dataStore.edit { it[K.voiceConfig] = v.encode() }
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }
     suspend fun setReaderPinyin(v: Boolean) = context.dataStore.edit { it[K.readerPinyin] = v }

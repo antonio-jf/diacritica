@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Voice drill (Home tile, can go in the bottom bar): questions asked out loud, answers by voice. Say it (hear a word in your language, say it in another), Listen and translate, or Repeat; words from Saved words, Vocabulary sets or Rehearse sentences; questions take turns between the languages you pick, each answer recognized in its own language. Mandarin answers also match by sound. Check pronunciation records you and asks Gemini (per syllable and tone for Mandarin, per word otherwise). Options: next question by itself, count in Review (due cards of saved words). Shows which languages lack an offline speech pack, with a download button.
+
 - Library filters: counts sit in a small pill apart from each label (also for sources); date periods with no words are hidden; "Saved" heading renamed "Date saved"; save dates follow the phone's date format.
 - Library › Saved: search box (word or its sentence/note, accents ignored) and a Filter button with language, where it was saved from, when it was saved (today, 7 days, 30 days, this year, older) and sort (newest, oldest, A–Z). Each word shows the date it was saved.
 - Library: tapping a saved word or a past search opens the word sheet over the list (meaning, translations, characters, listen, save); Open in Dictionary is still there for the full entry.
