@@ -338,6 +338,79 @@ class GeminiClient {
 
     private fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.contentOrNull
 
+    /** One part of a pronunciation check: a syllable (Mandarin) or a word, and whether it sounded right. */
+    data class PronPart(val text: String, val ok: Boolean, val note: String?)
+
+    data class Pronunciation(
+        /** 0–100. */
+        val score: Int,
+        /** "good", "close" or "needs work". */
+        val verdict: String,
+        /** What Gemini heard. */
+        val heard: String,
+        val parts: List<PronPart>,
+        val tips: List<String>,
+    )
+
+    /**
+     * Listens to a recording of the learner saying [expected] in [lang] and judges the pronunciation:
+     * per syllable for Mandarin (tones above all), per word otherwise, with short tips in English.
+     */
+    suspend fun pronunciation(apiKey: String, model: String, lang: Lang, expected: String, pinyin: String?, wav: ByteArray): Pronunciation {
+        val schema = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("score") { put("type", "integer") }
+                putJsonObject("verdict") { put("type", "string"); putJsonArray("enum") { add("good"); add("close"); add("needs work") } }
+                putJsonObject("heard") { put("type", "string") }
+                putJsonObject("parts") {
+                    put("type", "array")
+                    putJsonObject("items") {
+                        put("type", "object")
+                        putJsonObject("properties") {
+                            putJsonObject("text") { put("type", "string") }
+                            putJsonObject("ok") { put("type", "boolean") }
+                            putJsonObject("note") { put("type", "string") }
+                        }
+                        putJsonArray("required") { add("text"); add("ok") }
+                    }
+                }
+                putJsonObject("tips") { put("type", "array"); putJsonObject("items") { put("type", "string") } }
+            }
+            putJsonArray("required") { add("score"); add("verdict"); add("heard"); add("parts"); add("tips") }
+        }
+        val system = """
+            You are a strict but encouraging pronunciation coach. You receive a recording of a language learner saying a
+            given word or sentence. Judge only pronunciation, not grammar or word choice. Be honest: if the audio is
+            unclear or is a different word, say so. Write notes and tips in short, plain English.
+        """.trimIndent()
+        val user = buildString {
+            appendLine("Language: ${lang.englishName}")
+            appendLine("The learner was asked to say: $expected")
+            if (lang == Lang.ZH && !pinyin.isNullOrBlank()) appendLine("Pinyin: $pinyin")
+            appendLine()
+            if (lang == Lang.ZH) {
+                appendLine("Give one part per syllable (text = the character with its pinyin, e.g. '电 diàn'). ok = initial, final and tone")
+                appendLine("all right. In note, name the problem, especially the tone you heard (e.g. 'said 2nd tone, should be 4th').")
+                appendLine("Account for normal tone sandhi (3rd+3rd, 不 and 一) and neutral tones.")
+            } else {
+                appendLine("Give one part per word. ok = clearly pronounced as a native speaker would accept. In note, name the")
+                appendLine("problem sound (e.g. French nasal vowel, German ü, Italian double consonant, silent letters).")
+            }
+            appendLine("score: 0–100 overall. heard: what you actually heard, written in the language. tips: at most 3, most useful first.")
+        }
+        val out = call(apiKey, model, user, schema, system, inline = "audio/wav" to wav)
+        return Pronunciation(
+            score = (out["score"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()?.coerceIn(0, 100) ?: 0,
+            verdict = out.str("verdict") ?: "close",
+            heard = out.str("heard").orEmpty(),
+            parts = (out["parts"] as? JsonArray)?.map { it.jsonObject }?.map {
+                PronPart(it.str("text").orEmpty(), (it["ok"] as? JsonPrimitive)?.contentOrNull == "true", it.str("note")?.ifBlank { null })
+            } ?: emptyList(),
+            tips = (out["tips"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.take(3) ?: emptyList(),
+        )
+    }
+
     /** One request with a JSON response [schema], for features that build their own prompt (Tests). */
     suspend fun generateJson(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
         call(apiKey, model, userText, schema, system)
@@ -346,7 +419,11 @@ class GeminiClient {
      * Calls generateContent. A busy model (500/503/504, timeouts) is retried twice with a short wait, then the
      * fallback models are tried; "model not found" and quota limits move straight on to the next model.
      */
-    private suspend fun call(apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM): JsonObject {
+    private suspend fun call(
+        apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM,
+        /** Optional media sent with the text: MIME type and bytes (e.g. "audio/wav"). */
+        inline: Pair<String, ByteArray>? = null,
+    ): JsonObject {
         if (apiKey.isBlank()) throw GeminiException("No Gemini API key set.")
         val today = pacificToday()
         val chosen = model.takeIf { it.isNotBlank() && it !in RETIRED } ?: DEFAULT_MODEL
@@ -355,7 +432,7 @@ class GeminiClient {
         var lastError: GeminiException? = null
         for (m in models) {
             try {
-                return withBusyRetries { callOnce(apiKey, m, userText, schema, system) }
+                return withBusyRetries { callOnce(apiKey, m, userText, schema, system, inline) }
             } catch (e: Busy) {
                 lastError = GeminiException("Gemini is busy right now (Google's servers are overloaded). Try again in a moment.")
             } catch (e: ModelUnavailable) {
@@ -390,14 +467,24 @@ class GeminiClient {
     private class ModelUnavailable : Exception()
     private class QuotaExceeded(val daily: Boolean) : Exception()
 
-    private suspend fun callOnce(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
+    private suspend fun callOnce(
+        apiKey: String, model: String, userText: String, schema: JsonObject, system: String, inline: Pair<String, ByteArray>? = null,
+    ): JsonObject =
         withContext(Dispatchers.IO) {
             val body = buildJsonObject {
                 putJsonObject("systemInstruction") { putJsonArray("parts") { add(buildJsonObject { put("text", system) }) } }
                 putJsonArray("contents") {
                     add(buildJsonObject {
                         put("role", "user")
-                        putJsonArray("parts") { add(buildJsonObject { put("text", userText) }) }
+                        putJsonArray("parts") {
+                            add(buildJsonObject { put("text", userText) })
+                            if (inline != null) add(buildJsonObject {
+                                putJsonObject("inline_data") {
+                                    put("mime_type", inline.first)
+                                    put("data", java.util.Base64.getEncoder().encodeToString(inline.second))
+                                }
+                            })
+                        }
                     })
                 }
                 // No temperature: Gemini 3.6+ ignores sampling parameters and later models reject them.
