@@ -116,6 +116,8 @@ data class AppSettings(
     /** Grammar focus path: the structure to practise (a key of GrammarTopics). */
     val grammarFocus: String = "mixed",
     val translateEngine: TranslateEngine = TranslateEngine.ON_DEVICE,
+    /** Translate with Gemini: also suggest grammar lessons about the language you're translating from. */
+    val translateGrammar: Boolean = true,
     /** Languages to translate into in Rehearse (empty = all active languages). */
     val rehearseLangs: Set<Lang> = emptySet(),
     /** Sentences per Rehearse round: 1, or a short passage of 2–3. */
@@ -198,6 +200,7 @@ class SettingsRepository(private val context: Context) {
         val rehearsePath = stringPreferencesKey("rehearse_path")
         val grammarFocus = stringPreferencesKey("grammar_focus")
         val translateEngine = stringPreferencesKey("translate_engine")
+        val translateGrammar = booleanPreferencesKey("translate_grammar")
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
         val rehearseLength = intPreferencesKey("rehearse_length")
@@ -264,6 +267,7 @@ class SettingsRepository(private val context: Context) {
                 ?: if (p[K.rehearseMyWords] == true) RehearsePath.MY_WORDS else d.rehearsePath,
             grammarFocus = p[K.grammarFocus] ?: d.grammarFocus,
             translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
+            translateGrammar = p[K.translateGrammar] ?: d.translateGrammar,
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
             rehearseLength = (p[K.rehearseLength] ?: d.rehearseLength).coerceIn(1, 3),
             // Upgrading from the A2/B1/B2 chips and the Story HSK setting: start from what was chosen there.
@@ -369,6 +373,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearsePath(v: RehearsePath) = context.dataStore.edit { it[K.rehearsePath] = v.name }
     suspend fun setGrammarFocus(v: String) = context.dataStore.edit { it[K.grammarFocus] = v }
     suspend fun setTranslateEngine(v: TranslateEngine) = context.dataStore.edit { it[K.translateEngine] = v.name }
+    suspend fun setTranslateGrammar(v: Boolean) = context.dataStore.edit { it[K.translateGrammar] = v }
     suspend fun historySyncedAt(): Long = context.dataStore.data.map { it[K.historySyncedAt] ?: 0L }.first()
     suspend fun setHistorySyncedAt(v: Long) = context.dataStore.edit { it[K.historySyncedAt] = v }
     suspend fun setPinyinHint(v: Boolean) = context.dataStore.edit { it[K.pinyinHint] = v }

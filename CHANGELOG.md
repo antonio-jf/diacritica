@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Translate with Gemini: optional Grammar suggestions (switch under the engine, on by default): up to 3 grammar points of the language you translate from that your text uses, each with a short explanation and Make a lesson (a full lesson in Grammar › Full lessons). A separate request, so translations don't wait for it.
 - Voice drill: mix question types (pick any of Say it, Listen and translate, Repeat); more than one "your language" (questions take turns between them); Endless length.
 - Review: two new card types for saved words (Settings › Review, both on): Translate a sentence (a Tatoeba sentence with the word in a language you know, else the dictionary example, else one written by Gemini) and Use it in a sentence (write your own; Gemini checks the word's use and grammar). Type your answer and Check: exact matches offline, otherwise Gemini; the check suggests a rating. Without a Gemini key you compare with the answer and rate yourself.
 

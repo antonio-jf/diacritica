@@ -91,6 +91,18 @@ fun TranslateScreen(
                 else "Gemini: more natural, needs internet and your key.",
                 style = captionStyle(),
             )
+            if (settings.translateEngine == TranslateEngine.GEMINI) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Grammar suggestions", style = bodyStyle(size = 15.sp))
+                        Text("Lessons about the language you translate from", style = captionStyle())
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = settings.translateGrammar, onCheckedChange = vm::setGrammar,
+                        colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = c.accent),
+                    )
+                }
+            }
             InputBox(st.input, vm::setInput, onClear = vm::clear, lang = st.source)
             if (showPad) {
                 HandwritingPad(
@@ -152,6 +164,29 @@ fun TranslateScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+        // Grammar worth a lesson in the text you translated (in its own language).
+        val from = st.from
+        if (from != null && (st.grammarLoading || st.grammar.isNotEmpty() || st.grammarError != null)) {
+            Column(Modifier.padding(horizontal = pad, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                app.diacritica.ui.components.SectionLabel("${from.englishName} grammar in your text")
+                when {
+                    st.grammarLoading -> Text("Looking for grammar worth a lesson…", style = captionStyle())
+                    st.grammarError != null && st.grammar.isEmpty() -> Text("No grammar suggestions: ${st.grammarError}", style = captionStyle())
+                }
+                st.grammar.forEach { g ->
+                    PolySurface {
+                        Text(g.title, style = app.diacritica.ui.components.headwordStyle(17.sp))
+                        if (g.pattern.isNotBlank()) Text(g.pattern, style = captionStyle(c.accent))
+                        if (g.inPassage.isNotBlank()) Text("In your text: ${g.inPassage}", style = bodyStyle(c.inkMuted, 14.sp))
+                        Gap(4.dp)
+                        Text(g.explanation, style = bodyStyle(size = 15.sp))
+                        Gap(8.dp)
+                        if (g.title in st.lessonsMade) Text("✓ Writing the lesson: it'll be in Grammar › Full lessons", style = captionStyle(c.success))
+                        else PolyButton("Make a lesson", { vm.makeLesson(g) }, primary = false)
                     }
                 }
             }

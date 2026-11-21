@@ -338,6 +338,50 @@ class GeminiClient {
 
     private fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.contentOrNull
 
+    /**
+     * Up to [max] grammar points worth a lesson in a text the learner is translating, about [lang] (the text's
+     * own language), most useful first. Explanations in English.
+     */
+    suspend fun grammarNotes(apiKey: String, model: String, lang: Lang, text: String, max: Int = 3): List<app.diacritica.mybooks.GrammarPoint> {
+        val schema = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("points") {
+                    put("type", "array")
+                    putJsonObject("items") {
+                        put("type", "object")
+                        putJsonObject("properties") {
+                            putJsonObject("title") { put("type", "string") }
+                            putJsonObject("pattern") { put("type", "string") }
+                            putJsonObject("inText") { put("type", "string") }
+                            putJsonObject("explanation") { put("type", "string") }
+                        }
+                        putJsonArray("required") { add("title"); add("pattern"); add("inText"); add("explanation") }
+                    }
+                }
+            }
+            putJsonArray("required") { add("points") }
+        }
+        val user = buildString {
+            appendLine("This ${lang.englishName} text is being translated by a learner of ${lang.englishName}:")
+            appendLine(text.take(2000))
+            appendLine()
+            appendLine("Pick at most $max grammar points of ${lang.englishName} that this text actually uses and that are worth a lesson")
+            appendLine("for an intermediate learner (tenses and moods, agreement, cases, word order, particles, aspect, set structures).")
+            appendLine("Skip trivial ones. If nothing is worth it, return an empty list.")
+            appendLine("title: short name of the point in English. pattern: the structure in ${lang.englishName} (e.g. \u201chaber + participio\u201d,")
+            appendLine("\u201c了 after a verb\u201d). inText: the words of the text that show it. explanation: 2–4 plain English sentences.")
+        }
+        val out = call(apiKey, model, user, schema)
+        return (out["points"] as? JsonArray)?.map { it.jsonObject }?.mapNotNull { o ->
+            val title = o.str("title")?.ifBlank { null } ?: return@mapNotNull null
+            app.diacritica.mybooks.GrammarPoint(
+                title = title, pattern = o.str("pattern").orEmpty(), inPassage = o.str("inText").orEmpty(),
+                explanation = o.str("explanation").orEmpty(),
+            )
+        }?.take(max) ?: emptyList()
+    }
+
     /** Gemini's verdict on a sentence the learner wrote with a given word (Review › Use it in a sentence). */
     data class UsageCheck(
         /** "correct", "minor" (small mistakes) or "wrong". */
