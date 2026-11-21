@@ -347,7 +347,8 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         for (w in words) {
             if (out.size >= cfg.length) break
             val t = targets[out.size % targets.size]
-            val tf = w.form(t).ifBlank { continue }
+            val tf = w.form(t)
+            if (tf.isBlank()) continue
             val bf = w.form(cfg.base)
             out += make(cfg.mode, cfg.base, t, baseText = bf, baseAccepted = listOf(bf), targetText = tf, targetAccepted = listOf(tf),
                 pinyinTarget = w.pinyin.takeIf { t == Lang.ZH }, pinyinBase = w.pinyin.takeIf { cfg.base == Lang.ZH }, sentence = false, review = null)
