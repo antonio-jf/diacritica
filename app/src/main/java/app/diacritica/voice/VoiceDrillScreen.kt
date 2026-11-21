@@ -111,11 +111,18 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
     ) {
         Text("Questions are asked out loud and you answer by speaking. Keep the screen on and the phone near you.", style = captionStyle())
 
-        Gap(6.dp); SectionLabel("Question")
+        Gap(6.dp); SectionLabel("Question types")
+        Text("Pick one or more; a session takes turns between them.", style = captionStyle())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            VoiceMode.entries.forEach { m -> PolyChip(m.label, cfg.mode == m, { vm.setConfig(cfg.copy(mode = m)) }) }
+            VoiceMode.entries.forEach { m ->
+                val on = m in cfg.modes
+                PolyChip(m.label, on, {
+                    val now = if (on) cfg.modes - m else cfg.modes + m
+                    if (now.isNotEmpty()) vm.setConfig(cfg.copy(modes = VoiceMode.entries.filter { it in now }))
+                })
+            }
         }
-        Text(cfg.mode.blurb, style = captionStyle())
+        cfg.modes.forEach { m -> Text("${m.label}: ${m.blurb.replaceFirstChar { it.lowercase() }}", style = captionStyle()) }
 
         Gap(6.dp); SectionLabel("Words from")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -141,15 +148,22 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
         }
         if (cfg.source == VoiceSource.SENTENCES) Text("Short sentences at your Rehearse level. Spoken sentences are checked word by word; Gemini can check them properly.", style = captionStyle())
 
-        Gap(6.dp); SectionLabel("Your language")
-        Text("Questions are asked in it (Say it) and you answer in it (Listen and translate).", style = captionStyle())
+        val bases = cfg.basesFor(st.active)
+        Gap(6.dp); SectionLabel("Your languages")
+        Text("Questions are asked in them (Say it) and you answer in them (Listen and translate). With more than one, they take turns.", style = captionStyle())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            st.active.forEach { l -> PolyChip(l.short, cfg.base == l, { vm.setConfig(cfg.copy(base = l, targets = cfg.targets - l)) }) }
+            st.active.forEach { l ->
+                val on = l in bases
+                PolyChip(l.short, on, {
+                    val now = if (on) bases - l else bases + l
+                    if (now.isNotEmpty()) vm.setConfig(cfg.copy(bases = st.active.filter { it in now }, targets = cfg.targets - l))
+                })
+            }
         }
 
         Gap(6.dp); SectionLabel("Practise")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            st.active.filter { it != cfg.base }.forEach { l ->
+            st.active.filter { it !in bases }.forEach { l ->
                 val on = l in targets
                 PolyChip(l.short, on, {
                     val now = if (on) targets - l else targets + l
@@ -160,7 +174,7 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
         Text(if (targets.size > 1) "Questions take turns between ${targets.joinToString(", ") { it.short }}." else "", style = captionStyle())
         // Offline speech packs: without one, that language is recognized online.
         st.packs?.let { packs ->
-            val missing = (targets + cfg.base).distinct().filter { it !in packs }
+            val missing = (targets + bases).distinct().filter { it !in packs }
             if (missing.isEmpty()) {
                 Text("Offline speech packs installed for all of these.", style = captionStyle(c.success))
             } else {
@@ -174,6 +188,7 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
         Gap(6.dp); SectionLabel("Length")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(5, 10, 20, 30).forEach { n -> PolyChip("$n", cfg.length == n, { vm.setConfig(cfg.copy(length = n)) }) }
+            PolyChip("Endless", cfg.endless, { vm.setConfig(cfg.copy(length = VoiceConfig.ENDLESS)) })
         }
 
         Gap(4.dp)
@@ -215,14 +230,17 @@ private fun Round(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings) {
             return@Column
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${st.index + 1} of ${st.items.size}", style = captionStyle(), modifier = Modifier.weight(1f))
+            Text(
+                if (st.config.endless) "Question ${st.index + 1}" else "${st.index + 1} of ${st.items.size}",
+                style = captionStyle(), modifier = Modifier.weight(1f),
+            )
             val right = st.results.count { it.verdict == VoiceVerdict.RIGHT }
             if (st.results.isNotEmpty()) Text("$right right", style = captionStyle(c.success))
             Spacer(Modifier.width(12.dp))
             Text("End", style = captionStyle(c.accent), modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button) { vm.finish() }.padding(8.dp))
         }
         // Progress bar
-        Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(c.line)) {
+        if (!st.config.endless) Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(c.line)) {
             Box(Modifier.fillMaxWidth((st.index + 1f) / st.items.size.coerceAtLeast(1)).height(3.dp).background(c.accent))
         }
 
@@ -285,7 +303,7 @@ private fun Round(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings) {
                 PolyIconButton(PolyIcons.Slow, "Play slowly", { vm.playAnswer(true) })
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PolyButton(if (st.index + 1 >= st.items.size) "Finish" else "Next", vm::next)
+                PolyButton(if (!st.config.endless && st.index + 1 >= st.items.size) "Finish" else "Next", vm::next)
                 if (v != null && v != VoiceVerdict.RIGHT) PolyButton("I said it right", vm::markRight, primary = false)
                 PolyButton("Try again", vm::tryAgain, primary = false)
                 PolyButton("Check pronunciation", vm::checkPronunciation, primary = false)

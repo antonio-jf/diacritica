@@ -101,6 +101,10 @@ data class AppSettings(
     val pinyinHint: Boolean = false,
     /** Also make review cards from words looked up in the Dictionary (not only starred ones). */
     val reviewFromHistory: Boolean = true,
+    /** Review: "Translate a sentence" cards for saved words. */
+    val reviewTranslateCards: Boolean = true,
+    /** Review: "Use it in a sentence" cards for saved words. */
+    val reviewUseCards: Boolean = true,
     /** Practice sentences (Rehearse, Tests, Review) can be tapped for word meanings. Off: practise without help. */
     val tapLookupPractice: Boolean = false,
     /** Voice drill setup (mode, words, languages, length, Review option). */
@@ -186,6 +190,8 @@ class SettingsRepository(private val context: Context) {
         val levels = stringSetPreferencesKey("rehearse_levels")
         val pinyinHint = booleanPreferencesKey("pinyin_hint")
         val reviewFromHistory = booleanPreferencesKey("review_from_history")
+        val reviewTranslateCards = booleanPreferencesKey("review_translate_cards")
+        val reviewUseCards = booleanPreferencesKey("review_use_cards")
         val tapLookupPractice = booleanPreferencesKey("tap_lookup_practice")
         val voiceConfig = stringPreferencesKey("voice_config")
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
@@ -249,6 +255,8 @@ class SettingsRepository(private val context: Context) {
             levels = p[K.levels]?.ifEmpty { null } ?: d.levels,
             pinyinHint = p[K.pinyinHint] ?: d.pinyinHint,
             reviewFromHistory = p[K.reviewFromHistory] ?: d.reviewFromHistory,
+            reviewTranslateCards = p[K.reviewTranslateCards] ?: d.reviewTranslateCards,
+            reviewUseCards = p[K.reviewUseCards] ?: d.reviewUseCards,
             tapLookupPractice = p[K.tapLookupPractice] ?: d.tapLookupPractice,
             voice = app.diacritica.voice.VoiceConfig.decode(p[K.voiceConfig]),
             rehearseMyWords = p[K.rehearseMyWords] ?: d.rehearseMyWords,
@@ -325,6 +333,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearseLayout(v: RehearseLayout) = context.dataStore.edit { it[K.rehearseLayout] = v.name }
     suspend fun setLevels(v: Set<String>) = context.dataStore.edit { it[K.levels] = v }
     suspend fun setReviewFromHistory(v: Boolean) = context.dataStore.edit { it[K.reviewFromHistory] = v }
+    suspend fun setReviewTranslateCards(v: Boolean) = context.dataStore.edit { it[K.reviewTranslateCards] = v }
+    suspend fun setReviewUseCards(v: Boolean) = context.dataStore.edit { it[K.reviewUseCards] = v }
     suspend fun setTapLookupPractice(v: Boolean) = context.dataStore.edit { it[K.tapLookupPractice] = v }
     suspend fun setVoiceConfig(v: app.diacritica.voice.VoiceConfig) = context.dataStore.edit { it[K.voiceConfig] = v.encode() }
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }

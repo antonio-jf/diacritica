@@ -77,7 +77,7 @@ fun ReviewScreen(vm: ReviewViewModel, onOpenWord: ((Lang, String) -> Unit)? = nu
             state.loading -> Text("Loading…", style = captionStyle(), modifier = Modifier.padding(20.dp))
             item == null -> EmptyState(total, nextDue)
             else -> {
-                ReviewCard(item, state, onReveal = vm::reveal, onPick = vm::pickArticle, onSpeak = vm::speak)
+                ReviewCard(item, state, onReveal = vm::reveal, onPick = vm::pickArticle, onSpeak = vm::speak, onAnswer = vm::setAnswer)
                 Gap(12.dp)
                 if (state.revealed && item.kind != CardKind.SENTENCE) item.word?.let { w ->
                     Text(
@@ -86,7 +86,21 @@ fun ReviewScreen(vm: ReviewViewModel, onOpenWord: ((Lang, String) -> Unit)? = nu
                             .clickable { vm.lookup.open(w.word, item.lang) }.padding(horizontal = 4.dp, vertical = 8.dp),
                     )
                 }
-                if (state.revealed) RatingRow(state.previews, suggestAgain = item.kind == CardKind.GENDER && state.pickedArticle != item.word?.article, onRate = vm::rate)
+                val typed = item.kind == CardKind.TRANSLATE || item.kind == CardKind.USE
+                if (state.revealed) RatingRow(
+                    state.previews,
+                    suggested = if (item.kind == CardKind.GENDER && state.pickedArticle != item.word?.article) Fsrs.Rating.AGAIN else state.suggested,
+                    onRate = vm::rate,
+                )
+                else if (typed) {
+                    Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PolyButton(
+                            if (state.checking) "Checking…" else "Check", vm::checkSentence, modifier = Modifier.weight(1f),
+                            enabled = state.answer.isNotBlank() && !state.checking && !state.taskLoading,
+                        )
+                        PolyButton("Show answer", vm::reveal, primary = false, modifier = Modifier.weight(1f))
+                    }
+                }
                 else if (item.kind != CardKind.GENDER) {
                     PolyButton("Show answer", vm::reveal, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
                 }
@@ -127,8 +141,10 @@ private fun ReviewCard(
     onReveal: () -> Unit,
     onPick: (String) -> Unit,
     onSpeak: () -> Unit,
+    onAnswer: (String) -> Unit,
 ) {
     LaunchedEffect(item.card.id) { if (item.kind == CardKind.LISTENING) onSpeak() }
+    val typed = item.kind == CardKind.TRANSLATE || item.kind == CardKind.USE
     PolySurface(Modifier.padding(horizontal = 16.dp), padding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("${item.kind.label} · ${item.lang.englishName}", Modifier.weight(1f))
@@ -136,10 +152,14 @@ private fun ReviewCard(
         }
         Gap(10.dp)
         Front(item, state, onPick)
+        if (typed && !state.revealed) {
+            Gap(12.dp)
+            AnswerBox(state.answer, onAnswer, item.lang, if (item.kind == CardKind.USE) "Your sentence…" else "Your translation…")
+        }
         if (state.revealed) {
             Gap(14.dp); Hairline(); Gap(14.dp)
             Back(item, state)
-        } else if (item.kind != CardKind.GENDER) {
+        } else if (item.kind != CardKind.GENDER && !typed) {
             Box(Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onReveal))
         }
     }
@@ -167,6 +187,64 @@ private fun Front(item: ReviewItem, state: ReviewUiState, onPick: (String) -> Un
             app.diacritica.ui.components.TappableText(item.card.front ?: "", null, style = headwordStyle())
             Text("Translate into ${item.lang.englishName}.", style = captionStyle())
         }
+        CardKind.TRANSLATE -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val t = state.task
+            when {
+                state.taskLoading -> Text("Finding a sentence with this word…", style = captionStyle())
+                t == null -> {
+                    Text("No sentence with this word was found offline. Add a Gemini key to get one, or recall the word:", style = captionStyle())
+                    w?.let { WordTitle(it, large = true) }
+                }
+                else -> {
+                    app.diacritica.ui.components.TappableText(t.prompt, t.promptLang, style = headwordStyle(20.sp))
+                    Text("Translate into ${item.lang.englishName} · ${t.promptLang.short} sentence, ${t.source}", style = captionStyle())
+                }
+            }
+        }
+        CardKind.USE -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            w?.let { WordTitle(it, large = true) }
+            if (item.lang == Lang.ZH) w?.let { PinyinLine(it) }
+            val en = item.translations.firstOrNull { it.lang == Lang.EN }?.word
+            listOfNotNull(en, item.meaning?.let { "($it)" }).joinToString(" ").ifBlank { null }?.let { Text(it, style = bodyStyle(Diacritica.colors.inkMuted)) }
+            Text("Write a sentence in ${item.lang.englishName} that uses this word.", style = captionStyle())
+        }
+    }
+}
+
+/** The box you type a translation or your own sentence in, with the keyboard set to the card's language. */
+@Composable
+private fun AnswerBox(value: String, onChange: (String) -> Unit, lang: Lang, hint: String) {
+    val c = Diacritica.colors
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Diacritica.shapes.field.coerceAtMost(12.dp))).background(c.surfaceAlt)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        if (value.isEmpty()) Text(hint, style = bodyStyle(c.inkMuted))
+        androidx.compose.foundation.text.BasicTextField(
+            value = value, onValueChange = onChange,
+            textStyle = bodyStyle(size = 17.sp), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            visualTransformation = app.diacritica.ui.theme.hanTransformation(),
+            keyboardOptions = app.diacritica.ui.components.keyboardFor(lang, androidx.compose.foundation.text.KeyboardOptions(autoCorrectEnabled = false)),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        )
+    }
+}
+
+/** What the check said about a typed sentence. */
+@Composable
+private fun FeedbackBlock(answer: String, fb: SentenceFeedback?, error: String?) {
+    val c = Diacritica.colors
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (fb != null) {
+            val col = when (fb.level) { 2 -> c.success; 1 -> c.warning; else -> c.error }
+            Text(fb.title, style = headwordStyle(20.sp).copy(color = col))
+        }
+        if (answer.isNotBlank()) Text("You wrote: $answer", style = bodyStyle(c.inkMuted))
+        fb?.corrected?.takeIf { it.isNotBlank() && it != answer }?.let { Text("Corrected: $it", style = bodyStyle()) }
+        fb?.notes?.forEach { Text(it, style = captionStyle(c.ink)) }
+        fb?.natural?.let { Text("More natural: $it", style = captionStyle()) }
+        if (fb == null && answer.isNotBlank() && error == null) Text("Compare with the answer below and rate yourself.", style = captionStyle())
+        error?.let { Text(it, style = captionStyle(c.error)) }
     }
 }
 
@@ -184,6 +262,18 @@ private fun Back(item: ReviewItem, state: ReviewUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (item.kind) {
             CardKind.SENTENCE -> app.diacritica.ui.components.TappableText(item.card.back ?: "", item.lang, style = headwordStyle())
+            CardKind.TRANSLATE -> {
+                FeedbackBlock(state.answer, state.feedback, state.checkError)
+                state.task?.let { t ->
+                    SectionLabel(if (t.references.size > 1) "Answers" else "Answer")
+                    t.references.take(3).forEach { r -> app.diacritica.ui.components.TappableText(r, item.lang, style = headwordStyle(19.sp)) }
+                } ?: w?.let { WordTitle(it, large = true) }
+                w?.let { Text("Word: " + (it.article?.let { a -> "$a " } ?: "") + it.word + (it.pinyin?.let { p -> "  $p" } ?: ""), style = captionStyle()) }
+            }
+            CardKind.USE -> {
+                FeedbackBlock(state.answer, state.feedback, state.checkError)
+                w?.let { ExampleLine(it) }
+            }
             CardKind.GENDER -> {
                 val right = state.pickedArticle == w?.article
                 Text(
@@ -216,7 +306,7 @@ private fun Back(item: ReviewItem, state: ReviewUiState) {
 }
 
 @Composable
-private fun RatingRow(previews: Map<Fsrs.Rating, String>, suggestAgain: Boolean, onRate: (Fsrs.Rating) -> Unit) {
+private fun RatingRow(previews: Map<Fsrs.Rating, String>, suggested: Fsrs.Rating?, onRate: (Fsrs.Rating) -> Unit) {
     val c = Diacritica.colors
     Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Fsrs.Rating.entries.forEach { r ->
@@ -227,7 +317,7 @@ private fun RatingRow(previews: Map<Fsrs.Rating, String>, suggestAgain: Boolean,
                 Fsrs.Rating.EASY -> c.accent
             }
             val shape = RoundedCornerShape(Diacritica.shapes.button.coerceAtMost(14.dp))
-            val emphasize = suggestAgain && r == Fsrs.Rating.AGAIN
+            val emphasize = suggested == r
             Column(
                 Modifier.weight(1f).clip(shape)
                     .background(if (emphasize) tint.copy(alpha = 0.18f) else c.surfaceAlt)

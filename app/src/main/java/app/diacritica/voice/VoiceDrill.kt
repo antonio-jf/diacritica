@@ -16,12 +16,14 @@ enum class VoiceSource(val label: String) { SAVED("Saved words"), VOCAB("Vocabul
 
 /** The drill's setup, remembered between sessions (Settings key `voice_config`). */
 data class VoiceConfig(
-    val mode: VoiceMode = VoiceMode.SAY,
+    /** Question types mixed in a session (at least one). */
+    val modes: List<VoiceMode> = listOf(VoiceMode.SAY),
     val source: VoiceSource = VoiceSource.VOCAB,
-    /** Your language: questions are asked in it (Say it) and answered in it (Listen). */
-    val base: Lang = Lang.EN,
-    /** Languages to practise; empty = all active ones except English and Spanish. */
+    /** Your languages: questions are asked in them (Say it) and answered in them (Listen); they take turns. */
+    val bases: List<Lang> = listOf(Lang.EN),
+    /** Languages to practise; empty = all active ones except your languages, English and Spanish. */
     val targets: List<Lang> = emptyList(),
+    /** Number of questions; [ENDLESS] = keep going until you end it. */
     val length: Int = 10,
     /** Vocabulary set id, or null for all sets. */
     val setId: String? = null,
@@ -30,26 +32,38 @@ data class VoiceConfig(
     /** Go on to the next question by itself after the feedback. */
     val autoNext: Boolean = true,
 ) {
-    fun targetsFor(active: List<Lang>): List<Lang> =
-        targets.filter { it in active && it != base }.ifEmpty { active.filter { it != base && it != Lang.EN && it != Lang.ES } }
-            .ifEmpty { active.filter { it != base } }
+    val endless: Boolean get() = length == ENDLESS
+
+    fun basesFor(active: List<Lang>): List<Lang> = bases.filter { it in active }.ifEmpty { listOf(active.firstOrNull() ?: Lang.EN) }
+
+    fun targetsFor(active: List<Lang>): List<Lang> {
+        val b = basesFor(active)
+        return targets.filter { it in active && it !in b }.ifEmpty { active.filter { it !in b && it != Lang.EN && it != Lang.ES } }
+            .ifEmpty { active.filter { it !in b } }
+    }
 
     fun encode(): String = listOf(
-        "mode=${mode.name}", "source=${source.name}", "base=${base.code}", "targets=${targets.joinToString(",") { it.code }}",
-        "length=$length", "set=${setId.orEmpty()}", "review=$countInReview", "auto=$autoNext",
+        "modes=${modes.joinToString(",") { it.name }}", "source=${source.name}", "bases=${bases.joinToString(",") { it.code }}",
+        "targets=${targets.joinToString(",") { it.code }}", "length=$length", "set=${setId.orEmpty()}",
+        "review=$countInReview", "auto=$autoNext",
     ).joinToString(";")
 
     companion object {
+        const val ENDLESS = 0
+
         fun decode(s: String?): VoiceConfig {
             if (s.isNullOrBlank()) return VoiceConfig()
             val m = s.split(';').mapNotNull { p -> p.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }.toMap()
             val d = VoiceConfig()
+            // Older setups stored one "mode" and one "base".
+            val modes = (m["modes"] ?: m["mode"]).orEmpty().split(',').mapNotNull { v -> VoiceMode.entries.firstOrNull { it.name == v } }
+            val bases = (m["bases"] ?: m["base"]).orEmpty().split(',').mapNotNull { Lang.fromCode(it) }
             return VoiceConfig(
-                mode = VoiceMode.entries.firstOrNull { it.name == m["mode"] } ?: d.mode,
+                modes = modes.ifEmpty { d.modes },
                 source = VoiceSource.entries.firstOrNull { it.name == m["source"] } ?: d.source,
-                base = m["base"]?.let { Lang.fromCode(it) } ?: d.base,
+                bases = bases.ifEmpty { d.bases },
                 targets = m["targets"].orEmpty().split(',').mapNotNull { Lang.fromCode(it) },
-                length = m["length"]?.toIntOrNull()?.coerceIn(5, 50) ?: d.length,
+                length = m["length"]?.toIntOrNull()?.let { if (it == ENDLESS) ENDLESS else it.coerceIn(5, 100) } ?: d.length,
                 setId = m["set"]?.ifBlank { null },
                 countInReview = m["review"] == "true",
                 autoNext = m["auto"]?.let { it == "true" } ?: d.autoNext,
@@ -64,6 +78,8 @@ data class VoiceConfig(
  */
 data class VoiceItem(
     val mode: VoiceMode,
+    /** The learner's language this question uses (frames are spoken in it when it's Spanish). */
+    val base: Lang,
     val ask: Lang,
     val askText: String,
     val answer: Lang,

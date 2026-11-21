@@ -92,6 +92,8 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setReaderPopup(v: app.diacritica.settings.PopupLayout) = edit { c.settings.setReaderPopup(v) }
     fun setPinyinHint(v: Boolean) = edit { c.settings.setPinyinHint(v) }
     fun setReviewFromHistory(v: Boolean) = edit { c.settings.setReviewFromHistory(v) }
+    fun setReviewTranslateCards(v: Boolean) = edit { c.settings.setReviewTranslateCards(v) }
+    fun setReviewUseCards(v: Boolean) = edit { c.settings.setReviewUseCards(v) }
     fun setTapLookupPractice(v: Boolean) = edit { c.settings.setTapLookupPractice(v) }
     fun toggleRehearseLang(l: Lang) = edit {
         val cur = c.settings.settings.first().rehearseLanguages.toSet()
