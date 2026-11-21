@@ -189,9 +189,24 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
             } else {
                 Text("No offline speech pack for ${missing.joinToString(", ") { it.englishName }}: those are recognized online.", style = captionStyle())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    missing.forEach { l -> PolyButton("Download ${l.short}", { vm.downloadPack(l); vm.refreshPacks() }, primary = false) }
+                    missing.forEach { l -> PolyButton("Download ${l.short}", { vm.downloadPack(l) }, primary = false) }
                 }
             }
+            st.packMessage?.let { Text(it, style = captionStyle(c.ink)) }
+            // The phone's own speech settings: offline languages can be managed there too.
+            val context = LocalContext.current
+            Text(
+                "Phone voice settings ›", style = captionStyle(c.accent),
+                modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button) {
+                    val intents = listOf(
+                        android.content.Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS),
+                        android.content.Intent(android.provider.Settings.ACTION_SETTINGS),
+                    )
+                    for (i in intents) {
+                        if (runCatching { context.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) break
+                    }
+                }.padding(vertical = 6.dp),
+            )
         }
 
         Gap(6.dp); SectionLabel("Length")

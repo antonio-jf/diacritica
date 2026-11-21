@@ -44,6 +44,8 @@ data class VoiceUi(
     val savedCount: Int = 0,
     /** Offline speech packs per practised language (null: the phone can't tell). */
     val packs: Set<Lang>? = null,
+    /** Result of the last pack download request. */
+    val packMessage: String? = null,
     val phase: VoicePhase = VoicePhase.SETUP,
     val items: List<VoiceItem> = emptyList(),
     val index: Int = 0,
@@ -103,7 +105,20 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         }
     }
 
-    fun downloadPack(lang: Lang) = listener.downloadPack(lang)
+    /** Starts the offline pack download; when the phone can't, says so (the screen offers its voice settings). */
+    fun downloadPack(lang: Lang) {
+        viewModelScope.launch {
+            val ok = listener.downloadPack(lang)
+            _state.update {
+                it.copy(
+                    packMessage = if (ok) "Downloading the ${lang.englishName} pack. It shows as installed when it's done; check again in a minute."
+                    else "The phone's offline speech doesn't offer ${lang.englishName} here. Open the voice settings to download it, or keep using it online.",
+                )
+            }
+            delay(4_000)
+            refreshPacks()
+        }
+    }
 
     // ---------------------------------------------------------------- session
 
