@@ -396,7 +396,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         return out
     }
 
-    private suspend fun <T> nextFromPool(fill: suspend () -> List<T>): T? {
+    private suspend fun <T : Any> nextFromPool(fill: suspend () -> List<T>): T? {
         if (poolAt >= pool.size) { pool = fill().shuffled(); poolAt = 0 }
         @Suppress("UNCHECKED_CAST")
         return (pool.getOrNull(poolAt++) as? T)
