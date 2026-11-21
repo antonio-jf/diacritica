@@ -150,20 +150,20 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
 
         val bases = cfg.basesFor(st.active)
         Gap(6.dp); SectionLabel("Your languages")
-        Text("Questions are asked in them (Say it) and you answer in them (Listen and translate). With more than one, they take turns.", style = captionStyle())
+        Text("Questions are asked in them (Say it) and you answer in them (Listen and translate).", style = captionStyle())
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             st.active.forEach { l ->
                 val on = l in bases
                 PolyChip(l.short, on, {
                     val now = if (on) bases - l else bases + l
-                    if (now.isNotEmpty()) vm.setConfig(cfg.copy(bases = st.active.filter { it in now }, targets = cfg.targets - l))
+                    if (now.isNotEmpty()) vm.setConfig(cfg.copy(bases = st.active.filter { it in now }))
                 })
             }
         }
 
         Gap(6.dp); SectionLabel("Practise")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            st.active.filter { it !in bases }.forEach { l ->
+            st.active.forEach { l ->
                 val on = l in targets
                 PolyChip(l.short, on, {
                     val now = if (on) targets - l else targets + l
@@ -171,7 +171,16 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
                 })
             }
         }
-        Text(if (targets.size > 1) "Questions take turns between ${targets.joinToString(", ") { it.short }}." else "", style = captionStyle())
+        // A language can be in both rows; a question never asks and answers in the same one.
+        val pairs = cfg.pairsFor(st.active)
+        Text(
+            when {
+                pairs.isEmpty() -> "Pick at least one language to practise that isn't your only language."
+                pairs.size == 1 -> "Questions: ${pairs[0].first.short} → ${pairs[0].second.short}."
+                else -> "${pairs.size} language pairs, taking turns (e.g. ${pairs.take(3).joinToString(", ") { "${it.first.short} → ${it.second.short}" }}). A language can be in both rows."
+            },
+            style = captionStyle(if (pairs.isEmpty()) c.error else c.inkMuted),
+        )
         // Offline speech packs: without one, that language is recognized online.
         st.packs?.let { packs ->
             val missing = (targets + bases).distinct().filter { it !in packs }
@@ -209,7 +218,7 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
         st.error?.let { Text(it, style = captionStyle(c.error)) }
         if (micDenied) Text("Diacritica needs the microphone to hear your answers. Allow it in the phone's app settings.", style = captionStyle(c.error))
         Gap(6.dp)
-        PolyButton("Start", onStart, enabled = targets.isNotEmpty(), modifier = Modifier.fillMaxWidth())
+        PolyButton("Start", onStart, enabled = cfg.pairsFor(st.active).isNotEmpty(), modifier = Modifier.fillMaxWidth())
         Gap(24.dp)
     }
 }

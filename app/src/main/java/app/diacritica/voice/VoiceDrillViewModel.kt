@@ -208,7 +208,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
             val s = c.settings.settings.first()
             val cfg = _state.value.config
             if (!fromListening) {
-                for ((text, lang) in VoicePhrases.question(item, item.base)) {
+                for ((text, lang) in VoicePhrases.question(item)) {
                     if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
                 }
             }
@@ -231,7 +231,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
                 return@launch
             }
             _state.update { it.copy(phase = VoicePhase.FEEDBACK, verdict = result.verdict, note = result.note) }
-            for ((text, lang) in VoicePhrases.feedback(result.verdict, item, item.base)) {
+            for ((text, lang) in VoicePhrases.feedback(result.verdict, item)) {
                 if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
             }
             if (cfg.autoNext && result.verdict == VoiceVerdict.RIGHT) {
@@ -335,18 +335,22 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
     private var made = 0
 
     /** One question's type and languages, taking turns. */
-    private fun plan(cfg: VoiceConfig, bases: List<Lang>, targets: List<Lang>): Triple<VoiceMode, Lang, Lang>? {
+    /** The language pairs of this session, shuffled once so every pair comes up before any repeats. */
+    private var pairs: List<Pair<Lang, Lang>> = emptyList()
+
+    private fun plan(cfg: VoiceConfig): Triple<VoiceMode, Lang, Lang>? {
+        if (pairs.isEmpty()) return null
         val i = made
-        val mode = cfg.modes.ifEmpty { listOf(VoiceMode.SAY) }.let { it[i % it.size] }
-        val base = bases[(i / cfg.modes.size.coerceAtLeast(1)) % bases.size]
-        val ts = targets.filter { it != base }.ifEmpty { return null }
-        val target = ts[(i / (cfg.modes.size.coerceAtLeast(1) * bases.size)) % ts.size]
+        val modes = cfg.modes.ifEmpty { listOf(VoiceMode.SAY) }
+        val mode = modes[i % modes.size]
+        val (base, target) = pairs[(i / modes.size) % pairs.size]
         return Triple(mode, base, target)
     }
 
     /** First batch: the whole session, or 20 when it's endless (more are added as you go). */
     private suspend fun buildItems(cfg: VoiceConfig): List<VoiceItem> {
         made = 0
+        pairs = cfg.pairsFor(c.settings.settings.first().activeLanguages).shuffled()
         pool = emptyList(); poolAt = 0
         retrying = false
         return makeItems(cfg, if (cfg.endless) BATCH else cfg.length)
@@ -383,7 +387,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         val out = ArrayList<VoiceItem>()
         var misses = 0
         while (out.size < count && misses < count * 4 + 20) {
-            val (mode, base, target) = plan(cfg, bases, targets) ?: return out
+            val (mode, base, target) = plan(cfg) ?: return out
             val item = when (cfg.source) {
                 VoiceSource.VOCAB -> nextVocab(cfg, mode, base, target)
                 VoiceSource.SAVED -> nextSaved(s, cfg, mode, base, targets)
