@@ -390,8 +390,8 @@ class GeminiClient {
             if (lang == Lang.ZH && !pinyin.isNullOrBlank()) appendLine("Pinyin: $pinyin")
             appendLine()
             if (lang == Lang.ZH) {
-                appendLine("Give one part per syllable (text = the character with its pinyin, e.g. "电 diàn"). ok = initial, final and tone")
-                appendLine("all right. In note, name the problem, especially the tone you heard (e.g. "said 2nd tone, should be 4th").")
+                appendLine("Give one part per syllable (text = the character with its pinyin, e.g. '电 diàn'). ok = initial, final and tone")
+                appendLine("all right. In note, name the problem, especially the tone you heard (e.g. 'said 2nd tone, should be 4th').")
                 appendLine("Account for normal tone sandhi (3rd+3rd, 不 and 一) and neutral tones.")
             } else {
                 appendLine("Give one part per word. ok = clearly pronounced as a native speaker would accept. In note, name the")
