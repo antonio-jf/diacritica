@@ -96,7 +96,64 @@ data class VoiceItem(
     val review: Pair<Lang, String>? = null,
 )
 
-enum class VoiceVerdict(val label: String) { RIGHT("Right"), CLOSE("Almost"), WRONG("Not quite"), NOT_HEARD("Didn't hear you") }
+enum class VoiceVerdict(val label: String) { RIGHT("Right"), CLOSE("Almost"), WRONG("Not quite"), NOT_HEARD("Didn't hear you"), SKIPPED("Skipped") }
+
+/** Things you can say instead of an answer, so the drill works without touching the phone. */
+enum class VoiceCommand { REPEAT, SLOWER, SKIP, STOP }
+
+object VoiceCommands {
+    private fun norm(s: String) = TextNorm.normalize(s).replace("ß", "ss").replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+        .replace(Regex("\\s+"), " ").trim()
+
+    private val words: Map<VoiceCommand, List<String>> = mapOf(
+        VoiceCommand.REPEAT to listOf(
+            "repeat", "repeat please", "repeat that", "again", "say it again", "one more time",
+            "repite", "repitelo", "repite por favor", "otra vez", "de nuevo",
+            "repete", "repeter", "encore une fois", "repete s il te plait",
+            "wiederholen", "wiederhole", "noch mal", "nochmal", "noch einmal", "bitte wiederholen",
+            "ripeti", "ripetere", "di nuovo", "ancora una volta",
+            "再说一遍", "再说一次", "重复", "再来一遍", "再一遍",
+        ),
+        VoiceCommand.SLOWER to listOf(
+            "slower", "more slowly", "slowly", "slower please",
+            "mas despacio", "despacio", "mas lento",
+            "plus lentement", "lentement", "moins vite",
+            "langsamer", "langsam", "bitte langsamer",
+            "piu lentamente", "piu piano",
+            "慢一点", "慢点", "慢一点儿", "说慢点", "慢慢说",
+        ),
+        VoiceCommand.SKIP to listOf(
+            "skip", "next", "i don t know", "i dont know", "no idea",
+            "siguiente", "saltar", "no se", "no lo se", "ni idea",
+            "suivant", "passe", "je ne sais pas", "je sais pas",
+            "weiter", "nachste", "naechste", "uberspringen", "ich weiss nicht", "keine ahnung", "weiss nicht",
+            "avanti", "prossima", "prossimo", "non lo so", "non so",
+            "下一个", "跳过", "不知道", "我不知道",
+        ),
+        VoiceCommand.STOP to listOf(
+            "stop", "stop the drill", "finish", "quit",
+            "detente", "terminar", "termina", "basta",
+            "arrete", "terminer",
+            "stopp", "aufhoren", "aufhoeren", "beenden", "schluss",
+            "ferma", "fermati",
+            "停止", "结束",
+        ),
+    ).mapValues { (_, v) -> v.map { norm(it) } }
+
+    /**
+     * The command in what was heard, if the whole utterance is one. An utterance that is also a right answer
+     * ("siguiente" when asked for "next" in Spanish) counts as the answer, not a command.
+     */
+    fun detect(item: VoiceItem, heard: List<String>): VoiceCommand? {
+        if (heard.isEmpty()) return null
+        if (VoiceCheck.check(item, heard).verdict == VoiceVerdict.RIGHT) return null
+        for (h in heard.take(3)) {
+            val n = norm(h).removeSuffix(" please").removePrefix("please ")
+            for ((cmd, list) in words) if (n in list) return cmd
+        }
+        return null
+    }
+}
 
 /** The spoken parts of a question and of the feedback, in your language when it's English or Spanish. */
 object VoicePhrases {
@@ -109,6 +166,10 @@ object VoicePhrases {
         val listen: (l: String) -> String,
         val repeat: String,
         val right: String, val close: String, val wrong: String, val notHeard: String,
+        /** Said before repeating a question. */
+        val again: String = "Again.",
+        /** Said when you skip. */
+        val skipped: String = "Skipped. It's",
     )
 
     private fun names(en: String, fr: String, de: String, it: String, es: String, zh: String) =
@@ -118,32 +179,32 @@ object VoicePhrases {
         Lang.EN to Frames(
             names("English", "French", "German", "Italian", "Spanish", "Mandarin"),
             { x, l -> "How do you say $x in $l?" }, { l -> "Listen, and say it in $l." }, "Repeat after me.",
-            "Right.", "Almost. It's", "The answer is", "I didn't hear you. It's",
+            "Right.", "Almost. It's", "The answer is", "I didn't hear you. It's", "Again.", "Skipped. It's",
         ),
         Lang.ES to Frames(
             names("inglés", "francés", "alemán", "italiano", "español", "chino"),
             { x, l -> "¿Cómo se dice $x en $l?" }, { l -> "Escucha y dilo en $l." }, "Repite.",
-            "¡Correcto!", "Casi. Es", "La respuesta es", "No te oí. La respuesta es",
+            "¡Correcto!", "Casi. Es", "La respuesta es", "No te oí. La respuesta es", "Otra vez.", "Saltada. Es",
         ),
         Lang.FR to Frames(
             names("anglais", "français", "allemand", "italien", "espagnol", "chinois"),
             { x, l -> "Comment dit-on $x en $l ?" }, { l -> "Écoute, et dis-le en $l." }, "Répète.",
-            "Exact !", "Presque. C'est", "La réponse est", "Je ne t'ai pas entendu. C'est",
+            "Exact !", "Presque. C'est", "La réponse est", "Je ne t'ai pas entendu. C'est", "Encore une fois.", "On passe. C'est",
         ),
         Lang.DE to Frames(
             names("Englisch", "Französisch", "Deutsch", "Italienisch", "Spanisch", "Chinesisch"),
             { x, l -> "Wie sagt man $x auf $l?" }, { l -> "Hör zu und sag es auf $l." }, "Sprich nach.",
-            "Richtig!", "Fast. Es heißt", "Die Antwort ist", "Ich habe dich nicht gehört. Es heißt",
+            "Richtig!", "Fast. Es heißt", "Die Antwort ist", "Ich habe dich nicht gehört. Es heißt", "Noch einmal.", "Übersprungen. Es heißt",
         ),
         Lang.IT to Frames(
             names("inglese", "francese", "tedesco", "italiano", "spagnolo", "cinese"),
             { x, l -> "Come si dice $x in $l?" }, { l -> "Ascolta e dillo in $l." }, "Ripeti.",
-            "Giusto!", "Quasi. Si dice", "La risposta è", "Non ti ho sentito. Si dice",
+            "Giusto!", "Quasi. Si dice", "La risposta è", "Non ti ho sentito. Si dice", "Ancora una volta.", "Saltata. Si dice",
         ),
         Lang.ZH to Frames(
             names("英语", "法语", "德语", "意大利语", "西班牙语", "中文"),
             { x, l -> "“$x”用${l}怎么说？" }, { l -> "请听，然后用${l}说。" }, "请跟我读。",
-            "对！", "差不多。应该是", "答案是", "我没听到。答案是",
+            "对！", "差不多。应该是", "答案是", "我没听到。答案是", "再说一遍。", "跳过。答案是",
         ),
     )
 
@@ -159,6 +220,12 @@ object VoicePhrases {
         VoiceMode.ECHO -> listOf(f(item.ask).repeat to item.ask, item.askText to item.ask)
     }
 
+    /** "Again." in the language the question is spoken in, before repeating it. */
+    fun again(item: VoiceItem): Pair<String, Lang> {
+        val lang = if (item.mode == VoiceMode.LISTEN) item.answer else item.ask
+        return f(lang).again to lang
+    }
+
     /** Feedback in the language the question was asked in, then the answer in its own voice. */
     fun feedback(v: VoiceVerdict, item: VoiceItem): List<Pair<String, Lang>> {
         val lang = if (item.mode == VoiceMode.SAY) item.ask else item.answer
@@ -168,6 +235,7 @@ object VoicePhrases {
             VoiceVerdict.CLOSE -> fr.close
             VoiceVerdict.WRONG -> fr.wrong
             VoiceVerdict.NOT_HEARD -> fr.notHeard
+            VoiceVerdict.SKIPPED -> fr.skipped
         }
         return listOf(lead to lang, item.display to item.answer)
     }

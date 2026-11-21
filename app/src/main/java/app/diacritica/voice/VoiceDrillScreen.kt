@@ -216,6 +216,11 @@ private fun Setup(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings, micDenie
         }
 
         Gap(4.dp)
+        Text(
+            "Hands-free: instead of answering, say “repeat”, “slower”, “skip” or “stop” (or otra vez, répète, noch mal, ripeti, 再说一遍…). " +
+                "If it hears nothing, it asks once more.",
+            style = captionStyle(),
+        )
         app.diacritica.ui.settings.SwitchRow(
             "Next question by itself", "After the feedback, move on without tapping", cfg.autoNext,
         ) { vm.setConfig(cfg.copy(autoNext = it)) }
@@ -295,7 +300,10 @@ private fun Round(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings) {
         // Listening / heard
         when (st.phase) {
             VoicePhase.ASKING -> Status("Asking…", 0f, listening = false)
-            VoicePhase.LISTENING -> Status(st.partial.ifBlank { "Listening… speak now" }, st.level, listening = true)
+            VoicePhase.LISTENING -> {
+                Status(st.partial.ifBlank { "Listening… speak now" }, st.level, listening = true)
+                Text("You can also say “repeat”, “slower”, “skip” or “stop” (in any of your languages).", style = captionStyle())
+            }
             VoicePhase.CHECKING -> Status("Checking…", 0f, listening = false)
             else -> {}
         }
