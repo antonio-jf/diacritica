@@ -205,6 +205,18 @@ fun SettingsScreen(
             }
             item { SwitchRow("Cards from lookups", "Not only starred words", s.reviewFromHistory, vm::setReviewFromHistory) }
             item {
+                SwitchRow(
+                    "Translate a sentence", "Saved words: translate a sentence that uses the word into its language",
+                    s.reviewTranslateCards, vm::setReviewTranslateCards,
+                )
+            }
+            item {
+                SwitchRow(
+                    "Use it in a sentence", "Saved words: write your own sentence with the word (checked by Gemini)",
+                    s.reviewUseCards, vm::setReviewUseCards,
+                )
+            }
+            item {
                 Setting("Speech rate", "${"%.1f".format(s.speechRate)}×") {
                     Slider(value = s.speechRate, onValueChange = vm::setSpeechRate, valueRange = 0.5f..1.5f, steps = 9)
                 }

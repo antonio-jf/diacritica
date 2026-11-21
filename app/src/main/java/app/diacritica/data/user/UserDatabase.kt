@@ -41,6 +41,10 @@ enum class CardKind(val label: String) {
     PINYIN("Pinyin"),
     LISTENING("Listening"),
     SENTENCE("Sentence"),
+    /** A sentence with the saved word, in a language you know, to translate into the word's language. */
+    TRANSLATE("Translate a sentence"),
+    /** Write your own sentence with the saved word. */
+    USE("Use it in a sentence"),
 }
 
 /** A spaced-repetition card with its FSRS memory state. */
@@ -275,6 +279,10 @@ interface CardDao {
 
     @Query("DELETE FROM card WHERE lang = :lang AND word = :word AND kind != 'SENTENCE'")
     suspend fun deleteWordCards(lang: String, word: String)
+
+    /** Turning a card type off in Settings removes those cards. */
+    @Query("DELETE FROM card WHERE kind = :kind")
+    suspend fun deleteKind(kind: String)
 
     @Query("SELECT * FROM card WHERE lang = :lang AND word = :word AND kind != 'SENTENCE'")
     suspend fun wordCards(lang: String, word: String): List<Card>

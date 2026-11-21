@@ -36,6 +36,12 @@ data class TranslateUiState(
     val engineUsed: TranslateEngine? = null,
     val notice: String? = null,
     val error: String? = null,
+    /** Grammar points in the source text, suggested as lessons (Gemini only, when turned on). */
+    val grammar: List<app.diacritica.mybooks.GrammarPoint> = emptyList(),
+    val grammarLoading: Boolean = false,
+    val grammarError: String? = null,
+    /** Titles already sent to Grammar as lessons. */
+    val lessonsMade: Set<String> = emptySet(),
 )
 
 class TranslateViewModel(private val c: AppContainer) : ViewModel() {
@@ -48,6 +54,19 @@ class TranslateViewModel(private val c: AppContainer) : ViewModel() {
     fun clear() { job?.cancel(); _state.value = TranslateUiState(source = _state.value.source) }
 
     fun setEngine(e: TranslateEngine) { viewModelScope.launch { c.settings.setTranslateEngine(e) } }
+    fun setGrammar(v: Boolean) { viewModelScope.launch { c.settings.setTranslateGrammar(v) } }
+
+    /** Writes a full lesson on the point (Grammar › Lessons you asked for). */
+    fun makeLesson(p: app.diacritica.mybooks.GrammarPoint) {
+        val from = _state.value.from ?: return
+        val request = buildString {
+            append(p.title)
+            if (p.pattern.isNotBlank()) append(" (").append(p.pattern).append(")")
+            if (p.inPassage.isNotBlank()) append(", as in \u201c").append(p.inPassage).append("\u201d")
+        }
+        c.lessons.ask(request, from)
+        _state.update { it.copy(lessonsMade = it.lessonsMade + p.title) }
+    }
 
     /** Opens Translate with text from elsewhere (text selected in another app) and translates it. */
     fun start(text: String) { _state.update { it.copy(input = text.take(MAX_CHARS), source = null) }; translate() }
@@ -65,7 +84,10 @@ class TranslateViewModel(private val c: AppContainer) : ViewModel() {
         job?.cancel()
         job = viewModelScope.launch {
             val s = c.settings.settings.first()
-            _state.update { it.copy(busy = true, error = null, notice = null, results = emptyMap(), detected = null, downloading = emptySet()) }
+            _state.update {
+                it.copy(busy = true, error = null, notice = null, results = emptyMap(), detected = null, downloading = emptySet(),
+                    grammar = emptyList(), grammarLoading = false, grammarError = null, lessonsMade = emptySet())
+            }
             val chosen = _state.value.source
             val from = chosen ?: c.translator.detect(text)
             if (from == null) {
@@ -88,6 +110,17 @@ class TranslateViewModel(private val c: AppContainer) : ViewModel() {
             }
             _state.update { it.copy(engineUsed = engine) }
 
+            if (engine == TranslateEngine.GEMINI && s.translateGrammar) {
+                // A separate request, so the translations don't wait for it.
+                _state.update { it.copy(grammarLoading = true) }
+                viewModelScope.launch {
+                    val out = runCatching { c.gemini.grammarNotes(s.geminiKey, s.geminiModel, from, text) }
+                    _state.update {
+                        if (it.translatedText != text) it
+                        else it.copy(grammarLoading = false, grammar = out.getOrDefault(emptyList()), grammarError = out.exceptionOrNull()?.message)
+                    }
+                }
+            }
             if (engine == TranslateEngine.GEMINI) {
                 try {
                     val out = c.gemini.translate(s.geminiKey, s.geminiModel, from, text, targets)

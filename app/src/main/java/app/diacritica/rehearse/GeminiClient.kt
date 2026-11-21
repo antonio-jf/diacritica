@@ -338,6 +338,115 @@ class GeminiClient {
 
     private fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.contentOrNull
 
+    /**
+     * Up to [max] grammar points worth a lesson in a text the learner is translating, about [lang] (the text's
+     * own language), most useful first. Explanations in English.
+     */
+    suspend fun grammarNotes(apiKey: String, model: String, lang: Lang, text: String, max: Int = 3): List<app.diacritica.mybooks.GrammarPoint> {
+        val schema = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("points") {
+                    put("type", "array")
+                    putJsonObject("items") {
+                        put("type", "object")
+                        putJsonObject("properties") {
+                            putJsonObject("title") { put("type", "string") }
+                            putJsonObject("pattern") { put("type", "string") }
+                            putJsonObject("inText") { put("type", "string") }
+                            putJsonObject("explanation") { put("type", "string") }
+                        }
+                        putJsonArray("required") { add("title"); add("pattern"); add("inText"); add("explanation") }
+                    }
+                }
+            }
+            putJsonArray("required") { add("points") }
+        }
+        val user = buildString {
+            appendLine("This ${lang.englishName} text is being translated by a learner of ${lang.englishName}:")
+            appendLine(text.take(2000))
+            appendLine()
+            appendLine("Pick at most $max grammar points of ${lang.englishName} that this text actually uses and that are worth a lesson")
+            appendLine("for an intermediate learner (tenses and moods, agreement, cases, word order, particles, aspect, set structures).")
+            appendLine("Skip trivial ones. If nothing is worth it, return an empty list.")
+            appendLine("title: short name of the point in English. pattern: the structure in ${lang.englishName} (e.g. \u201chaber + participio\u201d,")
+            appendLine("\u201c了 after a verb\u201d). inText: the words of the text that show it. explanation: 2–4 plain English sentences.")
+        }
+        val out = call(apiKey, model, user, schema)
+        return (out["points"] as? JsonArray)?.map { it.jsonObject }?.mapNotNull { o ->
+            val title = o.str("title")?.ifBlank { null } ?: return@mapNotNull null
+            app.diacritica.mybooks.GrammarPoint(
+                title = title, pattern = o.str("pattern").orEmpty(), inPassage = o.str("inText").orEmpty(),
+                explanation = o.str("explanation").orEmpty(),
+            )
+        }?.take(max) ?: emptyList()
+    }
+
+    /** Gemini's verdict on a sentence the learner wrote with a given word (Review › Use it in a sentence). */
+    data class UsageCheck(
+        /** "correct", "minor" (small mistakes) or "wrong". */
+        val verdict: String,
+        val usesWord: Boolean,
+        val corrected: String?,
+        val explanation: String,
+        val natural: String?,
+    )
+
+    suspend fun checkUsage(apiKey: String, model: String, lang: Lang, word: String, meaning: String?, sentence: String): UsageCheck {
+        val schema = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("verdict") { put("type", "string"); putJsonArray("enum") { add("correct"); add("minor"); add("wrong") } }
+                putJsonObject("usesWord") { put("type", "boolean") }
+                putJsonObject("corrected") { put("type", "string") }
+                putJsonObject("explanation") { put("type", "string") }
+                putJsonObject("natural") { put("type", "string") }
+            }
+            putJsonArray("required") { add("verdict"); add("usesWord"); add("explanation") }
+        }
+        val user = buildString {
+            appendLine("Language: ${lang.englishName}")
+            appendLine("Target word: $word" + (meaning?.let { " (meaning: $it)" } ?: ""))
+            appendLine("The learner's sentence: \u201c$sentence\u201d")
+            appendLine()
+            appendLine("Check whether the sentence uses the target word (any inflected form counts) correctly and in a fitting meaning,")
+            appendLine("and whether the sentence is grammatical. verdict: correct = natural and right; minor = understandable with small")
+            appendLine("mistakes; wrong = the word is misused or missing, or the sentence is badly broken.")
+            appendLine("corrected: the learner's sentence with the fewest changes that make it right (empty if already right).")
+            appendLine("explanation: 1–3 short sentences in English about what's wrong or why it's good.")
+            appendLine("natural: how a native speaker might say the same thing (empty if the learner's is already natural).")
+            if (lang == Lang.ZH) appendLine("For Mandarin, accept simplified or traditional characters.")
+        }
+        val out = call(apiKey, model, user, schema)
+        return UsageCheck(
+            verdict = out.str("verdict") ?: "minor",
+            usesWord = (out["usesWord"] as? JsonPrimitive)?.contentOrNull != "false",
+            corrected = out.str("corrected")?.ifBlank { null },
+            explanation = out.str("explanation").orEmpty(),
+            natural = out.str("natural")?.ifBlank { null },
+        )
+    }
+
+    /** A short everyday sentence using [word] in [lang], with its translation into [into] (Review › Translate a sentence). */
+    suspend fun sentenceWith(apiKey: String, model: String, lang: Lang, word: String, meaning: String?, into: Lang, hsk: Int?): Pair<String, String> {
+        val schema = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("sentence") { put("type", "string") }
+                putJsonObject("translation") { put("type", "string") }
+            }
+            putJsonArray("required") { add("sentence"); add("translation") }
+        }
+        val user = buildString {
+            appendLine("Write one short, natural, everyday ${lang.englishName} sentence (6–14 words) that uses \u201c$word\u201d" + (meaning?.let { " in the meaning \u201c$it\u201d" } ?: "") + ".")
+            if (lang == Lang.ZH) appendLine("Keep the other words at about HSK ${hsk ?: 3} level. Simplified characters.")
+            else appendLine("Keep the other words at about B1 level.")
+            appendLine("Then translate it naturally into ${into.englishName}.")
+        }
+        val out = call(apiKey, model, user, schema)
+        return (out.str("sentence") ?: throw GeminiException("Gemini returned no sentence.")) to out.str("translation").orEmpty()
+    }
+
     /** One part of a pronunciation check: a syllable (Mandarin) or a word, and whether it sounded right. */
     data class PronPart(val text: String, val ok: Boolean, val note: String?)
 

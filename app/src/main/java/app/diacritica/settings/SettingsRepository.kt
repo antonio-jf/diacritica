@@ -101,6 +101,10 @@ data class AppSettings(
     val pinyinHint: Boolean = false,
     /** Also make review cards from words looked up in the Dictionary (not only starred ones). */
     val reviewFromHistory: Boolean = true,
+    /** Review: "Translate a sentence" cards for saved words. */
+    val reviewTranslateCards: Boolean = true,
+    /** Review: "Use it in a sentence" cards for saved words. */
+    val reviewUseCards: Boolean = true,
     /** Practice sentences (Rehearse, Tests, Review) can be tapped for word meanings. Off: practise without help. */
     val tapLookupPractice: Boolean = false,
     /** Voice drill setup (mode, words, languages, length, Review option). */
@@ -112,6 +116,8 @@ data class AppSettings(
     /** Grammar focus path: the structure to practise (a key of GrammarTopics). */
     val grammarFocus: String = "mixed",
     val translateEngine: TranslateEngine = TranslateEngine.ON_DEVICE,
+    /** Translate with Gemini: also suggest grammar lessons about the language you're translating from. */
+    val translateGrammar: Boolean = true,
     /** Languages to translate into in Rehearse (empty = all active languages). */
     val rehearseLangs: Set<Lang> = emptySet(),
     /** Sentences per Rehearse round: 1, or a short passage of 2–3. */
@@ -186,12 +192,15 @@ class SettingsRepository(private val context: Context) {
         val levels = stringSetPreferencesKey("rehearse_levels")
         val pinyinHint = booleanPreferencesKey("pinyin_hint")
         val reviewFromHistory = booleanPreferencesKey("review_from_history")
+        val reviewTranslateCards = booleanPreferencesKey("review_translate_cards")
+        val reviewUseCards = booleanPreferencesKey("review_use_cards")
         val tapLookupPractice = booleanPreferencesKey("tap_lookup_practice")
         val voiceConfig = stringPreferencesKey("voice_config")
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
         val rehearsePath = stringPreferencesKey("rehearse_path")
         val grammarFocus = stringPreferencesKey("grammar_focus")
         val translateEngine = stringPreferencesKey("translate_engine")
+        val translateGrammar = booleanPreferencesKey("translate_grammar")
         val historySyncedAt = longPreferencesKey("history_synced_at")
         val rehearseLangs = stringSetPreferencesKey("rehearse_langs")
         val rehearseLength = intPreferencesKey("rehearse_length")
@@ -249,6 +258,8 @@ class SettingsRepository(private val context: Context) {
             levels = p[K.levels]?.ifEmpty { null } ?: d.levels,
             pinyinHint = p[K.pinyinHint] ?: d.pinyinHint,
             reviewFromHistory = p[K.reviewFromHistory] ?: d.reviewFromHistory,
+            reviewTranslateCards = p[K.reviewTranslateCards] ?: d.reviewTranslateCards,
+            reviewUseCards = p[K.reviewUseCards] ?: d.reviewUseCards,
             tapLookupPractice = p[K.tapLookupPractice] ?: d.tapLookupPractice,
             voice = app.diacritica.voice.VoiceConfig.decode(p[K.voiceConfig]),
             rehearseMyWords = p[K.rehearseMyWords] ?: d.rehearseMyWords,
@@ -256,6 +267,7 @@ class SettingsRepository(private val context: Context) {
                 ?: if (p[K.rehearseMyWords] == true) RehearsePath.MY_WORDS else d.rehearsePath,
             grammarFocus = p[K.grammarFocus] ?: d.grammarFocus,
             translateEngine = enumOr(p[K.translateEngine], d.translateEngine),
+            translateGrammar = p[K.translateGrammar] ?: d.translateGrammar,
             rehearseLangs = p[K.rehearseLangs]?.mapNotNull { Lang.fromCode(it) }?.toSet() ?: d.rehearseLangs,
             rehearseLength = (p[K.rehearseLength] ?: d.rehearseLength).coerceIn(1, 3),
             // Upgrading from the A2/B1/B2 chips and the Story HSK setting: start from what was chosen there.
@@ -325,6 +337,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearseLayout(v: RehearseLayout) = context.dataStore.edit { it[K.rehearseLayout] = v.name }
     suspend fun setLevels(v: Set<String>) = context.dataStore.edit { it[K.levels] = v }
     suspend fun setReviewFromHistory(v: Boolean) = context.dataStore.edit { it[K.reviewFromHistory] = v }
+    suspend fun setReviewTranslateCards(v: Boolean) = context.dataStore.edit { it[K.reviewTranslateCards] = v }
+    suspend fun setReviewUseCards(v: Boolean) = context.dataStore.edit { it[K.reviewUseCards] = v }
     suspend fun setTapLookupPractice(v: Boolean) = context.dataStore.edit { it[K.tapLookupPractice] = v }
     suspend fun setVoiceConfig(v: app.diacritica.voice.VoiceConfig) = context.dataStore.edit { it[K.voiceConfig] = v.encode() }
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
@@ -359,6 +373,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setRehearsePath(v: RehearsePath) = context.dataStore.edit { it[K.rehearsePath] = v.name }
     suspend fun setGrammarFocus(v: String) = context.dataStore.edit { it[K.grammarFocus] = v }
     suspend fun setTranslateEngine(v: TranslateEngine) = context.dataStore.edit { it[K.translateEngine] = v.name }
+    suspend fun setTranslateGrammar(v: Boolean) = context.dataStore.edit { it[K.translateGrammar] = v }
     suspend fun historySyncedAt(): Long = context.dataStore.data.map { it[K.historySyncedAt] ?: 0L }.first()
     suspend fun setHistorySyncedAt(v: Long) = context.dataStore.edit { it[K.historySyncedAt] = v }
     suspend fun setPinyinHint(v: Boolean) = context.dataStore.edit { it[K.pinyinHint] = v }

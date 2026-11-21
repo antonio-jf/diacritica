@@ -98,7 +98,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
     fun refreshPacks() {
         viewModelScope.launch {
             val st = _state.value
-            val langs = (st.config.targetsFor(st.active) + st.config.base).distinct()
+            val langs = (st.config.targetsFor(st.active) + st.config.basesFor(st.active)).distinct()
             _state.update { it.copy(packs = runCatching { listener.offlinePacks(langs) }.getOrNull()) }
         }
     }
@@ -135,6 +135,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         val missed = _state.value.results.filter { it.verdict != VoiceVerdict.RIGHT }.map { it.item }
         if (missed.isEmpty()) return
         stopAll()
+        retrying = true
         _state.update { it.copy(items = missed.shuffled(), index = 0, results = emptyList()) }
         runItem(fromListening = false)
     }
@@ -166,6 +167,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
         val st = _state.value
         if (st.index + 1 >= st.items.size) { _state.update { it.copy(phase = VoicePhase.DONE) }; return }
         _state.update { it.copy(index = it.index + 1) }
+        topUp()
         runItem(fromListening = false)
     }
 
@@ -206,7 +208,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
             val s = c.settings.settings.first()
             val cfg = _state.value.config
             if (!fromListening) {
-                for ((text, lang) in VoicePhrases.question(item, cfg.base)) {
+                for ((text, lang) in VoicePhrases.question(item, item.base)) {
                     if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
                 }
             }
@@ -229,7 +231,7 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
                 return@launch
             }
             _state.update { it.copy(phase = VoicePhase.FEEDBACK, verdict = result.verdict, note = result.note) }
-            for ((text, lang) in VoicePhrases.feedback(result.verdict, item, cfg.base)) {
+            for ((text, lang) in VoicePhrases.feedback(result.verdict, item, item.base)) {
                 if (!c.speaker.speakAndWait(text, lang, s.speechRate)) break
             }
             if (cfg.autoNext && result.verdict == VoiceVerdict.RIGHT) {
@@ -329,78 +331,129 @@ class VoiceDrillViewModel(private val c: AppContainer, private val app: Applicat
 
     // ---------------------------------------------------------------- content
 
+    /** Questions made so far this session, so the next ones take turns between types and languages. */
+    private var made = 0
+
+    /** One question's type and languages, taking turns. */
+    private fun plan(cfg: VoiceConfig, bases: List<Lang>, targets: List<Lang>): Triple<VoiceMode, Lang, Lang>? {
+        val i = made
+        val mode = cfg.modes.ifEmpty { listOf(VoiceMode.SAY) }.let { it[i % it.size] }
+        val base = bases[(i / cfg.modes.size.coerceAtLeast(1)) % bases.size]
+        val ts = targets.filter { it != base }.ifEmpty { return null }
+        val target = ts[(i / (cfg.modes.size.coerceAtLeast(1) * bases.size)) % ts.size]
+        return Triple(mode, base, target)
+    }
+
+    /** First batch: the whole session, or 20 when it's endless (more are added as you go). */
     private suspend fun buildItems(cfg: VoiceConfig): List<VoiceItem> {
+        made = 0
+        pool = emptyList(); poolAt = 0
+        retrying = false
+        return makeItems(cfg, if (cfg.endless) BATCH else cfg.length)
+    }
+
+    /** Endless sessions: adds questions when a few are left. */
+    private fun topUp() {
+        val st = _state.value
+        if (!st.config.endless || retrying || st.index < st.items.size - 3 || toppingUp) return
+        toppingUp = true
+        viewModelScope.launch {
+            try {
+                val more = runCatching { makeItems(st.config, BATCH) }.getOrDefault(emptyList())
+                if (more.isNotEmpty()) _state.update { it.copy(items = it.items + more) }
+            } finally {
+                toppingUp = false
+            }
+        }
+    }
+
+    private var toppingUp = false
+    /** Practising the missed ones: a fixed list, even in an endless session. */
+    private var retrying = false
+
+    /** Saved words or vocabulary words, shuffled; refilled when used up (endless sessions go round again). */
+    private var pool: List<Any> = emptyList()
+    private var poolAt = 0
+
+    private suspend fun makeItems(cfg: VoiceConfig, count: Int): List<VoiceItem> {
         val s = c.settings.settings.first()
+        val bases = cfg.basesFor(s.activeLanguages)
         val targets = cfg.targetsFor(s.activeLanguages)
         if (targets.isEmpty()) return emptyList()
-        return when (cfg.source) {
-            VoiceSource.VOCAB -> fromVocab(cfg, targets)
-            VoiceSource.SAVED -> fromSaved(cfg, targets)
-            VoiceSource.SENTENCES -> fromSentences(cfg, targets, s.rehearseLevel)
-        }
-    }
-
-    private fun fromVocab(cfg: VoiceConfig, targets: List<Lang>): List<VoiceItem> {
-        val sets = _state.value.sets.let { all -> cfg.setId?.let { id -> all.filter { it.id == id } }?.ifEmpty { null } ?: all }
-        val words = sets.flatMap { it.words }.filter { w -> w.form(cfg.base).isNotBlank() }.shuffled()
         val out = ArrayList<VoiceItem>()
-        for (w in words) {
-            if (out.size >= cfg.length) break
-            val t = targets[out.size % targets.size]
-            val tf = w.form(t)
-            if (tf.isBlank()) continue
-            val bf = w.form(cfg.base)
-            out += make(cfg.mode, cfg.base, t, baseText = bf, baseAccepted = listOf(bf), targetText = tf, targetAccepted = listOf(tf),
-                pinyinTarget = w.pinyin.takeIf { t == Lang.ZH }, pinyinBase = w.pinyin.takeIf { cfg.base == Lang.ZH }, sentence = false, review = null)
+        var misses = 0
+        while (out.size < count && misses < count * 4 + 20) {
+            val (mode, base, target) = plan(cfg, bases, targets) ?: return out
+            val item = when (cfg.source) {
+                VoiceSource.VOCAB -> nextVocab(cfg, mode, base, target)
+                VoiceSource.SAVED -> nextSaved(s, cfg, mode, base, targets)
+                VoiceSource.SENTENCES -> nextSentence(mode, base, target, s.rehearseLevel)
+            }
+            if (item == null) { misses++; if (pool.isEmpty() && cfg.source != VoiceSource.SENTENCES) return out; continue }
+            out += item
+            made++
         }
         return out
     }
 
-    private suspend fun fromSaved(cfg: VoiceConfig, targets: List<Lang>): List<VoiceItem> {
-        val s = c.settings.settings.first()
-        val saved = c.userDb.saved().allNow().filter { w -> Lang.fromCode(w.lang) in targets }.shuffled()
-        val out = ArrayList<VoiceItem>()
-        for (w in saved) {
-            if (out.size >= cfg.length) break
-            val t = Lang.fromCode(w.lang) ?: continue
-            val r = runCatching { c.dictionary.lookup(w.word, t, listOf(t, cfg.base), s.script) }.getOrNull()
-            val hw: WordInfo = r?.headword ?: WordInfo(t, w.word)
-            val baseWords = r?.results?.firstOrNull { it.lang == cfg.base }?.words.orEmpty()
-            if (cfg.mode != VoiceMode.ECHO && baseWords.isEmpty()) continue
-            val targetWords = (listOf(hw) + r?.results?.firstOrNull { it.lang == t }?.words.orEmpty()).distinctBy { it.word }
-            fun full(x: WordInfo) = x.article?.let { a -> if (a.endsWith("'")) a + x.word else "$a ${x.word}" } ?: x.word
-            out += make(
-                cfg.mode, cfg.base, t,
-                baseText = baseWords.firstOrNull()?.let { full(it) }.orEmpty(), baseAccepted = baseWords.map { it.word },
-                targetText = full(hw), targetAccepted = targetWords.map { it.word },
-                pinyinTarget = hw.pinyin, pinyinBase = baseWords.firstOrNull()?.pinyin, sentence = false, review = t to w.word,
-            )
-        }
-        return out
+    private suspend fun <T : Any> nextFromPool(fill: suspend () -> List<T>): T? {
+        if (poolAt >= pool.size) { pool = fill().shuffled(); poolAt = 0 }
+        @Suppress("UNCHECKED_CAST")
+        return (pool.getOrNull(poolAt++) as? T)
     }
 
-    private suspend fun fromSentences(cfg: VoiceConfig, targets: List<Lang>, level: Int): List<VoiceItem> {
-        val out = ArrayList<VoiceItem>()
-        var tries = 0
-        while (out.size < cfg.length && tries < cfg.length * 4) {
-            tries++
-            val t = targets[out.size % targets.size]
-            val g = runCatching { c.sentences.next(Difficulty.band(level), listOf(cfg.base, t), minLangs = 2) }.getOrNull() ?: continue
-            val b = g.texts[cfg.base].orEmpty()
-            val tt = g.texts[t].orEmpty()
-            if (tt.isEmpty() || (cfg.mode != VoiceMode.ECHO && b.isEmpty())) continue
-            out += make(cfg.mode, cfg.base, t, baseText = b.firstOrNull().orEmpty(), baseAccepted = b,
-                targetText = tt.first(), targetAccepted = tt, pinyinTarget = null, pinyinBase = null, sentence = true, review = null)
-        }
-        return out
+    private suspend fun nextVocab(cfg: VoiceConfig, mode: VoiceMode, base: Lang, target: Lang): VoiceItem? {
+        val w = nextFromPool {
+            val all = _state.value.sets
+            val sets = cfg.setId?.let { id -> all.filter { it.id == id } }?.ifEmpty { null } ?: all
+            sets.flatMap { it.words }
+        } ?: return null
+        val tf = w.form(target)
+        val bf = w.form(base)
+        if (tf.isBlank() || bf.isBlank()) return null
+        return make(mode, base, target, baseText = bf, baseAccepted = listOf(bf), targetText = tf, targetAccepted = listOf(tf),
+            pinyinTarget = w.pinyin.takeIf { target == Lang.ZH }, pinyinBase = w.pinyin.takeIf { base == Lang.ZH }, sentence = false, review = null)
+    }
+
+    /** Saved words are practised in their own language, so the word picks the target. */
+    private suspend fun nextSaved(s: app.diacritica.settings.AppSettings, cfg: VoiceConfig, mode: VoiceMode, base: Lang, targets: List<Lang>): VoiceItem? {
+        val w = nextFromPool { runCatching { c.userDb.saved().allNow() }.getOrDefault(emptyList())
+            .filter { Lang.fromCode(it.lang) in targets } } ?: return null
+        val t = Lang.fromCode(w.lang) ?: return null
+        val b = if (base != t) base else cfg.basesFor(s.activeLanguages).firstOrNull { it != t } ?: return null
+        val r = runCatching { c.dictionary.lookup(w.word, t, listOf(t, b), s.script) }.getOrNull()
+        val hw: WordInfo = r?.headword ?: WordInfo(t, w.word)
+        val baseWords = r?.results?.firstOrNull { it.lang == b }?.words.orEmpty()
+        if (mode != VoiceMode.ECHO && baseWords.isEmpty()) return null
+        val targetWords = (listOf(hw) + r?.results?.firstOrNull { it.lang == t }?.words.orEmpty()).distinctBy { it.word }
+        fun full(x: WordInfo) = x.article?.let { a -> if (a.endsWith("'")) a + x.word else "$a ${x.word}" } ?: x.word
+        return make(
+            mode, b, t,
+            baseText = baseWords.firstOrNull()?.let { full(it) }.orEmpty(), baseAccepted = baseWords.map { it.word },
+            targetText = full(hw), targetAccepted = targetWords.map { it.word },
+            pinyinTarget = hw.pinyin, pinyinBase = baseWords.firstOrNull()?.pinyin, sentence = false, review = t to w.word,
+        )
+    }
+
+    private suspend fun nextSentence(mode: VoiceMode, base: Lang, target: Lang, level: Int): VoiceItem? {
+        val g = runCatching { c.sentences.next(Difficulty.band(level), listOf(base, target), minLangs = 2) }.getOrNull() ?: return null
+        val b = g.texts[base].orEmpty()
+        val tt = g.texts[target].orEmpty()
+        if (tt.isEmpty() || (mode != VoiceMode.ECHO && b.isEmpty())) return null
+        return make(mode, base, target, baseText = b.firstOrNull().orEmpty(), baseAccepted = b,
+            targetText = tt.first(), targetAccepted = tt, pinyinTarget = null, pinyinBase = null, sentence = true, review = null)
     }
 
     private fun make(
         mode: VoiceMode, base: Lang, target: Lang, baseText: String, baseAccepted: List<String>, targetText: String, targetAccepted: List<String>,
         pinyinTarget: String?, pinyinBase: String?, sentence: Boolean, review: Pair<Lang, String>?,
     ): VoiceItem = when (mode) {
-        VoiceMode.SAY -> VoiceItem(mode, base, baseText, target, targetAccepted, targetText, pinyinTarget, sentence, review)
-        VoiceMode.LISTEN -> VoiceItem(mode, target, targetText, base, baseAccepted, baseText, pinyinBase, sentence, review)
-        VoiceMode.ECHO -> VoiceItem(mode, target, targetText, target, listOf(targetText), targetText, pinyinTarget, sentence, review)
+        VoiceMode.SAY -> VoiceItem(mode, base, base, baseText, target, targetAccepted, targetText, pinyinTarget, sentence, review)
+        VoiceMode.LISTEN -> VoiceItem(mode, base, target, targetText, base, baseAccepted, baseText, pinyinBase, sentence, review)
+        VoiceMode.ECHO -> VoiceItem(mode, base, target, targetText, target, listOf(targetText), targetText, pinyinTarget, sentence, review)
+    }
+
+    companion object {
+        private const val BATCH = 20
     }
 }

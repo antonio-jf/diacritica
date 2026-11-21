@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Translate with Gemini: optional Grammar suggestions (switch under the engine, on by default): up to 3 grammar points of the language you translate from that your text uses, each with a short explanation and Make a lesson (a full lesson in Grammar › Full lessons). A separate request, so translations don't wait for it.
+- Voice drill: mix question types (pick any of Say it, Listen and translate, Repeat); more than one "your language" (questions take turns between them); Endless length.
+- Review: two new card types for saved words (Settings › Review, both on): Translate a sentence (a Tatoeba sentence with the word in a language you know, else the dictionary example, else one written by Gemini) and Use it in a sentence (write your own; Gemini checks the word's use and grammar). Type your answer and Check: exact matches offline, otherwise Gemini; the check suggests a rating. Without a Gemini key you compare with the answer and rate yourself.
+
 - Voice drill (Home tile, can go in the bottom bar): questions asked out loud, answers by voice. Say it (hear a word in your language, say it in another), Listen and translate, or Repeat; words from Saved words, Vocabulary sets or Rehearse sentences; questions take turns between the languages you pick, each answer recognized in its own language. Mandarin answers also match by sound. Check pronunciation records you and asks Gemini (per syllable and tone for Mandarin, per word otherwise). Options: next question by itself, count in Review (due cards of saved words). Shows which languages lack an offline speech pack, with a download button.
 
 - Library filters: counts sit in a small pill apart from each label (also for sources); date periods with no words are hidden; "Saved" heading renamed "Date saved"; save dates follow the phone's date format.

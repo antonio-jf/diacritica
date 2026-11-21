@@ -49,6 +49,22 @@ class ReviewRepository(
 
     suspend fun removeWordCards(lang: Lang, word: String) = cards.deleteWordCards(lang.code, word)
 
+    /**
+     * Sentence cards for saved words: adds the [enabled] kinds (TRANSLATE, USE) where missing and removes the
+     * kinds that were turned off. Words in English get none (like Recall). New cards follow the daily limit.
+     */
+    suspend fun syncSentenceKinds(enabled: Set<CardKind>) {
+        for (k in listOf(CardKind.TRANSLATE, CardKind.USE)) if (k !in enabled) cards.deleteKind(k.name)
+        if (enabled.isEmpty()) return
+        val now = System.currentTimeMillis()
+        var n = 0
+        for (s in db.saved().allNow()) {
+            if (s.lang == Lang.EN.code) continue
+            val have = cards.kindsFor(s.lang, s.word).toSet()
+            for (k in enabled) if (k.name !in have) cards.insert(Card(lang = s.lang, word = s.word, kind = k.name, createdAt = now + n++))
+        }
+    }
+
     /** Creates cards for saved words that have none yet (words saved before Review existed). */
     suspend fun syncSavedWords(active: List<Lang>, script: ScriptPreference) {
         for (s in db.saved().allNow()) {
@@ -94,6 +110,7 @@ class ReviewRepository(
         val lang = Lang.fromCode(card.lang) ?: Lang.EN
         val kind = runCatching { CardKind.valueOf(card.kind) }.getOrDefault(CardKind.RECOGNITION)
         if (kind == CardKind.SENTENCE) return ReviewItem(card, kind, lang, null, emptyList(), null)
+        // TRANSLATE and USE load like word cards; their sentence is prepared by the screen.
         val r = runCatching { dictionary.lookup(card.word, lang, active, script) }.getOrNull()
         val word = r?.headword ?: WordInfo(lang, card.word)
         val translations = r?.results?.mapNotNull { it.words.firstOrNull() } ?: emptyList()
