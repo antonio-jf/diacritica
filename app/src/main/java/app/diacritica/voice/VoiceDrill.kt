@@ -21,7 +21,7 @@ data class VoiceConfig(
     val source: VoiceSource = VoiceSource.VOCAB,
     /** Your languages: questions are asked in them (Say it) and answered in them (Listen); they take turns. */
     val bases: List<Lang> = listOf(Lang.EN),
-    /** Languages to practise; empty = all active ones except your languages, English and Spanish. */
+    /** Languages to practise; empty = all active ones except English and Spanish. May overlap with [bases]. */
     val targets: List<Lang> = emptyList(),
     /** Number of questions; [ENDLESS] = keep going until you end it. */
     val length: Int = 10,
@@ -36,11 +36,16 @@ data class VoiceConfig(
 
     fun basesFor(active: List<Lang>): List<Lang> = bases.filter { it in active }.ifEmpty { listOf(active.firstOrNull() ?: Lang.EN) }
 
-    fun targetsFor(active: List<Lang>): List<Lang> {
-        val b = basesFor(active)
-        return targets.filter { it in active && it !in b }.ifEmpty { active.filter { it !in b && it != Lang.EN && it != Lang.ES } }
-            .ifEmpty { active.filter { it !in b } }
-    }
+    /**
+     * The languages you answer in (Say it) or hear (Listen). A language can be one of your languages and one
+     * you practise at the same time: questions just never ask and answer in the same one.
+     */
+    fun targetsFor(active: List<Lang>): List<Lang> =
+        targets.filter { it in active }.ifEmpty { active.filter { it != Lang.EN && it != Lang.ES } }.ifEmpty { active }
+
+    /** Every (question language, answer language) pair the setup allows. */
+    fun pairsFor(active: List<Lang>): List<Pair<Lang, Lang>> =
+        basesFor(active).flatMap { b -> targetsFor(active).filter { it != b }.map { t -> b to t } }
 
     fun encode(): String = listOf(
         "modes=${modes.joinToString(",") { it.name }}", "source=${source.name}", "bases=${bases.joinToString(",") { it.code }}",
@@ -95,43 +100,76 @@ enum class VoiceVerdict(val label: String) { RIGHT("Right"), CLOSE("Almost"), WR
 
 /** The spoken parts of a question and of the feedback, in your language when it's English or Spanish. */
 object VoicePhrases {
-    private fun es(base: Lang) = base == Lang.ES
+    /** The phrases of one language: how a question and the feedback are said in it. */
+    private class Frames(
+        val names: Map<Lang, String>,
+        /** "How do you say {x} in {L}?" */
+        val say: (x: String, l: String) -> String,
+        /** "Listen, and say it in {L}." */
+        val listen: (l: String) -> String,
+        val repeat: String,
+        val right: String, val close: String, val wrong: String, val notHeard: String,
+    )
 
-    /** The language the frame ("How do you say…") is spoken in. */
-    fun frameLang(base: Lang): Lang = if (base == Lang.ES) Lang.ES else Lang.EN
+    private fun names(en: String, fr: String, de: String, it: String, es: String, zh: String) =
+        mapOf(Lang.EN to en, Lang.FR to fr, Lang.DE to de, Lang.IT to it, Lang.ES to es, Lang.ZH to zh)
 
-    private fun name(l: Lang, spanish: Boolean): String = if (!spanish) l.englishName else when (l) {
-        Lang.EN -> "inglés"; Lang.FR -> "francés"; Lang.DE -> "alemán"; Lang.IT -> "italiano"; Lang.ES -> "español"; Lang.ZH -> "chino"
+    private val frames: Map<Lang, Frames> = mapOf(
+        Lang.EN to Frames(
+            names("English", "French", "German", "Italian", "Spanish", "Mandarin"),
+            { x, l -> "How do you say $x in $l?" }, { l -> "Listen, and say it in $l." }, "Repeat after me.",
+            "Right.", "Almost. It's", "The answer is", "I didn't hear you. It's",
+        ),
+        Lang.ES to Frames(
+            names("inglés", "francés", "alemán", "italiano", "español", "chino"),
+            { x, l -> "¿Cómo se dice $x en $l?" }, { l -> "Escucha y dilo en $l." }, "Repite.",
+            "¡Correcto!", "Casi. Es", "La respuesta es", "No te oí. La respuesta es",
+        ),
+        Lang.FR to Frames(
+            names("anglais", "français", "allemand", "italien", "espagnol", "chinois"),
+            { x, l -> "Comment dit-on $x en $l ?" }, { l -> "Écoute, et dis-le en $l." }, "Répète.",
+            "Exact !", "Presque. C'est", "La réponse est", "Je ne t'ai pas entendu. C'est",
+        ),
+        Lang.DE to Frames(
+            names("Englisch", "Französisch", "Deutsch", "Italienisch", "Spanisch", "Chinesisch"),
+            { x, l -> "Wie sagt man $x auf $l?" }, { l -> "Hör zu und sag es auf $l." }, "Sprich nach.",
+            "Richtig!", "Fast. Es heißt", "Die Antwort ist", "Ich habe dich nicht gehört. Es heißt",
+        ),
+        Lang.IT to Frames(
+            names("inglese", "francese", "tedesco", "italiano", "spagnolo", "cinese"),
+            { x, l -> "Come si dice $x in $l?" }, { l -> "Ascolta e dillo in $l." }, "Ripeti.",
+            "Giusto!", "Quasi. Si dice", "La risposta è", "Non ti ho sentito. Si dice",
+        ),
+        Lang.ZH to Frames(
+            names("英语", "法语", "德语", "意大利语", "西班牙语", "中文"),
+            { x, l -> "“$x”用${l}怎么说？" }, { l -> "请听，然后用${l}说。" }, "请跟我读。",
+            "对！", "差不多。应该是", "答案是", "我没听到。答案是",
+        ),
+    )
+
+    private fun f(l: Lang): Frames = frames[l] ?: frames.getValue(Lang.EN)
+
+    /**
+     * (text, language) pieces spoken one after the other. The question is spoken in the language it's
+     * asked in: a French question sounds fully French ("Comment dit-on la clé en chinois ?").
+     */
+    fun question(item: VoiceItem): List<Pair<String, Lang>> = when (item.mode) {
+        VoiceMode.SAY -> f(item.ask).let { fr -> listOf(fr.say(item.askText, fr.names.getValue(item.answer)) to item.ask) }
+        VoiceMode.LISTEN -> f(item.answer).let { fr -> listOf(fr.listen(fr.names.getValue(item.answer)) to item.answer, item.askText to item.ask) }
+        VoiceMode.ECHO -> listOf(f(item.ask).repeat to item.ask, item.askText to item.ask)
     }
 
-    /** (text, language) pieces spoken one after the other. */
-    fun question(item: VoiceItem, base: Lang): List<Pair<String, Lang>> {
-        val f = frameLang(base)
-        val sp = es(base)
-        return when (item.mode) {
-            VoiceMode.SAY -> if (item.ask == f) {
-                listOf((if (sp) "¿Cómo se dice ${item.askText} en ${name(item.answer, true)}?" else "How do you say ${item.askText} in ${item.answer.englishName}?") to f)
-            } else {
-                listOf((if (sp) "En ${name(item.answer, true)}, ¿cómo se dice:" else "In ${item.answer.englishName}, how do you say:") to f, item.askText to item.ask)
-            }
-            VoiceMode.LISTEN -> listOf(
-                (if (sp) "Escucha y dilo en ${name(item.answer, true)}." else "Listen, and say it in ${item.answer.englishName}.") to f,
-                item.askText to item.ask,
-            )
-            VoiceMode.ECHO -> listOf((if (sp) "Repite." else "Repeat after me.") to f, item.askText to item.ask)
-        }
-    }
-
-    fun feedback(v: VoiceVerdict, item: VoiceItem, base: Lang): List<Pair<String, Lang>> {
-        val f = frameLang(base)
-        val sp = es(base)
+    /** Feedback in the language the question was asked in, then the answer in its own voice. */
+    fun feedback(v: VoiceVerdict, item: VoiceItem): List<Pair<String, Lang>> {
+        val lang = if (item.mode == VoiceMode.SAY) item.ask else item.answer
+        val fr = f(lang)
         val lead = when (v) {
-            VoiceVerdict.RIGHT -> if (sp) "¡Correcto!" else "Right."
-            VoiceVerdict.CLOSE -> if (sp) "Casi. Es" else "Almost. It's"
-            VoiceVerdict.WRONG -> if (sp) "La respuesta es" else "The answer is"
-            VoiceVerdict.NOT_HEARD -> if (sp) "No te oí. La respuesta es" else "I didn't hear you. It's"
+            VoiceVerdict.RIGHT -> fr.right
+            VoiceVerdict.CLOSE -> fr.close
+            VoiceVerdict.WRONG -> fr.wrong
+            VoiceVerdict.NOT_HEARD -> fr.notHeard
         }
-        return listOf(lead to f, item.display to item.answer)
+        return listOf(lead to lang, item.display to item.answer)
     }
 }
 
