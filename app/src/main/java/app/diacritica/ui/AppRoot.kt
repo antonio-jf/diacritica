@@ -95,6 +95,8 @@ fun AppRoot(
     voiceVm: app.diacritica.voice.VoiceDrillViewModel,
     undo: app.diacritica.undo.UndoManager,
     sharedText: String?,
+    openDaily: String? = null,
+    onDailyOpened: () -> Unit = {},
 ) {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
     val s = settings ?: return // DataStore still loading: keep the window background (no theme flash)
@@ -122,6 +124,7 @@ fun AppRoot(
         val route = back?.destination?.route
         // A word shared from another app opens straight in the Dictionary (Home is the start page).
         LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) { if (sharedIsPhrase) nav.navigate("translate") else nav.goTo(Tab.DICTIONARY) } }
+        LaunchedEffect(openDaily) { openDaily?.let { nav.navigate("daily/$it"); onDailyOpened() } }
         Column(Modifier.fillMaxSize().background(Diacritica.colors.ground).statusBarsPadding()) {
             Box(Modifier.weight(1f).imePadding()) {
                 val openWord: (Lang, String) -> Unit = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") }
@@ -149,6 +152,7 @@ fun AppRoot(
                                 }
                             },
                             onChange = settingsVm::setHome,
+                            onOpenDaily = { id -> nav.navigate("daily/$id") },
                         )
                     }
                     composable(Tab.DICTIONARY.route) {
@@ -228,6 +232,13 @@ fun AppRoot(
                             onPractiseLesson = { lesson, attemptId -> testsVm.practiseFrom(lesson, attemptId); nav.navigate("tests") },
                             onRehearse = { topic -> rehearseVm.focusGrammar(topic); nav.goTo(Tab.REHEARSE) },
                             onOpenTests = { nav.navigate("tests") },
+                        )
+                    }
+                    composable("daily/{id}") { entry ->
+                        val id = entry.arguments?.getString("id").orEmpty()
+                        app.diacritica.ui.home.DailyLessonScreen(
+                            id, onBack = { nav.popBackStack() },
+                            onPractise = { lesson -> testsVm.practiseFrom(lesson, -1L); nav.navigate("tests") },
                         )
                     }
                     composable("voice") {

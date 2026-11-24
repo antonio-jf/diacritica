@@ -75,6 +75,7 @@ fun HomeScreen(
     onOpenStory: (Long) -> Unit,
     onOpen: (HomeSection) -> Unit,
     onChange: (List<String>, Set<String>) -> Unit,
+    onOpenDaily: (String) -> Unit = {},
 ) {
     var customizing by rememberSaveable { mutableStateOf(false) }
     val c = Diacritica.colors
@@ -119,6 +120,7 @@ fun HomeScreen(
             }
             runs.forEach { run ->
                 when (val id = run.first()) {
+                    "daily" -> DailyLessonCard(onOpenDaily)
                     "reader" -> ReaderCard(st, settings, onOpenStory, onOpen)
                     "practice" -> PracticeCards(st, onOpen)
                     else -> if (id in small) TileGrid(run.mapNotNull { small[it] }, onOpen)
@@ -282,6 +284,7 @@ private fun TileGrid(tiles: List<Tile>, onOpen: (HomeSection) -> Unit) {
 
 /** Names for the editor (Home and Settings › Home). */
 internal val homeTileNames = mapOf(
+    "daily" to "Lesson of the day",
     "reader" to "Reader", "practice" to "Review and Rehearse", "saved" to "Saved words", "books" to "Books",
     "vocabulary" to "Vocabulary", "voice" to "Voice drill", "tests" to "Tests", "grammar" to "Grammar", "translate" to "Translate",
     "progress" to "Progress", "library" to "Library", "dictionary" to "Dictionary",

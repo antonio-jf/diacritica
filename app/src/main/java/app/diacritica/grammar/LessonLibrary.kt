@@ -67,6 +67,25 @@ class LessonLibrary(
 
     fun consumeAsked() = _asking.update { it.copy(done = null) }
 
+    /**
+     * Writes and keeps a full lesson on [request] in [lang], returning its key (for Lesson of the day, which
+     * shows its own progress instead of Grammar's "Ask for a lesson" card).
+     */
+    suspend fun askNow(request: String, lang: app.diacritica.data.Lang): Result<String> {
+        val s = settings.settings.first()
+        val result = when {
+            s.geminiKey.isBlank() -> Result.failure(GeminiClient.GeminiException("Lessons are written by Gemini: add your API key in Settings › Rehearse."))
+            !isOnline() -> Result.failure(GeminiClient.GeminiException("You're offline. Connect once to write this lesson; after that it's kept."))
+            else -> runCatching { LessonWriter.ask(gemini, s.geminiKey, s.geminiModel, request, lang, s.storyLevel, s.storyHsk) }
+        }
+        return result.map { l ->
+            val key = LessonWriter.key(l)
+            runCatching { bookshelf.saveFullLesson(key, json.encodeToString(Lesson.serializer(), l)) }
+            _full.update { it + (key to l) }
+            key
+        }
+    }
+
     @Volatile private var loaded = false
 
     fun load() {

@@ -31,19 +31,23 @@ class MainActivity : ComponentActivity() {
 
     /** Text from "Look up in Diacritica" (the text-selection menu in other apps). */
     private val sharedText = mutableStateOf<String?>(null)
+    /** Lesson of the day opened from its notification. */
+    private val openDaily = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.processText()
+        openDaily.value = intent.getStringExtra(app.diacritica.grammar.DailyNotifier.EXTRA_TOPIC)
         // Looks for a newer release on GitHub at most once a day (and resumes an update download).
         container.updater.check()
-        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, vocabVm, voiceVm, container.undo, sharedText.value) }
+        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, vocabVm, voiceVm, container.undo, sharedText.value, openDaily.value, onDailyOpened = { openDaily.value = null }) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.processText()?.let { sharedText.value = it }
+        intent.getStringExtra(app.diacritica.grammar.DailyNotifier.EXTRA_TOPIC)?.let { openDaily.value = it }
     }
 
     private fun Intent.processText(): String? =
