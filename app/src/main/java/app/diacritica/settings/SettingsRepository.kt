@@ -36,7 +36,7 @@ enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKE
 const val MAX_NAV_TABS = 4
 
 /** Every card Home can show, in the default order. "practice" is the Review + Rehearse pair. */
-val HOME_TILES = listOf("reader", "practice", "saved", "books", "vocabulary", "voice", "tests", "grammar", "translate", "progress", "library", "dictionary")
+val HOME_TILES = listOf("daily", "reader", "practice", "saved", "books", "vocabulary", "voice", "tests", "grammar", "translate", "progress", "library", "dictionary")
 val DEFAULT_NAV_TABS = listOf("dictionary", "reader", "rehearse", "review")
 
 enum class PinyinMode { ALL, RARE, OFF }
@@ -291,7 +291,7 @@ class SettingsRepository(private val context: Context) {
             navTabs = p[K.navTabs]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.distinct()?.take(MAX_NAV_TABS) ?: d.navTabs,
             readerShowMyWords = p[K.readerShowMyWords] ?: d.readerShowMyWords,
             homeOrder = p[K.homeOrder]?.split(',')?.map { it.trim() }?.filter { it in HOME_TILES }?.distinct()
-                ?.let { saved -> saved + HOME_TILES.filter { it !in saved } } ?: d.homeOrder,
+                ?.let { saved -> (if ("daily" in saved) saved else listOf("daily") + saved).let { o -> o + HOME_TILES.filter { it !in o } } } ?: d.homeOrder,
             homeHidden = p[K.homeHidden]?.split(',')?.map { it.trim() }?.filter { it in HOME_TILES }?.toSet() ?: d.homeHidden,
             storyLevel = p[K.storyLevel] ?: d.storyLevel,
             storyHsk = p[K.storyHsk] ?: d.storyHsk,

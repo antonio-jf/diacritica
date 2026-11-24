@@ -2,6 +2,8 @@ package app.diacritica
 
 import app.diacritica.mybooks.Bookshelf
 import app.diacritica.grammar.LessonLibrary
+import app.diacritica.grammar.DailyLessons
+import app.diacritica.grammar.DailyNotifier
 import app.diacritica.backup.BackupManager
 import app.diacritica.backup.AutoBackup
 import app.diacritica.translate.OnDeviceTranslator
@@ -52,6 +54,8 @@ class AppContainer(app: Application) {
     val autoBackup = AutoBackup(app)
     val tests = TestStore(app)
     val lessons by lazy { LessonLibrary(bookshelf, gemini, settings) { online.isOnline() } }
+    /** Lesson of the day (Home card and optional notification). */
+    val daily by lazy { DailyLessons(this, app) }
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
     /** Work in progress that should survive Android closing the app in the background (Rehearse answers). */
     val drafts: android.content.SharedPreferences = app.getSharedPreferences("drafts", android.content.Context.MODE_PRIVATE)
@@ -66,5 +70,6 @@ class DiacriticaApp : Application() {
         container = AppContainer(this)
         // Re-register the daily backup (no-op if already scheduled or no folder chosen).
         runCatching { container.autoBackup.schedule() }
+        runCatching { DailyNotifier.schedule(this) }
     }
 }
