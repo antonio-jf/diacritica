@@ -1,5 +1,8 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.components.shareTextFor
 import app.diacritica.ui.components.CopyShareButtons
 import androidx.compose.foundation.background
@@ -149,7 +152,7 @@ fun DetailScreen(
 private fun ZhCard(r: ZhReading) {
     PolySurface(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(r.pinyin, style = bodyStyle(Diacritica.colors.accent))
+            Text(tonedPinyin(r.pinyin), style = bodyStyle(Diacritica.colors.accent))
             if (r.traditional != r.simplified) Text("${r.simplified} · ${r.traditional}", style = captionStyle())
             r.hsk?.let { HskBadge(it) }
         }

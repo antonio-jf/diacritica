@@ -1,5 +1,6 @@
 package app.diacritica.ui.components
 
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,8 +79,12 @@ fun WordSheetBody(
                 val head = hw.article?.let { a -> if (a.endsWith("'")) a + hw.word else "$a ${hw.word}" } ?: hw.word
                 Text(zh(hw, head), style = headwordStyle(Diacritica.type.headwordLarge))
                 if (lang == Lang.ZH) {
-                    val extra = listOfNotNull(hw.pinyin, hw.traditional?.takeIf { it != hw.word && !traditional }, hw.hsk?.let { ZhRanking.hskLabel(it) })
-                    if (extra.isNotEmpty()) Text(extra.joinToString("  ·  "), style = captionStyle(c.accent))
+                    val extra = listOfNotNull(hw.traditional?.takeIf { it != hw.word && !traditional }, hw.hsk?.let { ZhRanking.hskLabel(it) })
+                    val py = pinyinAppender()
+                    if (extra.isNotEmpty() || hw.pinyin != null) Text(buildAnnotatedString {
+                        hw.pinyin?.let { py(it); if (extra.isNotEmpty()) append("  ·  ") }
+                        append(extra.joinToString("  ·  "))
+                    }, style = captionStyle(c.accent))
                 }
             }
             PolyIconButton(PolyIcons.Speaker, "Pronounce", onClick = { onSpeak(hw) })
@@ -122,11 +127,17 @@ fun WordSheetBody(
                     .forEach { lr ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
                             Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(lr.lang) }
-                            val words = lr.words.take(3).joinToString(", ") { w ->
-                                val base = zh(w, w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word)
-                                if (w.lang == Lang.ZH && w.pinyin != null) "$base ${w.pinyin}" else base
+                            val py = pinyinAppender()
+                            val shown = lr.words.take(3)
+                            val words = buildAnnotatedString {
+                                shown.forEachIndexed { i, w ->
+                                    if (i > 0) append(", ")
+                                    append(zh(w, w.article?.let { a -> if (a.endsWith("'")) a + w.word else "$a ${w.word}" } ?: w.word))
+                                    if (w.lang == Lang.ZH && w.pinyin != null) { append(" "); py(w.pinyin) }
+                                }
+                                if (shown.isEmpty()) append("—")
                             }
-                            Text(words.ifEmpty { "—" }, style = bodyStyle(if (words.isEmpty()) c.inkMuted else c.ink), modifier = Modifier.weight(1f))
+                            Text(words, style = bodyStyle(if (words.isEmpty()) c.inkMuted else c.ink), modifier = Modifier.weight(1f))
                         }
                     }
             }

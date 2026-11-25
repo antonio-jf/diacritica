@@ -1,5 +1,8 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.components.bodyStyle
 import app.diacritica.ui.WordSuggestion
 import androidx.compose.foundation.clickable
@@ -92,7 +95,7 @@ fun grammarLine(w: WordInfo): String? {
 fun PinyinLine(w: WordInfo) {
     if (w.pinyin == null) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(w.pinyin, style = TextStyle(fontFamily = Diacritica.fonts.body, fontSize = 15.sp, color = Diacritica.colors.accent, fontWeight = FontWeight.Medium))
+        Text(tonedPinyin(w.pinyin), style = TextStyle(fontFamily = Diacritica.fonts.body, fontSize = 15.sp, color = Diacritica.colors.accent, fontWeight = FontWeight.Medium))
         w.hsk?.let { HskBadge(it) }
     }
 }

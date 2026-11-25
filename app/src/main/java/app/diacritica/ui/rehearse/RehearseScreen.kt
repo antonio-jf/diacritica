@@ -2,6 +2,9 @@
 
 package app.diacritica.ui.rehearse
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.theme.hanTransformation
 import app.diacritica.ui.theme.roomyForHan
 import androidx.compose.ui.platform.LocalView
@@ -401,7 +404,7 @@ private fun AnswerField(lang: Lang, value: String, onChange: (String) -> Unit, h
                 modifier = Modifier.fillMaxWidth().heightIn(min = 26.dp).semantics { contentDescription = "${lang.englishName} answer" },
             )
         }
-        pinyinHint?.let { Text("Hint: $it", style = captionStyle(c.accent)) }
+        pinyinHint?.let { val py = pinyinAppender(); Text(buildAnnotatedString { append("Hint: "); py(it) }, style = captionStyle(c.accent)) }
     }
 }
 

@@ -62,7 +62,7 @@ fun HanziBreakdown(
                     style = TextStyle(fontFamily = Diacritica.fonts.display, fontSize = 20.sp, color = c.ink),
                 )
                 Text(
-                    h.pinyin, style = TextStyle(fontFamily = Diacritica.fonts.body, fontSize = 13.sp, color = c.accent),
+                    tonedPinyin(h.pinyin), style = TextStyle(fontFamily = Diacritica.fonts.body, fontSize = 13.sp, color = c.accent),
                     maxLines = 1, modifier = Modifier.widthIn(min = 44.dp),
                 )
                 Text(

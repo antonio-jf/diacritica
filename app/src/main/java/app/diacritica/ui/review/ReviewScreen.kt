@@ -1,5 +1,8 @@
 package app.diacritica.ui.review
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -294,7 +297,7 @@ private fun Back(item: ReviewItem, state: ReviewUiState) {
                             LangBadge(t.lang)
                             Column {
                                 WordTitle(t)
-                                if (t.lang == Lang.ZH) t.pinyin?.let { Text(it, style = captionStyle(Diacritica.colors.accent)) }
+                                if (t.lang == Lang.ZH) t.pinyin?.let { Text(tonedPinyin(it), style = captionStyle(Diacritica.colors.accent)) }
                             }
                         }
                     }

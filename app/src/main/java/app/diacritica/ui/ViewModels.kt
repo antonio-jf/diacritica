@@ -95,6 +95,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setReviewTranslateCards(v: Boolean) = edit { c.settings.setReviewTranslateCards(v) }
     fun setReviewUseCards(v: Boolean) = edit { c.settings.setReviewUseCards(v) }
     fun setTapLookupPractice(v: Boolean) = edit { c.settings.setTapLookupPractice(v) }
+    fun setToneColors(v: Boolean) = edit { c.settings.setToneColors(v) }
     fun toggleRehearseLang(l: Lang) = edit {
         val cur = c.settings.settings.first().rehearseLanguages.toSet()
         val next = if (l in cur) cur - l else cur + l

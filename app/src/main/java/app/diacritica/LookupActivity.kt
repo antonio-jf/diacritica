@@ -57,7 +57,7 @@ class LookupActivity : ComponentActivity() {
             var opened by remember { mutableStateOf(false) }
             LaunchedEffect(word) { if (word != null) opened = true else if (opened) finish() }
             val tokens = rememberTokens(settings.theme, settings.mode, settings.accent, settings.languageColors, custom = settings.themeCustom)
-            DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, systemBars = false) {
+            DiacriticaTheme(tokens, settings.textScale, hanScale = settings.hanScale, systemBars = false, toneColors = settings.toneColors) {
                 Box(Modifier.fillMaxSize()) {
                     WordLookupSheet(
                         vm.lookup,

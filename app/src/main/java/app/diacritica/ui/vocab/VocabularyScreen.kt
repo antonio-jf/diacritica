@@ -2,6 +2,9 @@
 
 package app.diacritica.ui.vocab
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -266,8 +269,8 @@ private fun WordRow(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(w.form(lang), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = if (lang == Lang.ZH) 20.sp else 17.sp, color = c.ink))
-                if (lang == Lang.ZH) Text(w.pinyin, style = captionStyle(c.accent))
-                Text(w.form(from) + if (from == Lang.ZH) "  ${w.pinyin}" else "", style = captionStyle())
+                if (lang == Lang.ZH) Text(tonedPinyin(w.pinyin), style = captionStyle(c.accent))
+                Text(pinyinAppender().let { py -> buildAnnotatedString { append(w.form(from)); if (from == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = captionStyle())
             }
             run {
                 androidx.compose.material3.Icon(
@@ -286,7 +289,7 @@ private fun WordRow(
                 others.forEach { l ->
                     Row(Modifier.fillMaxWidth().clickable { onSpeak(l) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(l.short, style = captionStyle(c.accent), modifier = Modifier.width(36.dp))
-                        Text(w.form(l) + if (l == Lang.ZH) "  ${w.pinyin}" else "", style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
+                        Text(pinyinAppender().let { py -> buildAnnotatedString { append(w.form(l)); if (l == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = bodyStyle(size = 14.sp), modifier = Modifier.weight(1f))
                     }
                 }
                 Text(
@@ -320,7 +323,7 @@ private fun QuizView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet, q
                 style = titleStyle().copy(fontSize = if (st.from == Lang.ZH) 30.sp else 26.sp),
                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
-            if (st.from == Lang.ZH) Text(cur.word.pinyin, style = captionStyle(c.accent), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            if (st.from == Lang.ZH) Text(tonedPinyin(cur.word.pinyin), style = captionStyle(c.accent), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Text("in ${st.lang.englishName}", style = captionStyle(), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Gap(10.dp)
             val right = cur.word.form(st.lang)
@@ -366,7 +369,7 @@ private fun QuizView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet, q
                     Text(label, style = bodyStyle(color, 16.sp).copy(fontWeight = FontWeight.SemiBold))
                     if (r.grade != VocabCheck.Grade.RIGHT || q.mode == QuizMode.TYPE) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(right + if (st.lang == Lang.ZH) "  ${cur.word.pinyin}" else "", style = bodyStyle(size = 16.sp), modifier = Modifier.weight(1f))
+                            Text(pinyinAppender().let { py -> buildAnnotatedString { append(right); if (st.lang == Lang.ZH) { append("  "); py(cur.word.pinyin) } } }, style = bodyStyle(size = 16.sp), modifier = Modifier.weight(1f))
                             PolyIconButton(PolyIcons.Speaker, "Listen", { vm.speak(st.lang, spoken(right)) }, tint = c.inkMuted)
                         }
                     }
@@ -393,7 +396,7 @@ private fun QuizResults(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet
         missed.forEach { w ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(w.form(st.lang) + if (st.lang == Lang.ZH) "  ${w.pinyin}" else "", style = bodyStyle(size = 16.sp))
+                    Text(pinyinAppender().let { py -> buildAnnotatedString { append(w.form(st.lang)); if (st.lang == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = bodyStyle(size = 16.sp))
                     Text(w.form(st.from), style = captionStyle())
                 }
                 PolyIconButton(PolyIcons.Speaker, "Listen", { vm.speak(st.lang, spoken(w.form(st.lang))) }, tint = c.inkMuted)

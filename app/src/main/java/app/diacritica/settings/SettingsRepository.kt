@@ -107,6 +107,8 @@ data class AppSettings(
     val reviewUseCards: Boolean = true,
     /** Practice sentences (Rehearse, Tests, Review) can be tapped for word meanings. Off: practise without help. */
     val tapLookupPractice: Boolean = false,
+    /** Pinyin syllables colored by tone (1 red, 2 green, 3 blue, 4 purple, neutral gray). */
+    val toneColors: Boolean = true,
     /** Voice drill setup (mode, words, languages, length, Review option). */
     val voice: app.diacritica.voice.VoiceConfig = app.diacritica.voice.VoiceConfig(),
     /** Rehearse sentence source: everyday (any sentence) or my words (sentences using words you looked up). */
@@ -195,6 +197,7 @@ class SettingsRepository(private val context: Context) {
         val reviewTranslateCards = booleanPreferencesKey("review_translate_cards")
         val reviewUseCards = booleanPreferencesKey("review_use_cards")
         val tapLookupPractice = booleanPreferencesKey("tap_lookup_practice")
+        val toneColors = booleanPreferencesKey("tone_colors")
         val voiceConfig = stringPreferencesKey("voice_config")
         val rehearseMyWords = booleanPreferencesKey("rehearse_my_words")
         val rehearsePath = stringPreferencesKey("rehearse_path")
@@ -261,6 +264,7 @@ class SettingsRepository(private val context: Context) {
             reviewTranslateCards = p[K.reviewTranslateCards] ?: d.reviewTranslateCards,
             reviewUseCards = p[K.reviewUseCards] ?: d.reviewUseCards,
             tapLookupPractice = p[K.tapLookupPractice] ?: d.tapLookupPractice,
+            toneColors = p[K.toneColors] ?: d.toneColors,
             voice = app.diacritica.voice.VoiceConfig.decode(p[K.voiceConfig]),
             rehearseMyWords = p[K.rehearseMyWords] ?: d.rehearseMyWords,
             rehearsePath = p[K.rehearsePath]?.let { enumOr(it, d.rehearsePath) }
@@ -340,6 +344,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReviewTranslateCards(v: Boolean) = context.dataStore.edit { it[K.reviewTranslateCards] = v }
     suspend fun setReviewUseCards(v: Boolean) = context.dataStore.edit { it[K.reviewUseCards] = v }
     suspend fun setTapLookupPractice(v: Boolean) = context.dataStore.edit { it[K.tapLookupPractice] = v }
+    suspend fun setToneColors(v: Boolean) = context.dataStore.edit { it[K.toneColors] = v }
     suspend fun setVoiceConfig(v: app.diacritica.voice.VoiceConfig) = context.dataStore.edit { it[K.voiceConfig] = v.encode() }
     suspend fun setReaderLayout(v: ReaderLayout) = context.dataStore.edit { it[K.readerLayout] = v.name }
     suspend fun setReaderLangs(a: Lang, b: Lang) = context.dataStore.edit { it[K.readerLangA] = a.code; it[K.readerLangB] = b.code }

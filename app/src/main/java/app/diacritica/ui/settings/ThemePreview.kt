@@ -74,7 +74,7 @@ fun ThemePreviewCard(
                         LangBadge(w.lang, boxed = Diacritica.tokens.surfaceStyle != app.diacritica.ui.theme.SurfaceStyle.HAIRLINE)
                         Column(Modifier.weight(1f)) {
                             WordTitle(w)
-                            (if (w.lang == Lang.ZH) w.pinyin else grammarLine(w))?.let { Text(it, style = captionStyle()) }
+                            if (w.lang == Lang.ZH) w.pinyin?.let { Text(app.diacritica.ui.components.tonedPinyin(it), style = captionStyle()) } else grammarLine(w)?.let { Text(it, style = captionStyle()) }
                         }
                     }
                 }
