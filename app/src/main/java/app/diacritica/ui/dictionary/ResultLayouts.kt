@@ -1,5 +1,8 @@
 package app.diacritica.ui.dictionary
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.components.textScaled
 import androidx.compose.foundation.clickable
 import app.diacritica.ui.components.captionStyle
@@ -181,7 +184,7 @@ private fun LazyListScope.tableLayout(results: List<LangResult>, actions: WordAc
                                 if (w.lang == Lang.ZH && w.traditional != null && w.traditional != w.word) " ${w.traditional}" else "",
                             style = bodyStyle(size = 16.sp).copy(fontWeight = if (i == 0) FontWeight.SemiBold else FontWeight.Normal),
                         )
-                        w.pinyin?.let { Text(it, style = captionStyle(Diacritica.colors.accent)) }
+                        w.pinyin?.let { Text(tonedPinyin(it), style = captionStyle(Diacritica.colors.accent)) }
                     }
                     Text(grammarLine(w) ?: "", style = captionStyle(), modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     PolyIconButton(PolyIcons.Speaker, "Play ${w.lang.englishName} pronunciation", { actions.onSpeak(w, false) })

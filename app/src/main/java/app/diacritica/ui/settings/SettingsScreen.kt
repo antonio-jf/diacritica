@@ -122,6 +122,9 @@ fun SettingsScreen(
                 }
             }
             item { SwitchRow("Language colors", "Each language gets its own color", s.languageColors, vm::setLanguageColors) }
+            if (Lang.ZH in s.activeLanguages) item {
+                SwitchRow("Color pinyin by tone", "1st red · 2nd green · 3rd blue · 4th purple · neutral gray", s.toneColors, vm::setToneColors)
+            }
         }
 
         // ------------------------------------------------ Layouts
@@ -589,7 +592,7 @@ private fun Meter(label: String, value: Int) {
 
 /** Words each section answers to in the Settings search, beyond its title and summary. */
 private val SETTINGS_KEYWORDS = mapOf(
-    "appearance" to "theme mode dark light night accent color colour text size font bigger smaller chinese characters hanzi 汉字 language colors paper tiles midnight index wallpaper fonts serif corners rounded surfaces cards background spacing saved themes my theme",
+    "appearance" to "theme mode dark light night accent color colour text size font bigger smaller chinese characters hanzi 汉字 language colors paper tiles midnight index wallpaper fonts serif corners rounded surfaces cards background spacing saved themes my theme pinyin tones tone colors",
     "layouts" to "layout dictionary list cards grid table rehearse feedback tabs reader stacked side interlinear numbered word popup sheet tooltip reset",
     "home" to "home tiles cards hide show reorder order customize customise",
     "bottombar" to "bottom bar navigation nav tabs sections",

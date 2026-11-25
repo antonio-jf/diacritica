@@ -327,7 +327,7 @@ private fun Round(st: VoiceUi, vm: VoiceDrillViewModel, s: AppSettings) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(item.display, style = headwordStyle(if (item.sentence) 19.sp else 24.sp))
-                    item.pinyin?.takeIf { item.answer == Lang.ZH }?.let { Text(it, style = captionStyle(c.accent).copy(fontSize = 15.sp)) }
+                    item.pinyin?.takeIf { item.answer == Lang.ZH }?.let { Text(app.diacritica.ui.components.tonedPinyin(it), style = captionStyle(c.accent).copy(fontSize = 15.sp)) }
                     val others = item.accepted.filter { it != item.display }.take(3)
                     if (others.isNotEmpty() && !item.sentence) Text("Also right: " + others.joinToString(", "), style = captionStyle())
                 }

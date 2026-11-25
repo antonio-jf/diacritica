@@ -1,5 +1,8 @@
 package app.diacritica.ui.reader
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.theme.hanTransformation
 import app.diacritica.ui.components.textScaled
 import app.diacritica.ui.components.MenuSection
@@ -972,7 +975,7 @@ private fun ZhSentence(
                     .padding(horizontal = if (isWord) 1.dp else 0.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (pinyinRow) Text(env.pinyinFor(t) ?: "", style = pinyinStyle, maxLines = 1)
+                if (pinyinRow) Text(tonedPinyin(env.pinyinFor(t) ?: ""), style = pinyinStyle, maxLines = 1)
                 Text(shown, style = style.copy(lineHeight = (style.fontSize.value * 1.25f).sp))
             }
         } }
@@ -1010,7 +1013,9 @@ private fun WordTooltip(vm: ReaderViewModel, p: WordPopup, env: SentenceEnv) {
             Column(Modifier.weight(1f)) {
                 val head = hw.article?.let { a -> if (a.endsWith("'")) a + hw.word else "$a ${hw.word}" } ?: hw.word
                 Text(if (p.lang == Lang.ZH && env.traditional) hw.traditional ?: head else head, style = headwordStyle(19.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val sub = listOfNotNull(hw.pinyin, hw.pos, hw.gender).joinToString(" · ")
+                val rest = listOfNotNull(hw.pos, hw.gender).joinToString(" · ")
+                val py = pinyinAppender()
+                val sub = buildAnnotatedString { hw.pinyin?.let { py(it); if (rest.isNotEmpty()) append(" · ") }; append(rest) }
                 if (sub.isNotEmpty()) Text(sub, style = captionStyle(if (hw.pinyin != null) c.accent else c.inkMuted), maxLines = 1)
                 FormNotes(p.token, r?.forms.orEmpty(), onLemma = { l -> vm.lookUpWord(p.lang, l, p.sentenceIdx, env.other(p.lang), p.anchor) }, max = 1)
             }

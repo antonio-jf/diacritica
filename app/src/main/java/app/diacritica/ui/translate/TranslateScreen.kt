@@ -1,5 +1,8 @@
 package app.diacritica.ui.translate
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.theme.hanTransformation
 import app.diacritica.ui.theme.roomyForHan
 import app.diacritica.ui.components.ChoiceMenuItem
@@ -153,7 +156,7 @@ fun TranslateScreen(
                             SelectionContainer {
                                 Text(r.text, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 18.sp, lineHeight = 26.sp, color = c.ink))
                             }
-                            r.pinyin?.let { Text(it, style = captionStyle(c.accent), modifier = Modifier.padding(top = 2.dp)) }
+                            r.pinyin?.let { Text(tonedPinyin(it), style = captionStyle(c.accent), modifier = Modifier.padding(top = 2.dp)) }
                             Gap(6.dp)
                             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                 ActionLink(if (r.savedToReview) "Added to Review" else "Add to Review", enabled = !r.savedToReview) { vm.saveToReview(l) }

@@ -2,6 +2,9 @@
 
 package app.diacritica.ui.books
 
+import app.diacritica.ui.components.tonedPinyin
+import app.diacritica.ui.components.pinyinAppender
+import androidx.compose.ui.text.buildAnnotatedString
 import app.diacritica.ui.theme.hanTransformation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -501,7 +504,7 @@ private fun ZhParagraph(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Pinyin isn't part of the text: left out of selections.
-                if (pinyinRow) androidx.compose.foundation.text.selection.DisableSelection { Text(pinyinFor(t) ?: "", style = pinyinStyle, maxLines = 1) }
+                if (pinyinRow) androidx.compose.foundation.text.selection.DisableSelection { Text(tonedPinyin(pinyinFor(t) ?: ""), style = pinyinStyle, maxLines = 1) }
                 Text(t.text, style = style.copy(lineHeight = (style.fontSize.value * 1.3f).sp))
             }
         } }
