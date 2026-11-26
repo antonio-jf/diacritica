@@ -1,6 +1,7 @@
 package app.diacritica
 
 import app.diacritica.mybooks.Bookshelf
+import app.diacritica.chat.ChatSession
 import app.diacritica.grammar.LessonLibrary
 import app.diacritica.grammar.DailyLessons
 import app.diacritica.grammar.DailyNotifier
@@ -59,6 +60,8 @@ class AppContainer(app: Application) {
     val falseFriends: FalseFriendIndex by lazy { FalseFriendIndex.get(app) }
     /** Work in progress that should survive Android closing the app in the background (Rehearse answers). */
     val drafts: android.content.SharedPreferences = app.getSharedPreferences("drafts", android.content.Context.MODE_PRIVATE)
+    /** The Ask chat (one conversation, kept until you start a new one). */
+    val chat by lazy { ChatSession(gemini, settings, drafts) }
 }
 
 class DiacriticaApp : Application() {

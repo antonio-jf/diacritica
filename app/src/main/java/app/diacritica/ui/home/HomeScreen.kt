@@ -65,7 +65,7 @@ import java.util.Calendar
 import java.util.Date
 
 /** The parts of the app Home links to. */
-enum class HomeSection { SAVED, DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS, VOCABULARY, VOICE }
+enum class HomeSection { SAVED, DICTIONARY, READER, REHEARSE, REVIEW, LIBRARY, SETTINGS, TRANSLATE, PROGRESS, TESTS, GRAMMAR, BOOKS, VOCABULARY, VOICE, ASK }
 
 @Composable
 fun HomeScreen(
@@ -238,6 +238,8 @@ private fun smallTiles(st: HomeStats, settings: AppSettings): Map<String, Tile> 
             "Word sets by topic (fruits, colours, professions, places, actions…) with a mini test for each."),
         "grammar" to Tile(PolyIcons.Book, "Grammar", HomeSection.GRAMMAR, "Weak points and lessons",
             "Your weak points from Rehearse and Tests, all your lessons, and practice aimed at each."),
+        "ask" to Tile(PolyIcons.Chat, "Ask", HomeSection.ASK, "Grammar questions",
+            "Ask Gemini about grammar, a word or a sentence. Select text anywhere and tap Ask to quote it."),
         "translate" to Tile(PolyIcons.Translate, "Translate", HomeSection.TRANSLATE, "Into all your languages",
             "Paste a sentence or a paragraph and get it in all your languages at once. Works offline."),
         "progress" to Tile(PolyIcons.Chart, "Progress", HomeSection.PROGRESS, "Accuracy and mistakes",
@@ -287,7 +289,7 @@ internal val homeTileNames = mapOf(
     "daily" to "Lesson of the day",
     "reader" to "Reader", "practice" to "Review and Rehearse", "saved" to "Saved words", "books" to "Books",
     "vocabulary" to "Vocabulary", "voice" to "Voice drill", "tests" to "Tests", "grammar" to "Grammar", "translate" to "Translate",
-    "progress" to "Progress", "library" to "Library", "dictionary" to "Dictionary",
+    "progress" to "Progress", "library" to "Library", "dictionary" to "Dictionary", "ask" to "Ask",
 )
 
 /** Reorder Home's cards and show or hide each one. */

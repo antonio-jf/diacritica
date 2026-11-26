@@ -69,6 +69,7 @@ internal enum class Tab(val route: String, val label: String, val icon: ImageVec
     TRANSLATE("translate", "Translate", PolyIcons.Translate),
     PROGRESS("progress", "Progress", PolyIcons.Chart),
     LIBRARY("library", "Library", PolyIcons.Library),
+    ASK("ask", "Ask", PolyIcons.Chat),
     /** Always the last item of the bar, at the far right; not one of the sections chosen in Settings. */
     SETTINGS("settings", "Settings", PolyIcons.Settings);
 
@@ -95,6 +96,9 @@ fun AppRoot(
     voiceVm: app.diacritica.voice.VoiceDrillViewModel,
     undo: app.diacritica.undo.UndoManager,
     sharedText: String?,
+    /** Text from "Ask Diacritica" in another app's selection menu: opens Ask with it quoted. */
+    askText: String? = null,
+    onAskOpened: () -> Unit = {},
     openDaily: String? = null,
     onDailyOpened: () -> Unit = {},
 ) {
@@ -124,9 +128,19 @@ fun AppRoot(
         val route = back?.destination?.route
         // A word shared from another app opens straight in the Dictionary (Home is the start page).
         LaunchedEffect(sharedText) { if (!sharedText.isNullOrBlank()) { if (sharedIsPhrase) nav.navigate("translate") else nav.goTo(Tab.DICTIONARY) } }
+        val chat = (androidx.compose.ui.platform.LocalContext.current.applicationContext as app.diacritica.DiacriticaApp).container.chat
+        // Selected text → Ask, with the text quoted above the input.
+        val ask: (String, String?) -> Unit = androidx.compose.runtime.remember(nav, barTabs) {
+            { text: String, source: String? ->
+                chat.attach(text, source)
+                if (nav.currentDestination?.route != Tab.ASK.route) openSection(Tab.ASK)
+            }
+        }
+        LaunchedEffect(askText) { askText?.takeIf { it.isNotBlank() }?.let { ask(it, "from another app"); onAskOpened() } }
         LaunchedEffect(openDaily) { openDaily?.let { nav.navigate("daily/$it"); onDailyOpened() } }
         Column(Modifier.fillMaxSize().background(Diacritica.colors.ground).statusBarsPadding()) {
             Box(Modifier.weight(1f).imePadding()) {
+              androidx.compose.runtime.CompositionLocalProvider(app.diacritica.ui.chat.LocalAsk provides ask) {
                 val openWord: (Lang, String) -> Unit = { l, w -> nav.navigate("detail/${l.code}/${Uri.encode(w)}") }
                 NavHost(nav, startDestination = Tab.HOME.route) {
                     composable(Tab.HOME.route) {
@@ -149,6 +163,7 @@ fun AppRoot(
                                     app.diacritica.ui.home.HomeSection.VOCABULARY -> openSection(Tab.VOCABULARY)
                                     app.diacritica.ui.home.HomeSection.VOICE -> openSection(Tab.VOICE)
                                     app.diacritica.ui.home.HomeSection.BOOKS -> openSection(Tab.BOOKS)
+                                    app.diacritica.ui.home.HomeSection.ASK -> openSection(Tab.ASK)
                                 }
                             },
                             onChange = settingsVm::setHome,
@@ -270,7 +285,14 @@ fun AppRoot(
                             onPivot = { l, w -> dictVm.lookUp(w, l); nav.goTo(Tab.DICTIONARY) },
                         )
                     }
+                    composable(Tab.ASK.route) {
+                        app.diacritica.ui.chat.ChatScreen(
+                            s, onBack = if (Tab.ASK in barTabs) null else ({ nav.popBackStack() }),
+                            onOpenSettings = { nav.goTo(Tab.SETTINGS) },
+                        )
+                    }
                 }
+              }
             }
             val bar = barTabs
             val current = Tab.byRoute(route)?.takeIf { it in bar } ?: when {

@@ -79,4 +79,9 @@ object PolyIcons {
     val Eye = stroke("eye", "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z", "M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 0 1 0 -5z")
     val EyeOff = stroke("eye-off", "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z", "M4 4l16 16")
     val Toc = stroke("toc", "M9 6h11", "M9 12h11", "M9 18h11", "M4.5 6h.01", "M4.5 12h.01", "M4.5 18h.01")
+    /** A speech bubble: the Ask chat. */
+    val Chat = stroke("chat", "M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1 -1.5 1.5H10l-4.5 3.5V17H5a1.5 1.5 0 0 1 -1.5 -1.5v-9A1.5 1.5 0 0 1 5 5z", "M8 10h8", "M8 13h5")
+    val Send = stroke("send", "M4 12l16-8-6 16-3-7z", "M11 13l9-9")
+    /** A new, empty conversation. */
+    val NewChat = stroke("new-chat", "M5 5h8", "M5 5a1.5 1.5 0 0 0 -1.5 1.5v9A1.5 1.5 0 0 0 5 17h.5v3.5L10 17h9a1.5 1.5 0 0 0 1.5 -1.5V12", "M18 3v6", "M15 6h6")
 }

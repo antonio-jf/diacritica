@@ -31,6 +31,8 @@ class MainActivity : ComponentActivity() {
 
     /** Text from "Look up in Diacritica" (the text-selection menu in other apps). */
     private val sharedText = mutableStateOf<String?>(null)
+    /** Text from "Ask Diacritica" (the text-selection menu in other apps). */
+    private val askText = mutableStateOf<String?>(null)
     /** Lesson of the day opened from its notification. */
     private val openDaily = mutableStateOf<String?>(null)
 
@@ -38,17 +40,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         sharedText.value = intent.processText()
+        askText.value = intent.askText()
         openDaily.value = intent.getStringExtra(app.diacritica.grammar.DailyNotifier.EXTRA_TOPIC)
         // Looks for a newer release on GitHub at most once a day (and resumes an update download).
         container.updater.check()
-        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, vocabVm, voiceVm, container.undo, sharedText.value, openDaily.value, onDailyOpened = { openDaily.value = null }) }
+        setContent { AppRoot(settingsVm, dictVm, reviewVm, rehearseVm, readerVm, homeVm, translateVm, progressVm, packsVm, testsVm, grammarVm, booksVm, vocabVm, voiceVm, container.undo, sharedText.value, askText.value, onAskOpened = { askText.value = null }, openDaily = openDaily.value, onDailyOpened = { openDaily.value = null }) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.processText()?.let { sharedText.value = it }
+        intent.askText()?.let { askText.value = it }
         intent.getStringExtra(app.diacritica.grammar.DailyNotifier.EXTRA_TOPIC)?.let { openDaily.value = it }
     }
+
+    private fun Intent.askText(): String? =
+        if (action == AskActivity.ACTION_ASK) getStringExtra(Intent.EXTRA_TEXT) else null
 
     private fun Intent.processText(): String? =
         if (action == Intent.ACTION_PROCESS_TEXT) getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() else null

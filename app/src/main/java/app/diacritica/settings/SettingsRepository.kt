@@ -36,7 +36,7 @@ enum class RehearseLayout(val label: String) { TABS("Tabs per language"), STACKE
 const val MAX_NAV_TABS = 4
 
 /** Every card Home can show, in the default order. "practice" is the Review + Rehearse pair. */
-val HOME_TILES = listOf("daily", "reader", "practice", "saved", "books", "vocabulary", "voice", "tests", "grammar", "translate", "progress", "library", "dictionary")
+val HOME_TILES = listOf("daily", "reader", "practice", "ask", "saved", "books", "vocabulary", "voice", "tests", "grammar", "translate", "progress", "library", "dictionary")
 val DEFAULT_NAV_TABS = listOf("dictionary", "reader", "rehearse", "review")
 
 enum class PinyinMode { ALL, RARE, OFF }

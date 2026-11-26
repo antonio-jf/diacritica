@@ -111,6 +111,8 @@ internal fun FullLessonPage(l: Lesson, onBack: () -> Unit, onSpeak: (Lang, Strin
             PolyIconButton(PolyIcons.Back, "Back", onBack, tint = c.ink, modifier = Modifier.padding(start = 4.dp))
             Text("Full lesson", style = captionStyle())
         }
+        // Select part of the lesson and tap Ask to ask about it.
+        app.diacritica.ui.chat.Askable("the lesson “${l.title}”") {
         Column(Modifier.padding(horizontal = pad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 l.lang?.let { LangBadge(it); Spacer(Modifier.width(10.dp)) }
@@ -173,6 +175,7 @@ internal fun FullLessonPage(l: Lesson, onBack: () -> Unit, onSpeak: (Lang, Strin
                 Gap(4.dp)
                 PolyButton("Practise as a mini test", { onPractise(l) })
             }
+        }
         }
     }
 }

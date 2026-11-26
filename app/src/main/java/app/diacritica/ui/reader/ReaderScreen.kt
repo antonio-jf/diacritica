@@ -561,6 +561,14 @@ private fun StoryView(
                     Spacer(Modifier.width(4.dp))
                     Text("Explain", color = c.accent)
                 }
+                // Ask: the chat, with this sentence quoted (in the language you're learning).
+                app.diacritica.ui.chat.LocalAsk.current?.let { ask ->
+                    TextButton(onClick = { ask(env.text(idx, learning), "a Reader story") }) {
+                        Icon(PolyIcons.Chat, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Ask", color = c.accent)
+                    }
+                }
                 PolyIconButton(PolyIcons.Up, "Previous sentence", onClick = { if (idx > 0) vm.highlight(idx - 1) })
                 PolyIconButton(PolyIcons.Down, "Next sentence", onClick = { if (idx < n - 1) vm.highlight(idx + 1) })
                 TextButton(onClick = { vm.speak(a, env.text(idx, a)) }) { Text("▶ ${a.short}", color = c.accent) }
@@ -602,10 +610,14 @@ private fun StoryView(
                 }
                 Gap(12.dp)
                 e.error?.let { Text(it, style = bodyStyle(c.warning)); Gap(8.dp) }
-                app.diacritica.ui.books.BreakdownBody(
-                    e.breakdown, e.loading, e.error != null, e.lang, saved, e.lessons,
-                    onRetry = { vm.explain(e.idx, e.lang) }, onSaveVocab = vm::saveVocab, onMakeLesson = vm::makeLesson,
-                )
+                app.diacritica.ui.chat.Askable("an explanation of a Reader sentence") {
+                    Column {
+                        app.diacritica.ui.books.BreakdownBody(
+                            e.breakdown, e.loading, e.error != null, e.lang, saved, e.lessons,
+                            onRetry = { vm.explain(e.idx, e.lang) }, onSaveVocab = vm::saveVocab, onMakeLesson = vm::makeLesson,
+                        )
+                    }
+                }
                 e.message?.let { Gap(10.dp); Text(it, style = captionStyle(c.accent)) }
             }
         }

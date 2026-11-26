@@ -292,10 +292,12 @@ fun BookReaderScreen(
                 if (!text.isNullOrEmpty()) action(text)
             }
             val source = "From “${book.title}”"
+            val ask = app.diacritica.ui.chat.LocalAsk.current
             // Reading the selection ends it (Compose's copy releases it), so the text is taken only once an action is tapped.
             val actions = buildList {
                 add(ToolbarAction(PolyIcons.Explain, "Explain") { take { t -> vm.useText(t); vm.openPanel(breakdown = true) } })
                 add(ToolbarAction(PolyIcons.Translate, "Translate") { take { t -> vm.useText(t); vm.openPanel(breakdown = false) } })
+                ask?.let { a -> add(ToolbarAction(PolyIcons.Chat, "Ask") { take { t -> a(t, source) } }) }
                 add(ToolbarAction(PolyIcons.Pencil, "Rehearse") { take { t -> onRehearse(t, lang, source, null) } })
                 add(ToolbarAction(PolyIcons.Marker, "Highlight") { take { t -> vm.useText(t); vm.highlightSelection() } })
                 add(ToolbarAction(PolyIcons.Copy, "Copy") { take { t -> clipboard.setReal(t) } })

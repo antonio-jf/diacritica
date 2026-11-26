@@ -620,7 +620,9 @@ internal fun FeedbackPanel(
     sourceLabel: String = "Tatoeba",
 ) {
     val c = Diacritica.colors
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Select any part (your answer, an explanation, a reference) and tap Ask to ask about it.
+    app.diacritica.ui.chat.Askable("Rehearse feedback (${f.lang.englishName})", modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(verdictLabel(f.verdict) + if (!f.byAi && f.verdict != Verdict.UNGRADED) " · offline check" else "", style = captionStyle(verdictColor(f.verdict)))
         if (showAnswerLine || f.corrected != null) {
             SectionLabel("Your answer")
@@ -668,6 +670,7 @@ internal fun FeedbackPanel(
             if (added) Text("Added to Review", style = captionStyle(c.success))
             else Text("+ Add to Review", style = captionStyle(c.accent), modifier = Modifier.clickable(role = Role.Button, onClick = onAddToReview).padding(vertical = 12.dp))
         }
+    }
     }
 }
 
