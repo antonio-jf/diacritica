@@ -70,6 +70,10 @@ data class ReaderUiState(
     val highlighted: Int? = null,
     val popup: WordPopup? = null,
     val generating: Boolean = false,
+    /** The topic being written (an idea's topic or the typed one), so its card can show progress. */
+    val generatingTopic: String? = null,
+    /** The topic whose story failed, so the error shows next to it. */
+    val errorTopic: String? = null,
     /** Making a story from pasted text: (sentences translated, total), or null. */
     val importing: Pair<Int, Int>? = null,
     val error: String? = null,
@@ -463,15 +467,15 @@ class ReaderViewModel(private val c: AppContainer) : ViewModel() {
     fun generate(topic: String, level: String? = null) {
         viewModelScope.launch {
             val s = c.settings.settings.first()
-            if (s.geminiKey.isBlank()) { _state.update { it.copy(error = "Add your Gemini API key in Settings › Rehearse to write new stories.") }; return@launch }
-            if (!c.online.isOnline()) { _state.update { it.copy(error = "You're offline. New stories need the internet; saved ones work offline.") }; return@launch }
-            _state.update { it.copy(generating = true, error = null) }
+            if (s.geminiKey.isBlank()) { _state.update { it.copy(errorTopic = topic, error = "Add your Gemini API key in Settings › Rehearse to write new stories.") }; return@launch }
+            if (!c.online.isOnline()) { _state.update { it.copy(errorTopic = topic, error = "You're offline. New stories need the internet; saved ones work offline.") }; return@launch }
+            _state.update { it.copy(generating = true, generatingTopic = topic, error = null, errorTopic = null) }
             try {
                 val id = c.stories.generate(s.geminiKey, s.geminiModel, topic.ifBlank { "a surprising day in a small town" }, level ?: s.storyLevel, s.storyHsk)
-                _state.update { it.copy(generating = false) }
+                _state.update { it.copy(generating = false, generatingTopic = null) }
                 open(id)
             } catch (e: Exception) {
-                _state.update { it.copy(generating = false, error = e.message ?: "The story could not be written.") }
+                _state.update { it.copy(generating = false, generatingTopic = null, errorTopic = topic, error = e.message ?: "The story could not be written.") }
             }
         }
     }
