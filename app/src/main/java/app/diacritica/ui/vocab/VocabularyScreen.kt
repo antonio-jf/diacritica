@@ -218,16 +218,29 @@ private fun SetView(vm: VocabularyViewModel, st: VocabUiState, set: VocabSet) {
                     if (others.isNotEmpty()) ", or a word to see it in ${others.joinToString(", ") { it.short }}." else ".",
                 style = captionStyle(),
             )
-            if (others.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PolyChip("All languages", allOpen, { allOpen = !allOpen })
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (others.isNotEmpty()) PolyChip("All languages", allOpen, { allOpen = !allOpen })
+                Spacer(Modifier.weight(1f))
+                PolyChip("List", !st.grid, { vm.setGrid(false) }, icon = PolyIcons.Layout)
+                PolyChip("Grid", st.grid, { vm.setGrid(true) }, icon = PolyIcons.Grip)
             }
             Gap(4.dp)
-            set.words.forEach { w ->
-                val key = "${st.lang.code}:${VocabCheck.headword(w.form(st.lang), st.lang)}"
+            val keyOf = { w: VocabWord -> "${st.lang.code}:${VocabCheck.headword(w.form(st.lang), st.lang)}" }
+            if (st.grid) {
+                var sheet by remember(set.id) { mutableStateOf<VocabWord?>(null) }
+                WordGrid(set.words, st.lang, st.from, others, allOpen, saved, keyOf,
+                    onSpeak = { w, l -> vm.speak(l, spoken(w.form(l))) }, onSave = { vm.toggleSaved(it) }, onOpen = { sheet = it })
+                sheet?.let { w ->
+                    WordTileSheet(
+                        w, st.lang, st.from, others, keyOf(w) in saved,
+                        onSpeak = { l -> vm.speak(l, spoken(w.form(l))) }, onSave = { vm.toggleSaved(w) },
+                        onDetails = { sheet = null; vm.lookup.open(VocabCheck.headword(w.form(st.lang), st.lang), st.lang) },
+                        onDismiss = { sheet = null },
+                    )
+                }
+            } else set.words.forEach { w ->
                 WordRow(
-                    w, st.lang, st.from, others, allOpen, key in saved,
+                    w, st.lang, st.from, others, allOpen, keyOf(w) in saved,
                     onSpeak = { l -> vm.speak(l, spoken(w.form(l))) }, onSave = { vm.toggleSaved(w) },
                     onDetails = { vm.lookup.open(VocabCheck.headword(w.form(st.lang), st.lang), st.lang) },
                 )
@@ -476,6 +489,78 @@ private fun CatalogView(vm: VocabularyViewModel, st: VocabUiState) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Words as tiles: 2 columns on phones, more on wider screens. Tap a tile for all its languages. */
+@Composable
+private fun WordGrid(
+    words: List<VocabWord>, lang: Lang, from: Lang, others: List<Lang>, allOpen: Boolean, saved: Set<String>,
+    keyOf: (VocabWord) -> String, onSpeak: (VocabWord, Lang) -> Unit, onSave: (VocabWord) -> Unit, onOpen: (VocabWord) -> Unit,
+) {
+    val c = Diacritica.colors
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cols = (maxWidth / 165.dp).toInt().coerceIn(2, 5)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            words.chunked(cols).forEach { row ->
+                Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { w ->
+                        val isSaved = keyOf(w) in saved
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(Diacritica.shapes.card.coerceIn(8.dp, 14.dp)))
+                                .background(c.surface).clickable { onOpen(w) }.padding(start = 10.dp, top = 8.dp, bottom = 4.dp, end = 2.dp),
+                        ) {
+                            Text(w.form(lang), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = if (lang == Lang.ZH) 22.sp else 17.sp, color = c.ink), maxLines = 2)
+                            if (lang == Lang.ZH) Text(tonedPinyin(w.pinyin), style = captionStyle(c.accent), maxLines = 1)
+                            Text(pinyinAppender().let { py -> buildAnnotatedString { append(w.form(from)); if (from == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = captionStyle(), maxLines = 2)
+                            if (allOpen) others.forEach { l ->
+                                Text(pinyinAppender().let { py -> buildAnnotatedString { append(l.short + "  "); append(w.form(l)); if (l == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = captionStyle(), maxLines = 1)
+                            }
+                            Spacer(Modifier.weight(1f))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                PolyIconButton(PolyIcons.Speaker, "Listen", { onSpeak(w, lang) }, tint = c.inkMuted)
+                                PolyIconButton(if (isSaved) PolyIcons.StarFilled else PolyIcons.Star, if (isSaved) "Remove from Review" else "Add to Review", { onSave(w) }, tint = if (isSaved) c.accent else c.inkMuted)
+                            }
+                        }
+                    }
+                    repeat(cols - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+/** A grid tile opened: the word in every language of the set, each one tap to listen. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun WordTileSheet(
+    w: VocabWord, lang: Lang, from: Lang, others: List<Lang>, saved: Boolean,
+    onSpeak: (Lang) -> Unit, onSave: () -> Unit, onDetails: () -> Unit, onDismiss: () -> Unit,
+) {
+    val c = Diacritica.colors
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.ground) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(w.form(lang), style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = if (lang == Lang.ZH) 30.sp else 24.sp, color = c.ink))
+                    if (lang == Lang.ZH) Text(tonedPinyin(w.pinyin), style = bodyStyle(c.accent))
+                }
+                PolyIconButton(PolyIcons.Speaker, "Listen", { onSpeak(lang) })
+                PolyIconButton(if (saved) PolyIcons.StarFilled else PolyIcons.Star, if (saved) "Remove from Review" else "Add to Review", onSave, tint = if (saved) c.accent else c.inkMuted)
+            }
+            Gap(6.dp)
+            (listOf(from) + others).forEach { l ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { onSpeak(l) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(l.short, style = captionStyle(c.accent), modifier = Modifier.width(40.dp))
+                    Text(pinyinAppender().let { py -> buildAnnotatedString { append(w.form(l)); if (l == Lang.ZH) { append("  "); py(w.pinyin) } } }, style = bodyStyle(size = 16.sp), modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Icon(PolyIcons.Speaker, "Listen", tint = c.inkMuted, modifier = Modifier.width(18.dp))
+                }
+            }
+            Text(
+                "Details ›", style = captionStyle(c.accent),
+                modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onDetails).padding(vertical = 8.dp),
+            )
         }
     }
 }

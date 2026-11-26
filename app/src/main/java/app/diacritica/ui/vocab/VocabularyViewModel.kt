@@ -59,6 +59,8 @@ data class VocabUiState(
     /** The language the words are shown in for the test (and next to each word). */
     val from: Lang = Lang.EN,
     val langs: List<Lang> = emptyList(),
+    /** Words in a set shown as a grid of tiles instead of a list. */
+    val grid: Boolean = false,
     val open: String? = null,
     val quiz: Quiz? = null,
     /** Best score per "setId:lang". */
@@ -95,7 +97,7 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
             val lang = saved ?: learning.firstOrNull() ?: langs.first()
             val from = prefs.getString("from", null)?.let { Lang.fromCode(it) }?.takeIf { it != lang } ?: if (lang == Lang.EN) Lang.ES else Lang.EN
             val best = prefs.all.filterKeys { it.startsWith("best:") }.mapNotNull { (k, v) -> (v as? Int)?.let { k.removePrefix("best:") to it } }.toMap()
-            _state.update { it.copy(loading = false, sets = sets, langs = langs, lang = lang, from = from, best = best) }
+            _state.update { it.copy(loading = false, sets = sets, langs = langs, lang = lang, from = from, best = best, grid = prefs.getBoolean("grid", false)) }
         }
     }
 
@@ -146,6 +148,11 @@ class VocabularyViewModel(private val c: AppContainer, context: Context) : ViewM
     fun setLang(l: Lang) {
         prefs.edit().putString("lang", l.code).apply()
         _state.update { it.copy(lang = l, from = if (it.from == l) (if (l == Lang.EN) Lang.ES else Lang.EN) else it.from) }
+    }
+
+    fun setGrid(on: Boolean) {
+        prefs.edit().putBoolean("grid", on).apply()
+        _state.update { it.copy(grid = on) }
     }
 
     fun setFrom(l: Lang) {
