@@ -512,6 +512,7 @@ internal fun LessonCard(
 @Composable
 private fun AnswerReviewView(r: AnswerReview) {
     val c = Diacritica.colors
+    app.diacritica.ui.chat.Askable("Test review (${r.lang.englishName})") {
     Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.widthIn(min = 40.dp).padding(end = 10.dp)) { LangBadge(r.lang) }
@@ -545,6 +546,7 @@ private fun AnswerReviewView(r: AnswerReview) {
             }
         }
         r.comment?.let { Text(InlineMarkdown.render(it, c.ink), style = captionStyle()) }
+    }
     }
 }
 

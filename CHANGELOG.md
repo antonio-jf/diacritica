@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Ask: a chat with Gemini for grammar and language questions (Home tile, can go in the bottom bar). Select text in Books, Rehearse feedback, Test reviews, full lessons, Translate or an explanation and tap **Ask** next to Copy: the chat opens with the text quoted, ready for your question (or send it alone to have it explained). The Reader's sentence bar has Ask too, and other apps' selection menu has *Ask Diacritica*. The conversation is kept until New chat; select part of an answer to ask a follow-up about it.
 - Vocabulary: a set's words can be shown as a List or a Grid (chips above the words; remembered). Grid tiles show the word, pinyin and its meaning with Listen and ☆; tap a tile for the word in all your languages (each one tap to listen) and Details. All languages also works in the grid.
 - Reader › New story: tapping an idea now shows progress on that card (a moving bar, what's happening — writing, writing it in all six languages, lining up the sentences — and the seconds so far); the other ideas dim while it works. Same under Write this story for your own topic. Errors appear next to the story that failed.
 - Pinyin colored by tone everywhere it's shown (Dictionary, word sheet, characters list, Reader and Books pinyin above characters, Vocabulary, Review, Rehearse hint, Translate, Voice drill): 1st tone red, 2nd green, 3rd blue, 4th purple, neutral gray; brighter shades in dark mode. Works for spaced, joined (diànshì) and numbered (dian4) pinyin. Switch in Settings › Appearance › Color pinyin by tone (on by default).

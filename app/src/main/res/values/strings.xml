@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Diacritica</string>
     <string name="process_text_label">Look up in Diacritica</string>
+    <string name="ask_text_label">Ask Diacritica</string>
 </resources>

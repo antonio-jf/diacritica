@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -524,15 +525,61 @@ class GeminiClient {
     suspend fun generateJson(apiKey: String, model: String, userText: String, schema: JsonObject, system: String): JsonObject =
         call(apiKey, model, userText, schema, system)
 
+    /** One turn of a conversation: [role] is "user" or "model". */
+    data class Turn(val role: String, val text: String)
+
     /**
-     * Calls generateContent. A busy model (500/503/504, timeouts) is retried twice with a short wait, then the
-     * fallback models are tried; "model not found" and quota limits move straight on to the next model.
+     * A free-text reply to a conversation (the Ask chat). Consecutive turns of the same role are merged, since
+     * Gemini expects user and model turns to alternate.
      */
+    suspend fun chat(apiKey: String, model: String, system: String, turns: List<Turn>): String {
+        val merged = mutableListOf<Turn>()
+        turns.filter { it.text.isNotBlank() }.forEach { t ->
+            val last = merged.lastOrNull()
+            if (last != null && last.role == t.role) merged[merged.lastIndex] = Turn(t.role, last.text + "\n\n" + t.text) else merged += t
+        }
+        if (merged.isEmpty() || merged.last().role != "user") throw GeminiException("Nothing to send.")
+        val contents = buildJsonArray {
+            merged.forEach { t ->
+                add(buildJsonObject {
+                    put("role", t.role)
+                    putJsonArray("parts") { add(buildJsonObject { put("text", t.text) }) }
+                })
+            }
+        }
+        val out = callText(apiKey, model, system, contents, schema = null).trim()
+        if (out.isEmpty()) throw GeminiException("Gemini returned an empty answer. Try again.")
+        return out
+    }
+
+    private fun userContents(userText: String, inline: Pair<String, ByteArray>?): JsonArray = buildJsonArray {
+        add(buildJsonObject {
+            put("role", "user")
+            putJsonArray("parts") {
+                add(buildJsonObject { put("text", userText) })
+                if (inline != null) add(buildJsonObject {
+                    putJsonObject("inline_data") {
+                        put("mime_type", inline.first)
+                        put("data", java.util.Base64.getEncoder().encodeToString(inline.second))
+                    }
+                })
+            }
+        })
+    }
+
+    /** A request with a JSON response [schema]; see [callText] for retries and fallbacks. */
     private suspend fun call(
         apiKey: String, model: String, userText: String, schema: JsonObject, system: String = SYSTEM,
         /** Optional media sent with the text: MIME type and bytes (e.g. "audio/wav"). */
         inline: Pair<String, ByteArray>? = null,
-    ): JsonObject {
+    ): JsonObject = json.parseToJsonElement(callText(apiKey, model, system, userContents(userText, inline), schema)).jsonObject
+
+    /**
+     * Calls generateContent and returns the answer's text (JSON when [schema] is given). A busy model
+     * (500/503/504, timeouts) is retried twice with a short wait, then the fallback models are tried;
+     * "model not found" and quota limits move straight on to the next model.
+     */
+    private suspend fun callText(apiKey: String, model: String, system: String, contents: JsonArray, schema: JsonObject?): String {
         if (apiKey.isBlank()) throw GeminiException("No Gemini API key set.")
         val today = pacificToday()
         val chosen = model.takeIf { it.isNotBlank() && it !in RETIRED } ?: DEFAULT_MODEL
@@ -541,7 +588,7 @@ class GeminiClient {
         var lastError: GeminiException? = null
         for (m in models) {
             try {
-                return withBusyRetries { callOnce(apiKey, m, userText, schema, system, inline) }
+                return withBusyRetries { callOnce(apiKey, m, system, contents, schema) }
             } catch (e: Busy) {
                 lastError = GeminiException("Gemini is busy right now (Google's servers are overloaded). Try again in a moment.")
             } catch (e: ModelUnavailable) {
@@ -576,28 +623,13 @@ class GeminiClient {
     private class ModelUnavailable : Exception()
     private class QuotaExceeded(val daily: Boolean) : Exception()
 
-    private suspend fun callOnce(
-        apiKey: String, model: String, userText: String, schema: JsonObject, system: String, inline: Pair<String, ByteArray>? = null,
-    ): JsonObject =
+    private suspend fun callOnce(apiKey: String, model: String, system: String, contents: JsonArray, schema: JsonObject?): String =
         withContext(Dispatchers.IO) {
             val body = buildJsonObject {
                 putJsonObject("systemInstruction") { putJsonArray("parts") { add(buildJsonObject { put("text", system) }) } }
-                putJsonArray("contents") {
-                    add(buildJsonObject {
-                        put("role", "user")
-                        putJsonArray("parts") {
-                            add(buildJsonObject { put("text", userText) })
-                            if (inline != null) add(buildJsonObject {
-                                putJsonObject("inline_data") {
-                                    put("mime_type", inline.first)
-                                    put("data", java.util.Base64.getEncoder().encodeToString(inline.second))
-                                }
-                            })
-                        }
-                    })
-                }
+                put("contents", contents)
                 // No temperature: Gemini 3.6+ ignores sampling parameters and later models reject them.
-                putJsonObject("generationConfig") {
+                if (schema != null) putJsonObject("generationConfig") {
                     put("responseMimeType", "application/json")
                     put("responseSchema", schema)
                 }
@@ -629,8 +661,10 @@ class GeminiClient {
                 val root = json.parseToJsonElement(text).jsonObject
                 val parts = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
                     ?.get("content")?.jsonObject?.get("parts")?.jsonArray ?: throw GeminiException("Gemini returned no answer.")
-                val out = parts.mapNotNull { (it.jsonObject["text"] as? JsonPrimitive)?.contentOrNull }.joinToString("")
-                json.parseToJsonElement(out).jsonObject
+                // Thinking models may add "thought" parts: only the answer's text is kept.
+                parts.map { it.jsonObject }
+                    .filter { (it["thought"] as? JsonPrimitive)?.contentOrNull != "true" }
+                    .mapNotNull { (it["text"] as? JsonPrimitive)?.contentOrNull }.joinToString("")
             } finally {
                 conn.disconnect()
             }

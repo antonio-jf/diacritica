@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -153,7 +152,7 @@ fun TranslateScreen(
                         r.loading -> Text("…", style = bodyStyle(c.inkMuted))
                         r.error != null -> Text(r.error, style = captionStyle(c.error))
                         r.text != null -> {
-                            SelectionContainer {
+                            app.diacritica.ui.chat.Askable("Translate (${l.englishName})") {
                                 Text(r.text, style = TextStyle(fontFamily = Diacritica.fonts.reading, fontSize = 18.sp, lineHeight = 26.sp, color = c.ink))
                             }
                             r.pinyin?.let { Text(tonedPinyin(it), style = captionStyle(c.accent), modifier = Modifier.padding(top = 2.dp)) }
@@ -186,7 +185,7 @@ fun TranslateScreen(
                         if (g.pattern.isNotBlank()) Text(g.pattern, style = captionStyle(c.accent))
                         if (g.inPassage.isNotBlank()) Text("In your text: ${g.inPassage}", style = bodyStyle(c.inkMuted, 14.sp))
                         Gap(4.dp)
-                        Text(g.explanation, style = bodyStyle(size = 15.sp))
+                        app.diacritica.ui.chat.Askable("a grammar note in Translate") { Text(g.explanation, style = bodyStyle(size = 15.sp)) }
                         Gap(8.dp)
                         if (g.title in st.lessonsMade) Text("✓ Writing the lesson: it'll be in Grammar › Full lessons", style = captionStyle(c.success))
                         else PolyButton("Make a lesson", { vm.makeLesson(g) }, primary = false)

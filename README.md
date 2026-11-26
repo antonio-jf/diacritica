@@ -166,6 +166,14 @@ Wiktionary's translation tables have gaps (*trickster* has none at all). The dic
 
 Settings › Rehearse › Gemini shows each model as a card (what it's best for, speed and quality, free daily allowance): 3.5 Flash-Lite (recommended: about 500 free requests a day), 3.6 Flash and 3.8 Flash (sharper, about 20 a day), or any other model ID. When a model runs out of free requests for the day, the app switches to Flash-Lite until midnight Pacific time. A retired ID saved earlier (`gemini-3.5-flash`, which Google now forwards to 3.6 Flash and its small quota) is replaced by the default.
 
+## Ask
+
+Home › Ask (can also go in the bottom bar) is a chat with Gemini (your key) for language questions: grammar, a word, the difference between two expressions, whether a sentence you wrote is right. Answers come in the language you ask in, with the rule named and short examples; Mandarin gets pinyin.
+
+- **Ask about a piece of text:** long-press and select text in Books, Rehearse feedback, Test reviews, full lessons, Translate results or an explanation (Reader and Books), then tap **Ask** next to Copy. Ask opens with the text quoted above the box; type your question, or just send to have it explained. In the Reader, tap a sentence and then **Ask** in its bar.
+- **From other apps:** select text in Chrome, Kindle or anywhere else and pick *Ask Diacritica* in the selection menu.
+- **Follow-ups:** the conversation is kept (also after closing the app) until you tap *New chat*. Select part of an answer and tap Ask to ask about exactly that. The last 24 messages are sent as context.
+
 ## Grammar
 
 Home › Grammar (also linked from Tests) gathers what you keep getting wrong:
@@ -186,7 +194,7 @@ Tests › *Write a new test*: pick a level (A2–C1), an HSK level for Mandarin,
 
 ## Bottom bar
 
-Settings › Bottom bar: Home plus up to four sections of your choice (Dictionary, Reader, Rehearse, Review, Tests, Grammar, Translate, Progress, Library), in your order.
+Settings › Bottom bar: Home plus up to four sections of your choice (Dictionary, Reader, Rehearse, Review, Tests, Grammar, Translate, Progress, Library, Ask), in your order.
 
 ## Chinese handwriting
 
@@ -367,6 +375,7 @@ app/src/main/java/app/diacritica/
   ui/rehearse/     Rehearse screen (Tabs / Stacked feedback layouts)
   review/          FSRS scheduler, card generation
   rehearse/        sentence data, offline rule checks, word diff, Gemini client
+  chat/            the Ask chat (conversation, prompts, storage); its screen is in ui/chat/
   ui/settings/     appearance, layouts, languages, speech, dictionary data
   ui/onboarding/   first-launch theme picker
 pipeline/          build_dictionary.py, tests, starter-sample generator

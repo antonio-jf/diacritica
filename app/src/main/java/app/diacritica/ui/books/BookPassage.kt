@@ -185,7 +185,11 @@ private fun TranslationView(vm: BooksViewModel, p: PassagePanel, settings: AppSe
 @Composable
 private fun BreakdownView(vm: BooksViewModel, p: PassagePanel, bookLang: Lang) {
     val saved by vm.savedKeys.collectAsStateWithLifecycle()
-    BreakdownBody(p.breakdown, p.loading, p.error != null, bookLang, saved, p.lessons, vm::breakDown, vm::saveVocab, vm::makeLesson)
+    app.diacritica.ui.chat.Askable("an explanation of a book passage") {
+        androidx.compose.foundation.layout.Column {
+            BreakdownBody(p.breakdown, p.loading, p.error != null, bookLang, saved, p.lessons, vm::breakDown, vm::saveVocab, vm::makeLesson)
+        }
+    }
 }
 
 /**
