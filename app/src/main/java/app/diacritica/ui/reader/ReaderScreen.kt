@@ -66,6 +66,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -315,8 +316,10 @@ private fun Gallery(vm: ReaderViewModel, st: ReaderUiState, settings: AppSetting
                     }
                 }
                 items(IDEAS, key = { it.title }) { idea ->
-                    Box(Modifier.padding(horizontal = pad, vertical = 4.dp)) {
-                        PolySurface(onClick = { if (!st.generating) vm.generate(idea.topic, idea.level) }) {
+                    val mine = st.generating && st.generatingTopic == idea.topic
+                    val other = st.generating && !mine
+                    Box(Modifier.padding(horizontal = pad, vertical = 4.dp).alpha(if (other) 0.45f else 1f)) {
+                        PolySurface(highlighted = mine, onClick = { if (!st.generating) vm.generate(idea.topic, idea.level) }) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(idea.title, style = bodyStyle().copy(fontWeight = FontWeight.SemiBold))
@@ -324,6 +327,8 @@ private fun Gallery(vm: ReaderViewModel, st: ReaderUiState, settings: AppSetting
                                 }
                                 Text(idea.level, style = captionStyle(c.accent))
                             }
+                            if (mine) StoryProgress()
+                            if (!st.generating && st.errorTopic == idea.topic) st.error?.let { Gap(8.dp); Text(it, style = captionStyle(c.error)) }
                         }
                     }
                 }
@@ -353,14 +358,15 @@ private fun Gallery(vm: ReaderViewModel, st: ReaderUiState, settings: AppSetting
                             if (st.generating) "Writing the story…" else "Write this story",
                             onClick = { vm.generate(topic) }, enabled = !st.generating, modifier = Modifier.fillMaxWidth(),
                         )
+                        if (st.generating && IDEAS.none { it.topic == st.generatingTopic }) StoryProgress()
+                        if (!st.generating && st.errorTopic != null && IDEAS.none { it.topic == st.errorTopic }) st.error?.let { Gap(8.dp); Text(it, style = captionStyle(c.error)) }
                     }
                 }
             }
         }
         item {
             Column(Modifier.padding(horizontal = pad)) {
-                if (st.generating) { Gap(8.dp); Text("Writing the story… this takes about 20–40 seconds.", style = captionStyle(c.accent)) }
-                st.error?.let { Gap(8.dp); Text(it, style = captionStyle(c.error)) }
+                if (st.errorTopic == null) st.error?.let { Gap(8.dp); Text(it, style = captionStyle(c.error)) }
             }
         }
     }
@@ -1252,4 +1258,30 @@ private fun MenuChips(content: @Composable () -> Unit) {
         Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
     ) { content() }
+}
+
+/**
+ * Progress while Gemini writes a story: a moving bar, what it's doing (changes as time passes, since the
+ * request is a single call) and the seconds so far. Usually 20–40 seconds.
+ */
+@Composable
+private fun StoryProgress() {
+    val c = Diacritica.colors
+    var seconds by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(1000); seconds++ } }
+    val stage = when {
+        seconds < 8 -> "Writing the story…"
+        seconds < 20 -> "Writing it in all six languages…"
+        seconds < 35 -> "Lining up the sentences…"
+        seconds < 60 -> "Almost there…"
+        else -> "Still working, longer stories take a bit more…"
+    }
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent, trackColor = c.line)
+        Gap(6.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stage, style = captionStyle(c.accent), modifier = Modifier.weight(1f))
+            Text("${seconds}s", style = captionStyle())
+        }
+    }
 }
