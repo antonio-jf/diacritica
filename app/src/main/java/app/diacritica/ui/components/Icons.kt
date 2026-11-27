@@ -86,6 +86,8 @@ object PolyIcons {
     /** A speech bubble: the Ask chat. */
     val Chat = stroke("chat", "M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1 -1.5 1.5H10l-4.5 3.5V17H5a1.5 1.5 0 0 1 -1.5 -1.5v-9A1.5 1.5 0 0 1 5 5z", "M8 10h8", "M8 13h5")
     val Send = stroke("send", "M4 12l16-8-6 16-3-7z", "M11 13l9-9")
+    /** A clock with a turning-back arrow: earlier conversations. */
+    val History = stroke("history", "M4 12a8 8 0 1 0 2.4 -5.7", "M4 4v3.5h3.5", "M12 8v4l3 2")
     /** A new, empty conversation. */
     val NewChat = stroke("new-chat", "M5 5h8", "M5 5a1.5 1.5 0 0 0 -1.5 1.5v9A1.5 1.5 0 0 0 5 17h.5v3.5L10 17h9a1.5 1.5 0 0 0 1.5 -1.5V12", "M18 3v6", "M15 6h6")
 }

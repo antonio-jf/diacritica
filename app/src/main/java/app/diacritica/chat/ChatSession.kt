@@ -33,8 +33,15 @@ data class ChatMessage(
     val quote: Quote? = null,
 )
 
+/** A finished (or set-aside) conversation, kept in Ask's history. */
+data class ChatThread(val id: Long, val updatedAt: Long, val messages: List<ChatMessage>) {
+    val title: String get() = ChatLogic.title(messages)
+}
+
 data class ChatState(
     val messages: List<ChatMessage> = emptyList(),
+    /** Earlier conversations, newest first (at most [ChatLogic.MAX_HISTORY]). */
+    val past: List<ChatThread> = emptyList(),
     /** Attached to the next question; shown above the input with a ✕. */
     val pendingQuote: Quote? = null,
     val busy: Boolean = false,
@@ -51,7 +58,15 @@ class ChatSession(
     private val prefs: SharedPreferences,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val _state = MutableStateFlow(ChatState(messages = ChatLogic.decode(prefs.getString(KEY, null))))
+    private val _state = MutableStateFlow(
+        ChatState(
+            messages = ChatLogic.decode(prefs.getString(KEY, null)),
+            past = ChatLogic.decodeThreads(prefs.getString(KEY_HISTORY, null)),
+        ),
+    )
+    /** The open conversation's id (kept when it's reopened from history and continued). */
+    private var currentId: Long = prefs.getLong(KEY_ID, 0L).takeIf { it != 0L } ?: System.currentTimeMillis()
+    private var currentUpdated: Long = prefs.getLong(KEY_UPDATED, System.currentTimeMillis())
     val state: StateFlow<ChatState> = _state.asStateFlow()
     private var job: Job? = null
 
@@ -72,6 +87,7 @@ class ChatSession(
         if (q.isEmpty() && st.pendingQuote == null) return
         val msg = ChatMessage(nextId(), fromUser = true, text = q, quote = st.pendingQuote)
         _state.update { it.copy(messages = it.messages + msg, pendingQuote = null, error = null) }
+        currentUpdated = System.currentTimeMillis()
         save()
         answer()
     }
@@ -87,11 +103,35 @@ class ChatSession(
         _state.update { it.copy(busy = false) }
     }
 
-    /** Clears the conversation (and any quote waiting to be sent). */
+    /** Starts an empty conversation; the current one (if it has messages) moves to the history. */
     fun newChat() {
         job?.cancel()
-        _state.value = ChatState()
+        _state.update { ChatState(past = archived(it)) }
+        currentId = System.currentTimeMillis()
+        currentUpdated = currentId
         save()
+    }
+
+    /** Reopens a conversation from the history (the current one takes its place there). */
+    fun open(id: Long) {
+        val target = _state.value.past.firstOrNull { it.id == id } ?: return
+        job?.cancel()
+        _state.update { st -> ChatState(messages = target.messages, past = archived(st).filter { it.id != id }, pendingQuote = st.pendingQuote) }
+        currentId = target.id
+        currentUpdated = target.updatedAt
+        save()
+    }
+
+    /** Removes a conversation from the history. */
+    fun delete(id: Long) {
+        _state.update { st -> st.copy(past = st.past.filter { it.id != id }) }
+        save()
+    }
+
+    /** The history with the current conversation added (if it has messages), newest first, capped. */
+    private fun archived(st: ChatState): List<ChatThread> {
+        val mine = if (st.messages.isEmpty()) emptyList() else listOf(ChatThread(currentId, currentUpdated, st.messages))
+        return (mine + st.past.filter { it.id != currentId }).sortedByDescending { it.updatedAt }.take(ChatLogic.MAX_HISTORY)
     }
 
     /** Removes the last unanswered question, e.g. to rewrite it after an error. Returns it. */
@@ -125,16 +165,28 @@ class ChatSession(
     private fun nextId(): Long = (_state.value.messages.maxOfOrNull { it.id } ?: 0L) + 1
 
     private fun save() {
-        prefs.edit().putString(KEY, ChatLogic.encode(_state.value.messages)).apply()
+        prefs.edit()
+            .putString(KEY, ChatLogic.encode(_state.value.messages))
+            .putString(KEY_HISTORY, ChatLogic.encodeThreads(_state.value.past))
+            .putLong(KEY_ID, currentId)
+            .putLong(KEY_UPDATED, currentUpdated)
+            .apply()
     }
 
-    private companion object { const val KEY = "ask_chat" }
+    private companion object {
+        const val KEY = "ask_chat"
+        const val KEY_HISTORY = "ask_history"
+        const val KEY_ID = "ask_chat_id"
+        const val KEY_UPDATED = "ask_chat_updated"
+    }
 }
 
 /** The parts of the chat that don't need Android: prompts, history and storage. */
 object ChatLogic {
     /** Longest selection kept as a quote. */
     const val MAX_QUOTE = 4_000
+    /** Earlier conversations kept in the history. */
+    const val MAX_HISTORY = 10
     /** Messages sent back to Gemini as context (the oldest are dropped). */
     const val HISTORY = 24
     /** What a quote with no question asks. */
@@ -192,6 +244,41 @@ object ChatLogic {
             })
         }
     }.toString()
+
+    /** A conversation's name in the history: its first question (or quote), on one line. */
+    fun title(messages: List<ChatMessage>): String {
+        val first = messages.firstOrNull { it.fromUser } ?: return "Conversation"
+        val raw = first.text.ifBlank { first.quote?.text?.let { "“$it”" } ?: "" }
+        val line = raw.replace(Regex("\\s+"), " ").trim()
+        return when {
+            line.isEmpty() -> "Conversation"
+            line.length > 80 -> line.take(79).trimEnd() + "…"
+            else -> line
+        }
+    }
+
+    fun encodeThreads(threads: List<ChatThread>): String = buildJsonArray {
+        threads.forEach { t ->
+            add(buildJsonObject {
+                put("id", t.id)
+                put("updated", t.updatedAt)
+                put("messages", json.parseToJsonElement(encode(t.messages)))
+            })
+        }
+    }.toString()
+
+    fun decodeThreads(s: String?): List<ChatThread> {
+        if (s.isNullOrBlank()) return emptyList()
+        return runCatching {
+            json.parseToJsonElement(s).jsonArray.mapNotNull { e ->
+                val o = e as? JsonObject ?: return@mapNotNull null
+                val id = (o["id"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: return@mapNotNull null
+                val updated = (o["updated"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: id
+                val msgs = decode(o["messages"]?.toString())
+                if (msgs.isEmpty()) null else ChatThread(id, updated, msgs)
+            }.sortedByDescending { it.updatedAt }.take(MAX_HISTORY)
+        }.getOrDefault(emptyList())
+    }
 
     fun decode(s: String?): List<ChatMessage> {
         if (s.isNullOrBlank()) return emptyList()

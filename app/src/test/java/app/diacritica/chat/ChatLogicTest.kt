@@ -55,4 +55,18 @@ class ChatLogicTest {
         assertTrue(s.contains("German, Mandarin"))
         assertFalse(ChatLogic.system(listOf(Lang.EN, Lang.ES)).contains("studying in the app now"))
     }
+
+    @Test fun threadsRoundTripNewestFirstAndCapped() {
+        val threads = (1L..12L).map { ChatThread(it, updatedAt = it * 1000, messages = listOf(user(1, "q$it"), model(2, "a$it"))) }
+        val back = ChatLogic.decodeThreads(ChatLogic.encodeThreads(threads))
+        assertEquals(ChatLogic.MAX_HISTORY, back.size)
+        assertEquals(12L, back.first().id)
+        assertEquals(threads.last(), back.first())
+    }
+
+    @Test fun titleIsTheFirstQuestionOrQuote() {
+        assertEquals("Por o para?", ChatLogic.title(listOf(user(1, "  Por o\npara? "), model(2, "…"))))
+        assertEquals("“Ich helfe dem Mann.”", ChatLogic.title(listOf(user(1, "", Quote("Ich helfe dem Mann.")))))
+        assertTrue(ChatLogic.title(listOf(user(1, "x".repeat(200)))).endsWith("…"))
+    }
 }

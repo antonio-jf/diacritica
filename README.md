@@ -172,7 +172,7 @@ Home › Ask (can also go in the bottom bar) is a chat with Gemini (your key) fo
 
 - **Ask about a piece of text:** long-press and select text in Books, Rehearse feedback, Test reviews, full lessons, Translate results or an explanation (Reader and Books), then tap **Ask** next to Copy. Ask opens with the text quoted above the box; type your question, or just send to have it explained. In the Reader, tap a sentence and then **Ask** in its bar.
 - **From other apps:** select text in Chrome, Kindle or anywhere else and pick *Ask Diacritica* in the selection menu.
-- **Follow-ups:** the conversation is kept (also after closing the app) until you tap *New chat*. Select part of an answer and tap Ask to ask about exactly that. The last 24 messages are sent as context.
+- **Follow-ups and history:** the conversation is kept (also after closing the app). *New chat* starts an empty one and keeps the old one under *Earlier chats* (the clock icon): your last 10, newest first; tap one to continue it, or delete it. Select part of an answer and tap Ask to ask about exactly that. The last 24 messages are sent as context.
 
 ## Grammar
 

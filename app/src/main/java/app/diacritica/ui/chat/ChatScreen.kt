@@ -74,6 +74,16 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
     var input by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     val noKey = settings.geminiKey.isBlank()
+    var showHistory by rememberSaveable { mutableStateOf(false) }
+    if (showHistory) {
+        androidx.activity.compose.BackHandler { showHistory = false }
+        HistoryView(
+            past = st.past, onClose = { showHistory = false },
+            onOpen = { id -> chat.open(id); input = ""; showHistory = false },
+            onDelete = chat::delete,
+        )
+        return
+    }
 
     // Keep the newest message (or "Thinking…") in view.
     val itemCount = (if (noKey) 1 else 0) + (if (st.messages.isEmpty()) 1 else 0) + st.messages.size +
@@ -84,6 +94,7 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) PolyIconButton(PolyIcons.Back, "Back", onBack, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
             ScreenHeader("Ask", Modifier.weight(1f)) {
+                if (st.past.isNotEmpty()) PolyIconButton(PolyIcons.History, "Earlier chats", { showHistory = true }, tint = c.inkMuted)
                 if (st.messages.isNotEmpty() || st.pendingQuote != null) {
                     PolyIconButton(PolyIcons.NewChat, "New chat", { chat.newChat(); input = "" }, tint = c.inkMuted)
                 }
@@ -267,4 +278,52 @@ private fun LinkText(text: String, onClick: () -> Unit) {
         text, style = captionStyle(Diacritica.colors.accent),
         modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick).padding(vertical = 6.dp),
     )
+}
+
+/** Earlier conversations (newest first): tap one to continue it, the bin to delete it. */
+@Composable
+private fun HistoryView(
+    past: List<app.diacritica.chat.ChatThread>,
+    onClose: () -> Unit, onOpen: (Long) -> Unit, onDelete: (Long) -> Unit,
+) {
+    val c = Diacritica.colors
+    val pad = Diacritica.spacing.screen
+    Column(Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Back, "Back to the chat", onClose, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
+            ScreenHeader("Earlier chats", Modifier.weight(1f))
+        }
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = pad, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (past.isEmpty()) item { Text("No earlier chats yet. New chat keeps the current one here.", style = bodyStyle(c.inkMuted, 15.sp)) }
+            else item {
+                Text(
+                    "Your last ${app.diacritica.chat.ChatLogic.MAX_HISTORY} chats. Opening one keeps the current chat here.",
+                    style = captionStyle(c.inkMuted),
+                )
+            }
+            items(past, key = { it.id }) { t ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surface)
+                        .clickable { onOpen(t.id) }.padding(start = 14.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(t.title, style = bodyStyle(size = 16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val answers = t.messages.count { !it.fromUser }
+                        Text(
+                            android.text.format.DateUtils.getRelativeTimeSpanString(
+                                t.updatedAt, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
+                            ).toString() + " · " + (if (answers == 1) "1 answer" else "$answers answers"),
+                            style = captionStyle(c.inkMuted),
+                        )
+                    }
+                    PolyIconButton(PolyIcons.Trash, "Delete chat", { onDelete(t.id) }, tint = c.inkMuted)
+                }
+            }
+        }
+    }
 }
