@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- New Settings icon: a symmetric 8-tooth gear, sized like the other bar icons (the old hand-drawn one had uneven teeth).
 - Smaller updates: each release now also publishes patches from the last three versions. The app downloads only the patch for the version you have (about 1–3 MB instead of the whole app), rebuilds the new APK from the installed one, checks it against the release checksum and installs it. If the patch can't be used (for example after installing from Android Studio) it downloads the full APK by itself. To make patches small, the app's code is stored uncompressed: the full APK is ~62 MB instead of ~41 MB.
 - Updates without the install prompt (Android 12+): updates install through Android's package installer; once Diacritica has installed itself once, later updates skip the "Do you want to install this update?" screen. The app closes to update and a notification ("Diacritica updated · Tap to open") brings you back.
 - Ask: a chat with Gemini for grammar and language questions (Home tile, can go in the bottom bar). Select text in Books, Rehearse feedback, Test reviews, full lessons, Translate or an explanation and tap **Ask** next to Copy: the chat opens with the text quoted, ready for your question (or send it alone to have it explained). The Reader's sentence bar has Ask too, and other apps' selection menu has *Ask Diacritica*. The conversation is kept until New chat; select part of an answer to ask a follow-up about it.
