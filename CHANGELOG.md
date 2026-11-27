@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Lesson of the day: the reminder line uses the app's own bell icon (a crossed-out bell when off) instead of the 🔔 emoji.
 - Ask sticks to languages: grammar, words, pronunciation, translation, and culture or etiquette tied to a language. Other questions get a one-line redirect. Make a lesson / Make a test only appear under answers about a grammar point (not under a word translation, spelling, culture or off-topic answer); if one doesn't fit anyway, it says so instead of writing an odd lesson.
 - Ask: Make a lesson and Make a test under each answer. They work out the language and grammar point from that exchange and write a full lesson (Grammar › Full lessons) or an 8-sentence test aimed at it (Tests › Your tests, at your story level). A link under the answer opens the lesson or starts the test in that language; the links are kept with the chat.
 - Ask: Earlier chats (clock icon in Ask): your last 10 conversations, newest first, with their first question and when you last asked. Tap one to continue it (the current chat moves to the list); delete with the bin. New chat no longer throws the old conversation away.
