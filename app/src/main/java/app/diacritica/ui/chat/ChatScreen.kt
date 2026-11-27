@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.diacritica.DiacriticaApp
 import app.diacritica.chat.ChatMessage
+import app.diacritica.chat.Made
 import app.diacritica.chat.Quote
 import app.diacritica.data.Lang
 import app.diacritica.settings.AppSettings
@@ -65,7 +66,13 @@ import app.diacritica.ui.theme.Diacritica
  * app, with "Ask Diacritica") arrives here as a quote above the input, ready for your question.
  */
 @Composable
-fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () -> Unit) {
+fun ChatScreen(
+    settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () -> Unit,
+    /** Opens a full lesson made from an answer (by its key). */
+    onOpenLesson: (String) -> Unit = {},
+    /** Starts a test made from an answer (by its id), translating into [Lang] when known. */
+    onOpenTest: (String, Lang?) -> Unit = { _, _ -> },
+) {
     val context = LocalContext.current
     val chat = remember { (context.applicationContext as DiacriticaApp).container.chat }
     val st by chat.state.collectAsStateWithLifecycle()
@@ -74,6 +81,16 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
     var input by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     val noKey = settings.geminiKey.isBlank()
+    var showHistory by rememberSaveable { mutableStateOf(false) }
+    if (showHistory) {
+        androidx.activity.compose.BackHandler { showHistory = false }
+        HistoryView(
+            past = st.past, onClose = { showHistory = false },
+            onOpen = { id -> chat.open(id); input = ""; showHistory = false },
+            onDelete = chat::delete,
+        )
+        return
+    }
 
     // Keep the newest message (or "Thinking…") in view.
     val itemCount = (if (noKey) 1 else 0) + (if (st.messages.isEmpty()) 1 else 0) + st.messages.size +
@@ -84,6 +101,7 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) PolyIconButton(PolyIcons.Back, "Back", onBack, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
             ScreenHeader("Ask", Modifier.weight(1f)) {
+                if (st.past.isNotEmpty()) PolyIconButton(PolyIcons.History, "Earlier chats", { showHistory = true }, tint = c.inkMuted)
                 if (st.messages.isNotEmpty() || st.pendingQuote != null) {
                     PolyIconButton(PolyIcons.NewChat, "New chat", { chat.newChat(); input = "" }, tint = c.inkMuted)
                 }
@@ -99,7 +117,17 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
                 Intro(settings.activeLanguages) { q -> input = q }
             }
             items(st.messages, key = { it.id }) { m ->
-                if (m.fromUser) UserBubble(m) else ModelAnswer(m)
+                if (m.fromUser) UserBubble(m)
+                else ModelAnswer(
+                    m, making = st.making[m.id], error = st.makeErrors[m.id], canMake = !noKey,
+                    onMake = { kind -> chat.make(m.id, kind) },
+                    onOpen = { made ->
+                        when (made.kind) {
+                            Made.Kind.LESSON -> onOpenLesson(made.ref)
+                            Made.Kind.TEST -> onOpenTest(made.ref, made.lang)
+                        }
+                    },
+                )
             }
             if (st.busy) item(key = "busy") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -193,7 +221,10 @@ private fun UserBubble(m: ChatMessage) {
 }
 
 @Composable
-private fun ModelAnswer(m: ChatMessage) {
+private fun ModelAnswer(
+    m: ChatMessage, making: Made.Kind?, error: String?, canMake: Boolean,
+    onMake: (Made.Kind) -> Unit, onOpen: (Made) -> Unit,
+) {
     val c = Diacritica.colors
     val clipboard = LocalClipboardManager.current
     Column {
@@ -201,10 +232,42 @@ private fun ModelAnswer(m: ChatMessage) {
         Askable(source = "from your earlier answer") {
             Text(InlineMarkdown.render(m.text, c.ink), style = bodyStyle(size = 16.sp))
         }
-        Row(Modifier.padding(top = 2.dp)) {
-            PolyIconButton(PolyIcons.Copy, "Copy answer", { clipboard.setText(AnnotatedString(InlineMarkdown.render(m.text).text)) }, tint = c.inkMuted)
+        // Lessons and tests already made from this answer.
+        m.made.forEach { made ->
+            Row(
+                Modifier.padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(c.surface).clickable { onOpen(made) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val what = if (made.kind == Made.Kind.LESSON) "Lesson" else "Test"
+                Text("$what: ", style = captionStyle(c.inkMuted))
+                Text(made.title, style = captionStyle(c.ink), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(if (made.kind == Made.Kind.LESSON) "  Open ›" else "  Start ›", style = captionStyle(c.accent))
+            }
         }
+        Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Copy, "Copy answer", { clipboard.setText(AnnotatedString(InlineMarkdown.render(m.text).text)) }, tint = c.inkMuted)
+            when {
+                making != null -> Text(
+                    if (making == Made.Kind.LESSON) "Writing a lesson…" else "Writing a test…",
+                    style = captionStyle(c.accent), modifier = Modifier.padding(start = 8.dp),
+                )
+                canMake && (m.teachable || m.made.isNotEmpty()) -> {
+                    MakeLink("Make a lesson") { onMake(Made.Kind.LESSON) }
+                    MakeLink("Make a test") { onMake(Made.Kind.TEST) }
+                }
+            }
+        }
+        error?.let { Text(it, style = captionStyle(c.error)) }
     }
+}
+
+@Composable
+private fun MakeLink(text: String, onClick: () -> Unit) {
+    Text(
+        text, style = captionStyle(Diacritica.colors.accent),
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 10.dp),
+    )
 }
 
 /** A quoted passage: a bar on the left, where it's from, and the text (cut after a few lines). */
@@ -267,4 +330,52 @@ private fun LinkText(text: String, onClick: () -> Unit) {
         text, style = captionStyle(Diacritica.colors.accent),
         modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick).padding(vertical = 6.dp),
     )
+}
+
+/** Earlier conversations (newest first): tap one to continue it, the bin to delete it. */
+@Composable
+private fun HistoryView(
+    past: List<app.diacritica.chat.ChatThread>,
+    onClose: () -> Unit, onOpen: (Long) -> Unit, onDelete: (Long) -> Unit,
+) {
+    val c = Diacritica.colors
+    val pad = Diacritica.spacing.screen
+    Column(Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Back, "Back to the chat", onClose, tint = c.ink, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
+            ScreenHeader("Earlier chats", Modifier.weight(1f))
+        }
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = pad, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (past.isEmpty()) item { Text("No earlier chats yet. New chat keeps the current one here.", style = bodyStyle(c.inkMuted, 15.sp)) }
+            else item {
+                Text(
+                    "Your last ${app.diacritica.chat.ChatLogic.MAX_HISTORY} chats. Opening one keeps the current chat here.",
+                    style = captionStyle(c.inkMuted),
+                )
+            }
+            items(past, key = { it.id }) { t ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surface)
+                        .clickable { onOpen(t.id) }.padding(start = 14.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(t.title, style = bodyStyle(size = 16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val answers = t.messages.count { !it.fromUser }
+                        Text(
+                            android.text.format.DateUtils.getRelativeTimeSpanString(
+                                t.updatedAt, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
+                            ).toString() + " · " + (if (answers == 1) "1 answer" else "$answers answers"),
+                            style = captionStyle(c.inkMuted),
+                        )
+                    }
+                    PolyIconButton(PolyIcons.Trash, "Delete chat", { onDelete(t.id) }, tint = c.inkMuted)
+                }
+            }
+        }
+    }
 }

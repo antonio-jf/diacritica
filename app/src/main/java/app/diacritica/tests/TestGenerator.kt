@@ -28,6 +28,8 @@ data class TestRequest(
     /** A GrammarTopics key, or "mixed". */
     val focus: String = "mixed",
     val topic: String = "",
+    /** A grammar point every sentence must practise, in words (from an Ask conversation); empty for none. */
+    val practise: String = "",
 )
 
 /** Writes a new test with Gemini: English sentences with their Spanish version, to translate into your languages. */
@@ -41,6 +43,7 @@ object TestGenerator {
         appendLine("Length: ${r.length.words} each.")
         if (r.focus != "mixed") appendLine("Every sentence must require: ${GrammarTopics.byKey(r.focus).instruction}.")
         else appendLine("Mix grammar points that learners at this level often get wrong (tenses, pronouns, agreement, prepositions, word order…).")
+        if (r.practise.isNotBlank()) appendLine("Every sentence must practise this, so that translating it into the target language needs it: ${r.practise.trim()}.")
         if (r.topic.isNotBlank()) appendLine("Theme: ${r.topic.trim()}.")
         appendLine("Natural, everyday sentences with varied situations; no two alike.")
         appendLine("For each: \"en\" (English), \"es\" (the same sentence in natural Spanish), and \"hint\" (optional, a few words naming the trap, e.g. \"German: dative after mit\"; empty if none).")

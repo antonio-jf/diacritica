@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,11 +105,20 @@ fun DailyLessonCard(onOpen: (String) -> Unit) {
             }
         }
         Gap(8.dp)
-        Text(
-            if (st.notify) "🔔 Daily reminder at %d:%02d".format(st.notifyAt / 60, st.notifyAt % 60) else "🔔 Daily reminder: off",
-            style = captionStyle(c.inkMuted),
-            modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button) { reminder = true }.padding(vertical = 6.dp),
-        )
+        Row(
+            Modifier.clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button) { reminder = true }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.Icon(
+                if (st.notify) PolyIcons.Bell else PolyIcons.BellOff, contentDescription = null,
+                tint = if (st.notify) c.accent else c.inkMuted, modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (st.notify) "Daily reminder at %d:%02d".format(st.notifyAt / 60, st.notifyAt % 60) else "Daily reminder: off",
+                style = captionStyle(c.inkMuted),
+            )
+        }
     }
     if (reminder) ReminderSheet(onDismiss = { reminder = false })
 }

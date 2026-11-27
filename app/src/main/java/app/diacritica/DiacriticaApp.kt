@@ -61,7 +61,7 @@ class AppContainer(app: Application) {
     /** Work in progress that should survive Android closing the app in the background (Rehearse answers). */
     val drafts: android.content.SharedPreferences = app.getSharedPreferences("drafts", android.content.Context.MODE_PRIVATE)
     /** The Ask chat (one conversation, kept until you start a new one). */
-    val chat by lazy { ChatSession(gemini, settings, drafts) }
+    val chat by lazy { ChatSession(gemini, settings, drafts, lessons, tests) }
 }
 
 class DiacriticaApp : Application() {

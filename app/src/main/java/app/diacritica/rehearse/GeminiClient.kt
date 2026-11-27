@@ -530,9 +530,9 @@ class GeminiClient {
 
     /**
      * A free-text reply to a conversation (the Ask chat). Consecutive turns of the same role are merged, since
-     * Gemini expects user and model turns to alternate.
+     * Gemini expects user and model turns to alternate. With a [schema] the reply is JSON (as text).
      */
-    suspend fun chat(apiKey: String, model: String, system: String, turns: List<Turn>): String {
+    suspend fun chat(apiKey: String, model: String, system: String, turns: List<Turn>, schema: JsonObject? = null): String {
         val merged = mutableListOf<Turn>()
         turns.filter { it.text.isNotBlank() }.forEach { t ->
             val last = merged.lastOrNull()
@@ -547,7 +547,7 @@ class GeminiClient {
                 })
             }
         }
-        val out = callText(apiKey, model, system, contents, schema = null).trim()
+        val out = callText(apiKey, model, system, contents, schema).trim()
         if (out.isEmpty()) throw GeminiException("Gemini returned an empty answer. Try again.")
         return out
     }
