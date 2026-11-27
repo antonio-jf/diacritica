@@ -70,12 +70,40 @@ jobs:
           APK="diacritica-$VERSION.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           sha256sum "$APK" > "$APK.sha256"
+
+          # Update patches from the last 3 releases: the phone downloads only the patch for the version
+          # it has (often 1–3 MB instead of the whole APK) and rebuilds this exact APK (update/Bspatch.kt).
+          # Every patch is applied once here and checked before it's published; a failure just skips it.
+          pip install --quiet bsdiff4 numpy
+          mkdir -p old
+          FILES=("$APK" "$APK.sha256")
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=20" \
+            --jq '.[] | select(.draft | not) | select(.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")) | select(any(.assets[]; .name | endswith(".apk"))) | .tag_name' \
+            | grep -vx "v$VERSION" | head -3 > previous.txt || true
+          while read -r TAG; do
+            N="${TAG##*.}"
+            PATCH="diacritica-$VERSION-from-$N.patch"
+            gh release download "$TAG" --pattern '*.apk' --output "old/$N.apk" || { echo "No APK for $TAG"; continue; }
+            if python3 pipeline/make_patch.py "old/$N.apk" "$APK" "$PATCH" && python3 -c "
+          import sys; sys.path.insert(0, 'pipeline'); import make_patch as m
+          new = open('$APK', 'rb').read()
+          assert m.apply(open('old/$N.apk', 'rb').read(), open('$PATCH', 'rb').read()) == new
+          import os; assert os.path.getsize('$PATCH') < 0.8 * len(new), 'patch too big to be worth it'
+          "; then
+              FILES+=("$PATCH")
+              echo "Patch from $TAG: $(du -h "$PATCH" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::No patch from $TAG"
+              rm -f "$PATCH"
+            fi
+          done < previous.txt
+
           if gh release view "v$VERSION" > /dev/null 2>&1; then
             # Re-run on the same commit: replace the files.
-            gh release upload "v$VERSION" "$APK" "$APK.sha256" --clobber
+            gh release upload "v$VERSION" "${FILES[@]}" --clobber
             exit 0
           fi
-          gh release create "v$VERSION" "$APK" "$APK.sha256" \
+          gh release create "v$VERSION" "${FILES[@]}" \
             --target "$GITHUB_SHA" \
             --title "Diacritica $VERSION" \
             --generate-notes \

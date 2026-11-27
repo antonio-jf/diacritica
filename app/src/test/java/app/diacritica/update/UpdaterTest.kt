@@ -28,6 +28,19 @@ class UpdaterTest {
         assertEquals(true, (Updater.versionOf("v1.0.107") ?: 0) > (Updater.versionOf("v0.3.105") ?: 0))
     }
 
+    @Test fun readsPatches() {
+        val arr = Json.parseToJsonElement(
+            """[{"tag_name": "v1.0.180", "draft": false, "html_url": "h", "assets": [
+                 {"name": "diacritica-1.0.180.apk", "size": 62000000, "browser_download_url": "full"},
+                 {"name": "diacritica-1.0.180-from-177.patch", "size": 1400000, "browser_download_url": "p177"},
+                 {"name": "diacritica-1.0.180-from-170.patch", "size": 11000000, "browser_download_url": "p170"}]}]""",
+        ) as JsonArray
+        val r = Updater.parseReleases(arr).single()
+        assertEquals("full", r.apkUrl)
+        assertEquals(listOf(177 to "p177", 170 to "p170"), r.patches.map { it.from to it.url })
+        assertEquals(1400000L, r.patches.first().bytes)
+    }
+
     @Test fun parsesReleasesSkippingDataPacks() {
         val arr = Json.parseToJsonElement(
             """[

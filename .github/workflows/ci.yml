@@ -72,6 +72,12 @@ jobs:
             DIACRITICA_KEY_PASSWORD=cipass1234 ./gradlew --stacktrace assembleRelease
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep "CN=CI"
+          # Update patches stay small only if the code (.dex) is stored uncompressed (packaging.dex in build.gradle.kts).
+          unzip -v app/build/outputs/apk/release/app-release.apk | grep '\.dex$'
+          if unzip -v app/build/outputs/apk/release/app-release.apk | grep '\.dex$' | grep -qv ' Stored '; then
+            echo "::error::.dex files are compressed in the APK; update patches would be ~11 MB instead of ~1–3 MB"; exit 1
+          fi
+          echo "Release APK: $(du -h app/build/outputs/apk/release/app-release.apk | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
       - name: Room schema is committed
         # A schema change without a committed schema JSON breaks auto-migrations for existing installs.
         run: git status --porcelain app/schemas && test -z "$(git status --porcelain app/schemas)"
