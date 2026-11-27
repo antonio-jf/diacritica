@@ -3,6 +3,7 @@ package app.diacritica.chat
 import android.content.SharedPreferences
 import app.diacritica.data.Lang
 import app.diacritica.rehearse.GeminiClient
+import app.diacritica.rehearse.GrammarTopics
 import app.diacritica.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,11 +27,18 @@ import kotlinx.serialization.json.put
 /** Text you're asking about: what was selected and where it came from ("Reader", "From “Der Prozess”"…). */
 data class Quote(val text: String, val source: String? = null)
 
+/** A lesson or test made from an answer: [ref] is the lesson key or the test id. */
+data class Made(val kind: Kind, val title: String, val ref: String, val lang: Lang?) {
+    enum class Kind { LESSON, TEST }
+}
+
 data class ChatMessage(
     val id: Long,
     val fromUser: Boolean,
     val text: String,
     val quote: Quote? = null,
+    /** Lessons and tests made from this answer. */
+    val made: List<Made> = emptyList(),
 )
 
 /** A finished (or set-aside) conversation, kept in Ask's history. */
@@ -46,6 +54,10 @@ data class ChatState(
     val pendingQuote: Quote? = null,
     val busy: Boolean = false,
     val error: String? = null,
+    /** Answers whose lesson or test is being written, by message id. */
+    val making: Map<Long, Made.Kind> = emptyMap(),
+    /** Why making a lesson or test from an answer failed, by message id. */
+    val makeErrors: Map<Long, String> = emptyMap(),
 )
 
 /**
@@ -56,6 +68,8 @@ class ChatSession(
     private val gemini: GeminiClient,
     private val settings: SettingsRepository,
     private val prefs: SharedPreferences,
+    private val lessons: app.diacritica.grammar.LessonLibrary,
+    private val tests: app.diacritica.tests.TestStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(
@@ -162,6 +176,57 @@ class ChatSession(
         }
     }
 
+    /**
+     * Writes a full lesson (Grammar › Full lessons) or a translation test (Tests › Your tests) on what the
+     * answer [answerId] and the question before it are about. Gemini first works out the language and the
+     * grammar point, then the lesson or test is written as usual.
+     */
+    fun make(answerId: Long, kind: Made.Kind) {
+        if (answerId in _state.value.making) return
+        val messages = _state.value.messages
+        val exchange = ChatLogic.exchange(messages, answerId) ?: return
+        _state.update { it.copy(making = it.making + (answerId to kind), makeErrors = it.makeErrors - answerId) }
+        val threadId = currentId
+        scope.launch {
+            val result = runCatching {
+                val s = settings.settings.first()
+                if (s.geminiKey.isBlank()) throw GeminiClient.GeminiException("Lessons and tests are written by Gemini: add your API key in Settings.")
+                val langs = s.activeLanguages
+                val out = gemini.generateJson(s.geminiKey, s.geminiModel, ChatLogic.planPrompt(exchange, langs), ChatLogic.planSchema(langs), ChatLogic.PLAN_SYSTEM)
+                val plan = ChatLogic.parsePlan(out, langs) ?: throw GeminiClient.GeminiException("Couldn't tell which grammar point this is about. Ask a more specific question first.")
+                when (kind) {
+                    Made.Kind.LESSON -> {
+                        val key = lessons.askNow(plan.lesson, plan.lang).getOrThrow()
+                        Made(kind, lessons.full.value[key]?.title ?: plan.lesson, key, plan.lang)
+                    }
+                    Made.Kind.TEST -> {
+                        val r = app.diacritica.tests.TestRequest(
+                            level = s.storyLevel, hsk = s.storyHsk, length = app.diacritica.tests.SentenceLength.MEDIUM,
+                            count = 8, focus = plan.focus, practise = plan.practise,
+                        )
+                        val t = app.diacritica.tests.TestGenerator.generate(gemini, s.geminiKey, s.geminiModel, r)
+                        tests.addGenerated(t)
+                        Made(kind, t.title, t.id, plan.lang.takeIf { it != Lang.EN && it != Lang.ES })
+                    }
+                }
+            }
+            result.onSuccess { made ->
+                fun List<ChatMessage>.withMade() = map { if (it.id == answerId) it.copy(made = it.made + made) else it }
+                _state.update { st ->
+                    // The conversation may have been swapped for another one meanwhile: the record goes to it either way.
+                    if (threadId == currentId) st.copy(messages = st.messages.withMade(), making = st.making - answerId)
+                    else st.copy(past = st.past.map { t -> if (t.id == threadId) t.copy(messages = t.messages.withMade()) else t }, making = st.making - answerId)
+                }
+                save()
+            }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                val msg = (e as? GeminiClient.GeminiException)?.message
+                    ?: if (e is java.io.IOException) "No connection. Connect to write it." else "Couldn't write it. Try again."
+                _state.update { if (threadId == currentId) it.copy(making = it.making - answerId, makeErrors = it.makeErrors + (answerId to msg)) else it.copy(making = it.making - answerId) }
+            }
+        }
+    }
+
     private fun nextId(): Long = (_state.value.messages.maxOfOrNull { it.id } ?: 0L) + 1
 
     private fun save() {
@@ -241,9 +306,65 @@ object ChatLogic {
                 put("user", m.fromUser)
                 put("text", m.text)
                 m.quote?.let { q -> put("quote", q.text); q.source?.let { put("source", it) } }
+                if (m.made.isNotEmpty()) put("made", buildJsonArray {
+                    m.made.forEach { x ->
+                        add(buildJsonObject {
+                            put("kind", x.kind.name); put("title", x.title); put("ref", x.ref)
+                            x.lang?.let { put("lang", it.code) }
+                        })
+                    }
+                })
             })
         }
     }.toString()
+
+    const val PLAN_SYSTEM = "You read a conversation from a language-learning app and say precisely which grammar point it is about."
+
+    /** The question before answer [answerId] (with its quote) and the answer, as text; null if there's no such answer. */
+    fun exchange(messages: List<ChatMessage>, answerId: Long): String? {
+        val i = messages.indexOfFirst { it.id == answerId && !it.fromUser }
+        if (i < 0) return null
+        val question = messages.subList(0, i).lastOrNull { it.fromUser }
+        return buildString {
+            question?.let { appendLine("Learner:"); appendLine(userText(it)); appendLine() }
+            appendLine("Tutor:")
+            append(messages[i].text.take(6_000))
+        }
+    }
+
+    fun planPrompt(exchange: String, langs: List<Lang>): String = buildString {
+        appendLine("Here is part of a conversation between a learner and a tutor:")
+        appendLine("<<<")
+        appendLine(exchange)
+        appendLine(">>>")
+        appendLine()
+        appendLine("The learner wants a full grammar lesson and/or a translation test on what this is about.")
+        appendLine("- \"lang\": the language whose grammar it's about (one of: ${langs.joinToString { it.code }}).")
+        appendLine("- \"lesson\": what the lesson should teach, in English, one line naming the structure and the language (e.g. \"German dative after mit, bei and zu\", \"了 vs 过 for past experiences in Mandarin\").")
+        appendLine("- \"practise\": what every test sentence must require when translated into that language, in English, one line (e.g. \"the dative after mit, bei or zu in German\").")
+        append("- \"focus\": the closest of these keys, or \"mixed\" if none fits: ${GrammarTopics.all.joinToString { it.key }}.")
+    }
+
+    fun planSchema(langs: List<Lang>) = buildJsonObject {
+        put("type", "OBJECT")
+        put("properties", buildJsonObject {
+            put("lang", buildJsonObject { put("type", "STRING"); put("enum", buildJsonArray { langs.forEach { add(JsonPrimitive(it.code)) } }) })
+            put("lesson", buildJsonObject { put("type", "STRING") })
+            put("practise", buildJsonObject { put("type", "STRING") })
+            put("focus", buildJsonObject { put("type", "STRING"); put("enum", buildJsonArray { GrammarTopics.all.forEach { add(JsonPrimitive(it.key)) } }) })
+        })
+        put("required", buildJsonArray { listOf("lang", "lesson", "practise", "focus").forEach { add(JsonPrimitive(it)) } })
+    }
+
+    data class Plan(val lang: Lang, val lesson: String, val practise: String, val focus: String)
+
+    fun parsePlan(o: JsonObject, langs: List<Lang>): Plan? {
+        fun str(k: String) = (o[k] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        val lang = langs.firstOrNull { it.code == str("lang") } ?: return null
+        val lesson = str("lesson").ifEmpty { return null }
+        val focus = str("focus").takeIf { k -> GrammarTopics.all.any { it.key == k } } ?: "mixed"
+        return Plan(lang, lesson, str("practise").ifEmpty { lesson }, focus)
+    }
 
     /** A conversation's name in the history: its first question (or quote), on one line. */
     fun title(messages: List<ChatMessage>): String {
@@ -291,6 +412,15 @@ object ChatLogic {
                     fromUser = str("user") == "true",
                     text = str("text").orEmpty(),
                     quote = str("quote")?.let { Quote(it, str("source")) },
+                    made = (o["made"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { x ->
+                        val mo = x as? JsonObject ?: return@mapNotNull null
+                        fun ms(k: String) = (mo[k] as? JsonPrimitive)?.contentOrNull
+                        Made(
+                            kind = runCatching { Made.Kind.valueOf(ms("kind").orEmpty()) }.getOrNull() ?: return@mapNotNull null,
+                            title = ms("title").orEmpty(), ref = ms("ref") ?: return@mapNotNull null,
+                            lang = ms("lang")?.let { c -> Lang.entries.firstOrNull { it.code == c } },
+                        )
+                    },
                 )
             }
         }.getOrDefault(emptyList())

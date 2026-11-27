@@ -289,6 +289,21 @@ fun AppRoot(
                         app.diacritica.ui.chat.ChatScreen(
                             s, onBack = if (Tab.ASK in barTabs) null else ({ nav.popBackStack() }),
                             onOpenSettings = { nav.goTo(Tab.SETTINGS) },
+                            onOpenLesson = { key -> nav.navigate("lesson/" + android.net.Uri.encode(key)) },
+                            onOpenTest = { id, lang ->
+                                val test = testsVm.generated.value.firstOrNull { it.id == id }
+                                if (test != null) {
+                                    val targets = lang?.let { listOf(it) } ?: testsVm.defaultTargets(s.activeLanguages, Lang.EN)
+                                    testsVm.start(test, Lang.EN, targets)
+                                }
+                                nav.navigate("tests")
+                            },
+                        )
+                    }
+                    composable("lesson/{key}") { entry ->
+                        app.diacritica.ui.grammar.SavedLessonScreen(
+                            entry.arguments?.getString("key").orEmpty(), onBack = { nav.popBackStack() },
+                            onPractise = { lesson -> testsVm.practiseFrom(lesson, -1L); nav.navigate("tests") },
                         )
                     }
                 }

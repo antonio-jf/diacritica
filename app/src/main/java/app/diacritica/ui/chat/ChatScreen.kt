@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.diacritica.DiacriticaApp
 import app.diacritica.chat.ChatMessage
+import app.diacritica.chat.Made
 import app.diacritica.chat.Quote
 import app.diacritica.data.Lang
 import app.diacritica.settings.AppSettings
@@ -65,7 +66,13 @@ import app.diacritica.ui.theme.Diacritica
  * app, with "Ask Diacritica") arrives here as a quote above the input, ready for your question.
  */
 @Composable
-fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () -> Unit) {
+fun ChatScreen(
+    settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () -> Unit,
+    /** Opens a full lesson made from an answer (by its key). */
+    onOpenLesson: (String) -> Unit = {},
+    /** Starts a test made from an answer (by its id), translating into [Lang] when known. */
+    onOpenTest: (String, Lang?) -> Unit = { _, _ -> },
+) {
     val context = LocalContext.current
     val chat = remember { (context.applicationContext as DiacriticaApp).container.chat }
     val st by chat.state.collectAsStateWithLifecycle()
@@ -110,7 +117,17 @@ fun ChatScreen(settings: AppSettings, onBack: (() -> Unit)?, onOpenSettings: () 
                 Intro(settings.activeLanguages) { q -> input = q }
             }
             items(st.messages, key = { it.id }) { m ->
-                if (m.fromUser) UserBubble(m) else ModelAnswer(m)
+                if (m.fromUser) UserBubble(m)
+                else ModelAnswer(
+                    m, making = st.making[m.id], error = st.makeErrors[m.id], canMake = !noKey,
+                    onMake = { kind -> chat.make(m.id, kind) },
+                    onOpen = { made ->
+                        when (made.kind) {
+                            Made.Kind.LESSON -> onOpenLesson(made.ref)
+                            Made.Kind.TEST -> onOpenTest(made.ref, made.lang)
+                        }
+                    },
+                )
             }
             if (st.busy) item(key = "busy") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -204,7 +221,10 @@ private fun UserBubble(m: ChatMessage) {
 }
 
 @Composable
-private fun ModelAnswer(m: ChatMessage) {
+private fun ModelAnswer(
+    m: ChatMessage, making: Made.Kind?, error: String?, canMake: Boolean,
+    onMake: (Made.Kind) -> Unit, onOpen: (Made) -> Unit,
+) {
     val c = Diacritica.colors
     val clipboard = LocalClipboardManager.current
     Column {
@@ -212,10 +232,42 @@ private fun ModelAnswer(m: ChatMessage) {
         Askable(source = "from your earlier answer") {
             Text(InlineMarkdown.render(m.text, c.ink), style = bodyStyle(size = 16.sp))
         }
-        Row(Modifier.padding(top = 2.dp)) {
-            PolyIconButton(PolyIcons.Copy, "Copy answer", { clipboard.setText(AnnotatedString(InlineMarkdown.render(m.text).text)) }, tint = c.inkMuted)
+        // Lessons and tests already made from this answer.
+        m.made.forEach { made ->
+            Row(
+                Modifier.padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(c.surface).clickable { onOpen(made) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val what = if (made.kind == Made.Kind.LESSON) "Lesson" else "Test"
+                Text("$what: ", style = captionStyle(c.inkMuted))
+                Text(made.title, style = captionStyle(c.ink), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(if (made.kind == Made.Kind.LESSON) "  Open ›" else "  Start ›", style = captionStyle(c.accent))
+            }
         }
+        Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            PolyIconButton(PolyIcons.Copy, "Copy answer", { clipboard.setText(AnnotatedString(InlineMarkdown.render(m.text).text)) }, tint = c.inkMuted)
+            when {
+                making != null -> Text(
+                    if (making == Made.Kind.LESSON) "Writing a lesson…" else "Writing a test…",
+                    style = captionStyle(c.accent), modifier = Modifier.padding(start = 8.dp),
+                )
+                canMake -> {
+                    MakeLink("Make a lesson") { onMake(Made.Kind.LESSON) }
+                    MakeLink("Make a test") { onMake(Made.Kind.TEST) }
+                }
+            }
+        }
+        error?.let { Text(it, style = captionStyle(c.error)) }
     }
+}
+
+@Composable
+private fun MakeLink(text: String, onClick: () -> Unit) {
+    Text(
+        text, style = captionStyle(Diacritica.colors.accent),
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 10.dp),
+    )
 }
 
 /** A quoted passage: a bar on the left, where it's from, and the text (cut after a few lines). */

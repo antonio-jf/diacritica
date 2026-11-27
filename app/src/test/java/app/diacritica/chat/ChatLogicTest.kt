@@ -69,4 +69,33 @@ class ChatLogicTest {
         assertEquals("“Ich helfe dem Mann.”", ChatLogic.title(listOf(user(1, "", Quote("Ich helfe dem Mann.")))))
         assertTrue(ChatLogic.title(listOf(user(1, "x".repeat(200)))).endsWith("…"))
     }
+
+    @Test fun madeLessonsAndTestsAreKept() {
+        val msgs = listOf(
+            user(1, "Dative?"),
+            ChatMessage(2, fromUser = false, text = "…", made = listOf(
+                Made(Made.Kind.LESSON, "Dative after mit", "de|dative", Lang.DE),
+                Made(Made.Kind.TEST, "Mit and bei", "gen-1", null),
+            )),
+        )
+        assertEquals(msgs, ChatLogic.decode(ChatLogic.encode(msgs)))
+    }
+
+    @Test fun exchangeTakesTheQuestionBeforeTheAnswer() {
+        val msgs = listOf(user(1, "old"), model(2, "old answer"), user(3, "Why dem?", Quote("mit dem Auto")), model(4, "Because mit takes the dative."))
+        val e = ChatLogic.exchange(msgs, 4)!!
+        assertTrue(e.contains("mit dem Auto") && e.contains("Why dem?") && e.contains("takes the dative"))
+        assertFalse(e.contains("old answer"))
+        assertEquals(null, ChatLogic.exchange(msgs, 3))
+    }
+
+    @Test fun planNeedsAKnownLanguage() {
+        val langs = listOf(Lang.EN, Lang.DE)
+        fun obj(s: String) = kotlinx.serialization.json.Json.parseToJsonElement(s) as kotlinx.serialization.json.JsonObject
+        val p = ChatLogic.parsePlan(obj("""{"lang":"de","lesson":"German dative after mit","practise":"","focus":"nope"}"""), langs)!!
+        assertEquals(Lang.DE, p.lang)
+        assertEquals("mixed", p.focus)
+        assertEquals("German dative after mit", p.practise)
+        assertEquals(null, ChatLogic.parsePlan(obj("""{"lang":"fr","lesson":"x","practise":"x","focus":"mixed"}"""), langs))
+    }
 }

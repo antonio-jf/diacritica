@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Ask: Make a lesson and Make a test under each answer. They work out the language and grammar point from that exchange and write a full lesson (Grammar › Full lessons) or an 8-sentence test aimed at it (Tests › Your tests, at your story level). A link under the answer opens the lesson or starts the test in that language; the links are kept with the chat.
 - Ask: Earlier chats (clock icon in Ask): your last 10 conversations, newest first, with their first question and when you last asked. Tap one to continue it (the current chat moves to the list); delete with the bin. New chat no longer throws the old conversation away.
 - New Settings icon: a symmetric 8-tooth gear, sized like the other bar icons (the old hand-drawn one had uneven teeth).
 - Smaller updates: each release now also publishes patches from the last three versions. The app downloads only the patch for the version you have (about 1–3 MB instead of the whole app), rebuilds the new APK from the installed one, checks it against the release checksum and installs it. If the patch can't be used (for example after installing from Android Studio) it downloads the full APK by itself. To make patches small, the app's code is stored uncompressed: the full APK is ~62 MB instead of ~41 MB.
