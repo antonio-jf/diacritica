@@ -252,7 +252,7 @@ private fun ModelAnswer(
                     if (making == Made.Kind.LESSON) "Writing a lesson…" else "Writing a test…",
                     style = captionStyle(c.accent), modifier = Modifier.padding(start = 8.dp),
                 )
-                canMake -> {
+                canMake && (m.teachable || m.made.isNotEmpty()) -> {
                     MakeLink("Make a lesson") { onMake(Made.Kind.LESSON) }
                     MakeLink("Make a test") { onMake(Made.Kind.TEST) }
                 }

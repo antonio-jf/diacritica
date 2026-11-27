@@ -98,4 +98,31 @@ class ChatLogicTest {
         assertEquals("German dative after mit", p.practise)
         assertEquals(null, ChatLogic.parsePlan(obj("""{"lang":"fr","lesson":"x","practise":"x","focus":"mixed"}"""), langs))
     }
+
+    @Test fun replyIsReadFromJsonWithAPlainTextFallback() {
+        val r = ChatLogic.parseReply("""{"answer":"**Mit** takes the dative.","teachable":true}""")
+        assertEquals("**Mit** takes the dative.", r.answer)
+        assertTrue(r.teachable)
+        assertFalse(ChatLogic.parseReply("""{"answer":"Gato means cat.","teachable":false}""").teachable)
+        val plain = ChatLogic.parseReply("Just text")
+        assertEquals("Just text", plain.answer)
+        assertFalse(plain.teachable)
+    }
+
+    @Test fun teachableIsStoredAndOldAnswersKeepTheButtons() {
+        val msgs = listOf(user(1, "gato?"), ChatMessage(2, fromUser = false, text = "cat", teachable = false))
+        assertEquals(msgs, ChatLogic.decode(ChatLogic.encode(msgs)))
+        assertTrue(ChatLogic.decode("""[{"id":2,"user":false,"text":"old answer"}]""").single().teachable)
+    }
+
+    @Test fun planIsRefusedWhenItIsNotGrammar() {
+        val o = kotlinx.serialization.json.Json.parseToJsonElement("""{"grammar":false,"lang":"de","lesson":"Katze","practise":"","focus":"mixed"}""") as kotlinx.serialization.json.JsonObject
+        assertEquals(null, ChatLogic.parsePlan(o, listOf(Lang.DE)))
+    }
+
+    @Test fun systemPromptKeepsToLanguages() {
+        val s = ChatLogic.system(listOf(Lang.DE))
+        assertTrue(s.contains("you only help with languages"))
+        assertTrue(s.contains("\"teachable\""))
+    }
 }
