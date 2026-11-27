@@ -51,25 +51,50 @@ fun UpdatePanel(state: UpdateState, updater: Updater, compact: Boolean, modifier
             UpdateState.Checking -> Text("Checking for updates…", style = bodyStyle())
             UpdateState.UpToDate -> Text("Version ${updater.currentName}: up to date.", style = bodyStyle())
             is UpdateState.Available -> {
-                Text("Update available: ${state.release.tag.removePrefix("v")} (${mb(state.release.bytes)})", style = bodyStyle().copy(fontSize = 16.sp))
-                Text("You have ${updater.currentName}. The download resumes by itself if the connection drops, and is checked before installing.", style = captionStyle())
+                val patch = updater.patchFor(state.release)
+                Text("Update available: ${state.release.tag.removePrefix("v")} (${mb(updater.downloadSize(state.release))})", style = bodyStyle().copy(fontSize = 16.sp))
+                Text(
+                    "You have ${updater.currentName}. " +
+                        (if (patch != null) "Only the changes are downloaded (the full app is ${mb(state.release.bytes)}). " else "") +
+                        "The download resumes by itself if the connection drops, and is checked before installing.",
+                    style = captionStyle(),
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PolyButton("Download", { updater.download(state.release) })
                     PolyButton("What's new", { uri.openUri(state.release.notesUrl) }, primary = false)
                 }
             }
             is UpdateState.Downloading -> {
-                Text("Downloading ${state.release.tag.removePrefix("v")}… ${mb(state.done)} of ${mb(state.total)}", style = bodyStyle())
+                Text(
+                    (if (state.patch) "Downloading the changes for " else "Downloading ") +
+                        "${state.release.tag.removePrefix("v")}… ${mb(state.done)} of ${mb(state.total)}",
+                    style = bodyStyle(),
+                )
                 val f = if (state.total > 0) (state.done.toFloat() / state.total).coerceIn(0f, 1f) else 0f
                 Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(c.surfaceAlt)) {
                     Box(Modifier.fillMaxWidth(f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(c.accent))
                 }
                 Text("You can leave the app; it continues in the background.", style = captionStyle())
             }
+            is UpdateState.Preparing -> {
+                Text("Preparing ${state.release.tag.removePrefix("v")}…", style = bodyStyle())
+                androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent, trackColor = c.surfaceAlt)
+                Text("Putting the changes together with the installed app. A few seconds.", style = captionStyle())
+            }
             is UpdateState.Ready -> {
                 Text("Update ${state.release.tag.removePrefix("v")} downloaded and checked.", style = bodyStyle())
-                Text("The first time, Android asks to allow installs from Diacritica: allow it, come back and tap Install again.", style = captionStyle())
+                Text(
+                    if (updater.installsWithoutPrompt) "Tap Install: Diacritica closes, updates and a notification lets you open it again."
+                    else "Android asks you to confirm this time (the first time, also to allow installs from Diacritica: allow it, come back and tap Install again). " +
+                        (if (android.os.Build.VERSION.SDK_INT >= 31) "After this one, updates install without asking." else ""),
+                    style = captionStyle(),
+                )
                 PolyButton("Install", { updater.install(state.file) })
+            }
+            is UpdateState.Installing -> {
+                Text("Installing ${state.release.tag.removePrefix("v")}…", style = bodyStyle())
+                androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent, trackColor = c.surfaceAlt)
+                Text("Diacritica closes while it updates. Open it again from the notification or your home screen.", style = captionStyle())
             }
             is UpdateState.Failed -> {
                 Text(state.message, style = bodyStyle(c.error, 14.sp))
@@ -79,7 +104,9 @@ fun UpdatePanel(state: UpdateState, updater: Updater, compact: Boolean, modifier
                 }
             }
         }
-        if (!compact && state !is UpdateState.Downloading && state !is UpdateState.Ready && state !is UpdateState.Available) {
+        if (!compact && state !is UpdateState.Downloading && state !is UpdateState.Ready && state !is UpdateState.Available &&
+            state !is UpdateState.Preparing && state !is UpdateState.Installing
+        ) {
             PolyButton("Check for updates", { updater.check(force = true) }, primary = false)
         }
     }

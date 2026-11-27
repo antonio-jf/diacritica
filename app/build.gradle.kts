@@ -88,6 +88,12 @@ android {
         compose = true
         buildConfig = true // VERSION_CODE for the update check
     }
+    packaging {
+        // Code stored uncompressed in the APK: the installed file grows (~41 → ~62 MB) but update patches
+        // shrink from ~11 MB to ~1–3 MB, because changed code can be diffed byte by byte
+        // (pipeline/make_patch.py). Android runs uncompressed code straight from the APK.
+        dex { useLegacyPackaging = false }
+    }
     androidResources {
         // The prebuilt dictionary is copied out of assets byte-for-byte; keep it uncompressed.
         noCompress += "db"
